@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>IComplexAlphaItem | shriveling the world documentation</title>
+	<title>ILookupComplexAlphaCone | shriveling the world documentation</title>
 	<meta name="description" content="Documentation for shriveling the world documentation">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
@@ -59,10 +59,10 @@
 					<a href="../modules/_definitions_project_.html">&quot;definitions/project&quot;</a>
 				</li>
 				<li>
-					<a href="_definitions_project_.icomplexalphaitem.html">IComplexAlphaItem</a>
+					<a href="_definitions_project_.ilookupcomplexalphacone.html">ILookupComplexAlphaCone</a>
 				</li>
 			</ul>
-			<h1>Interface IComplexAlphaItem</h1>
+			<h1>Interface ILookupComplexAlphaCone</h1>
 		</div>
 	</div>
 </header>
@@ -72,69 +72,30 @@
 			<section class="tsd-panel tsd-comment">
 				<div class="tsd-comment tsd-typography">
 					<div class="lead">
-						<p>An item grouping for a fixed year and a fixed origin city datas to generate
-							a complex cone the slope for road and slope for each
-						destination city (clock) using a terrestrial transport.</p>
+						<p>It&#39;s a lookup mapping for a given year the slope angle between earth surface
+						and cone slope as cone radius is determined, it&#39;s the key parameter for cone geometries.</p>
 					</div>
+					<p>This slope (alpha) is determined by <img src="http://bit.ly/2tLfehC" alt="equation 1"></p>
 				</div>
 			</section>
 			<section class="tsd-panel tsd-hierarchy">
 				<h3>Hierarchy</h3>
 				<ul class="tsd-hierarchy">
 					<li>
-						<span class="target">IComplexAlphaItem</span>
+						<span class="target">ILookupComplexAlphaCone</span>
 					</li>
 				</ul>
 			</section>
-			<section class="tsd-panel-group tsd-index-group">
-				<h2>Index</h2>
-				<section class="tsd-panel tsd-index-panel">
-					<div class="tsd-index-content">
-						<section class="tsd-index-section ">
-							<h3>Properties</h3>
-							<ul class="tsd-index-list">
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="_definitions_project_.icomplexalphaitem.html#conealpha" class="tsd-kind-icon">cone<wbr>Alpha</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="_definitions_project_.icomplexalphaitem.html#tab" class="tsd-kind-icon">tab</a></li>
-							</ul>
-						</section>
+			<section class="tsd-panel tsd-kind-interface tsd-parent-kind-module">
+				<h3 class="tsd-before-signature">Indexable</h3>
+				<div class="tsd-signature tsd-kind-icon"><span class="tsd-signature-symbol">[</span>year: <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">]: </span><a href="_definitions_project_.icomplexalphacone.html" class="tsd-signature-type">IComplexAlphaCone</a></div>
+				<div class="tsd-comment tsd-typography">
+					<div class="lead">
+						<p>It&#39;s a lookup mapping for a given year the slope angle between earth surface
+						and cone slope as cone radius is determined, it&#39;s the key parameter for cone geometries.</p>
 					</div>
-				</section>
-			</section>
-			<section class="tsd-panel-group tsd-member-group ">
-				<h2>Properties</h2>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="conealpha" class="tsd-anchor"></a>
-					<h3>cone<wbr>Alpha</h3>
-					<div class="tsd-signature tsd-kind-icon">cone<wbr>Alpha<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
-					<aside class="tsd-sources">
-						<ul>
-							<li>Defined in <a href="https://github.com/kaktus40/shriveling_world/blob/033ec50/src/core/definitions/project.ts#L81">src/core/definitions/project.ts:81</a></li>
-						</ul>
-					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>This property represents the slope of the road transport for the considered year.</p>
-						</div>
-					</div>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="tab" class="tsd-anchor"></a>
-					<h3>tab</h3>
-					<div class="tsd-signature tsd-kind-icon">tab<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Array</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-symbol">{ </span>alpha<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span>clock<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> }</span><span class="tsd-signature-symbol">&gt;</span></div>
-					<aside class="tsd-sources">
-						<ul>
-							<li>Defined in <a href="https://github.com/kaktus40/shriveling_world/blob/033ec50/src/core/definitions/project.ts#L88">src/core/definitions/project.ts:88</a></li>
-						</ul>
-					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>This property lists for the considered year and the considered origin city
-								each destination city using a terrestrial transport. Each item of this
-								array is a clock in direction of the destination city and a slope
-							corresponding to the transport speed linking the two cities. This array can have zero item.</p>
-						</div>
-					</div>
-				</section>
+					<p>This slope (alpha) is determined by <img src="http://bit.ly/2tLfehC" alt="equation 1"></p>
+				</div>
 			</section>
 		</div>
 		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
@@ -213,21 +174,9 @@
 					<li class=" tsd-kind-interface tsd-parent-kind-module">
 						<a href="_definitions_project_.icitygraph.html" class="tsd-kind-icon">ICity<wbr>Graph</a>
 					</li>
-				</ul>
-				<ul class="current">
-					<li class="current tsd-kind-interface tsd-parent-kind-module">
-						<a href="_definitions_project_.icomplexalphaitem.html" class="tsd-kind-icon">IComplex<wbr>Alpha<wbr>Item</a>
-						<ul>
-							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="_definitions_project_.icomplexalphaitem.html#conealpha" class="tsd-kind-icon">cone<wbr>Alpha</a>
-							</li>
-							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="_definitions_project_.icomplexalphaitem.html#tab" class="tsd-kind-icon">tab</a>
-							</li>
-						</ul>
+					<li class=" tsd-kind-interface tsd-parent-kind-module">
+						<a href="_definitions_project_.icomplexalphacone.html" class="tsd-kind-icon">IComplex<wbr>Alpha<wbr>Cone</a>
 					</li>
-				</ul>
-				<ul class="after-current">
 					<li class=" tsd-kind-interface tsd-parent-kind-module">
 						<a href="_definitions_project_.icountrytextureurl.html" class="tsd-kind-icon">ICountry<wbr>TextureURL</a>
 					</li>
@@ -246,9 +195,13 @@
 					<li class=" tsd-kind-interface tsd-parent-kind-module">
 						<a href="_definitions_project_.ilookupcitygraph.html" class="tsd-kind-icon">ILookup<wbr>City<wbr>Graph</a>
 					</li>
-					<li class=" tsd-kind-interface tsd-parent-kind-module">
-						<a href="_definitions_project_.ilookupcomplexalpha.html" class="tsd-kind-icon">ILookup<wbr>Complex<wbr>Alpha</a>
+				</ul>
+				<ul class="current">
+					<li class="current tsd-kind-interface tsd-parent-kind-module">
+						<a href="_definitions_project_.ilookupcomplexalphacone.html" class="tsd-kind-icon">ILookup<wbr>Complex<wbr>Alpha<wbr>Cone</a>
 					</li>
+				</ul>
+				<ul class="after-current">
 					<li class=" tsd-kind-interface tsd-parent-kind-module">
 						<a href="_definitions_project_.ilookupcurvelist.html" class="tsd-kind-icon">ILookup<wbr>Curve<wbr>List</a>
 					</li>
@@ -329,11 +282,10 @@
 				<li class="tsd-kind-type-alias"><span class="tsd-kind-icon">Type alias</span></li>
 			</ul>
 			<ul class="tsd-legend">
-				<li class="tsd-kind-interface"><span class="tsd-kind-icon">Interface</span></li>
-				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-enum"><span class="tsd-kind-icon">Enumeration</span></li>
 			</ul>
 			<ul class="tsd-legend">
-				<li class="tsd-kind-enum"><span class="tsd-kind-icon">Enumeration</span></li>
+				<li class="tsd-kind-interface"><span class="tsd-kind-icon">Interface</span></li>
 			</ul>
 			<ul class="tsd-legend">
 				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
