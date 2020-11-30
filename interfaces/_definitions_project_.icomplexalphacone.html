@@ -75,13 +75,18 @@
 						<ul>
 							<li>A cone is build around an origin city
 							and a general slope computed from the differential speed of road</li>
-							<li>The geometry of the cone will depend on the values of transport
-							speed that vary with the years</li>
+							<li>road is the reference mode for he slope of cones, but the model
+								can also attribute the speed, and hence the slope of another faster
+								terrestrial transport mode for those cities connected to this network
+							(typically expressway or High Speed Rail)</li>
+							<li>The geometry of the cone will depend on the value of the
+								speed of the fastest existing mode compared to road speed;
+							this ratio vary with the years</li>
 							<li>Complex alphas can also be generated with other faster modes</li>
-							<li>The geometry of the cone being built from a set of &#39;clocks&#39;
+							<li>The geometry of the cone being built from a set of &#39;clocks&#39;,
 								complex alphas will be generated from local alphas
 								computed from edges to destination city
-							using a terrestrial transport.</li>
+							using a faster terrestrial transport.</li>
 						</ul>
 					</div>
 				</div>
@@ -101,8 +106,8 @@
 						<section class="tsd-index-section ">
 							<h3>Properties</h3>
 							<ul class="tsd-index-list">
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="_definitions_project_.icomplexalphacone.html#conealpha" class="tsd-kind-icon">cone<wbr>Alpha</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="_definitions_project_.icomplexalphacone.html#coneclocks" class="tsd-kind-icon">cone<wbr>Clocks</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="_definitions_project_.icomplexalphacone.html#coneroadalpha" class="tsd-kind-icon">cone<wbr>Road<wbr>Alpha</a></li>
 							</ul>
 						</section>
 					</div>
@@ -111,35 +116,37 @@
 			<section class="tsd-panel-group tsd-member-group ">
 				<h2>Properties</h2>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="conealpha" class="tsd-anchor"></a>
+					<h3>cone<wbr>Alpha</h3>
+					<div class="tsd-signature tsd-kind-icon">cone<wbr>Alpha<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/kaktus40/shriveling_world/blob/643f78b/src/core/definitions/project.ts#L93">src/core/definitions/project.ts:93</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>This property represents the slope of the terrestrial transport,
+							usually road, for the considered year.</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="coneclocks" class="tsd-anchor"></a>
 					<h3>cone<wbr>Clocks</h3>
 					<div class="tsd-signature tsd-kind-icon">cone<wbr>Clocks<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Array</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-symbol">{ </span>alpha<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span>clock<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> }</span><span class="tsd-signature-symbol">&gt;</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/kaktus40/shriveling_world/blob/feeac6a/src/core/definitions/project.ts#L94">src/core/definitions/project.ts:94</a></li>
+							<li>Defined in <a href="https://github.com/kaktus40/shriveling_world/blob/643f78b/src/core/definitions/project.ts#L101">src/core/definitions/project.ts:101</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
 							<p>This property lists for the considered year and the considered origin city
 								each destination city using a terrestrial transport. Each item of this
-								array is a clock in direction of the destination city and a slope
-							corresponding to the transport speed linking the two cities. This array can have zero item.</p>
-						</div>
-					</div>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="coneroadalpha" class="tsd-anchor"></a>
-					<h3>cone<wbr>Road<wbr>Alpha</h3>
-					<div class="tsd-signature tsd-kind-icon">cone<wbr>Road<wbr>Alpha<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
-					<aside class="tsd-sources">
-						<ul>
-							<li>Defined in <a href="https://github.com/kaktus40/shriveling_world/blob/feeac6a/src/core/definitions/project.ts#L87">src/core/definitions/project.ts:87</a></li>
-						</ul>
-					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>This property represents the slope of the road transport for the considered year.</p>
+								array is a [[clock]] in direction of the destination city and a slope
+								corresponding to the transport speed linking the two cities.
+							This array can have zero item.</p>
 						</div>
 					</div>
 				</section>
@@ -227,10 +234,10 @@
 						<a href="_definitions_project_.icomplexalphacone.html" class="tsd-kind-icon">IComplex<wbr>Alpha<wbr>Cone</a>
 						<ul>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="_definitions_project_.icomplexalphacone.html#coneclocks" class="tsd-kind-icon">cone<wbr>Clocks</a>
+								<a href="_definitions_project_.icomplexalphacone.html#conealpha" class="tsd-kind-icon">cone<wbr>Alpha</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="_definitions_project_.icomplexalphacone.html#coneroadalpha" class="tsd-kind-icon">cone<wbr>Road<wbr>Alpha</a>
+								<a href="_definitions_project_.icomplexalphacone.html#coneclocks" class="tsd-kind-icon">cone<wbr>Clocks</a>
 							</li>
 						</ul>
 					</li>
