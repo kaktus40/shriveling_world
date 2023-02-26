@@ -1,0 +1,8 @@
+{
+    "map": "assets/earthmap4k.jpg",
+    "specularMap": "assets/earthspec4k.jpg",
+    "bumpMap": "assets/earthbump4k.jpg",
+    "normalMap": "assets/earth_normalmap_flat4k.jpg",
+    "boundaries": "assets/boundaries.geojson",
+    "highlightedColor": "EBDEDE"
+}

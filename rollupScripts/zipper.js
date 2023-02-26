@@ -1,14 +1,14 @@
-import {
-    readdirSync,
-    readFileSync,
-    outputFileSync,
-    createWriteStream,
-    ensureDirSync,
-} from 'fs-extra';
+import FsExtra from 'fs-extra';
 import { Readable } from 'stream';
 import { createDeflate } from 'zlib';
 
-const datasetDestination = __dirname + '/static/datasets/';
+const {
+    readdirSync,
+    readFileSync,
+    outputFileSync,
+    ensureDirSync, createWriteStream
+} = FsExtra;
+
 
 function folder2dict(source) {
     let result = [];
@@ -32,13 +32,14 @@ function getDirectories(source) {
         .map((dirent) => dirent.name);
 }
 
-export function zipper() {
-    let datasets = getDirectories(__dirname + '/datasets');
+export function zipper(__dirname) {
+    const datasetDestination = __dirname + '/static/datasets/';
+    const datasets = getDirectories(__dirname + '/datasets');
     ensureDirSync(datasetDestination);
     datasets.forEach((directory) => {
         let datas = JSON.stringify(folder2dict(__dirname + '/datasets/' + directory + '/'));
         const readableStream = new Readable();
-        readableStream._read = () => {};
+        readableStream._read = () => { };
 
         let deflate = createDeflate({ level: 9 });
         readableStream.push(datas, 'utf8');

@@ -1,143 +1,113 @@
 import * as glsl from 'glslify';
-import * as glob from 'glob';
-import { readFileSync } from 'fs-extra';
+import nodeGles from 'node-gles';
+import { addExtensionsToContext } from 'twgl.js';
 
-const shaderGlob = [__dirname + '/src/application/shaders/**/*.frag', __dirname + '/src/application/shaders/**/*.vert'];
+import { commentStripper } from './commentStripper.js';
 
-function commentStripper(contents) {
-    let newContents = [];
-    for (let i = 0; i < contents.length; ++i) {
-        let c = contents.charAt(i);
-        if (c === '/') {
-            c = contents.charAt(++i);
-            if (c === '/') {
-                while (c !== '\r' && c !== '\n' && i < contents.length) {
-                    c = contents.charAt(++i);
-                }
-            } else if (c === '*') {
-                while (i < contents.length) {
-                    c = contents.charAt(++i);
-                    if (c === '*') {
-                        c = contents.charAt(++i);
-                        while (c === '*') {
-                            c = contents.charAt(++i);
-                        }
-                        if (c === '/') {
-                            c = contents.charAt(++i);
-                            break;
-                        }
+const errorReg = /\d+:(\d+): /g;
+function testSharder(gl, text = '', isFragment = true) {
+    const shaderType = isFragment ? gl.FRAGMENT_SHADER : gl.VERTEX_SHADER;
+    const shader = gl.createShader(shaderType);
+    gl.shaderSource(shader, text);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        const errAccumlator = {};
+        gl.getShaderInfoLog(shader)
+            .split('\n')
+            .forEach((line) => {
+                [...line.matchAll(errorReg)].map((m) => {
+                    const num = Number.parseInt(m[1]);
+                    if (!errAccumlator.hasOwnProperty(num)) {
+                        errAccumlator[num] = [];
                     }
+                    errAccumlator[num].push(line);
+                });
+            });
+        let sortie = '';
+        text.split('\n').forEach((line, i, arr) => {
+            const lineNumber = i + 1;
+            if (errAccumlator.hasOwnProperty(lineNumber)) {
+                for (let j = Math.max(0, i - 5); j < lineNumber; j++) {
+                    sortie += `\n${j + 1} : ${arr[j]}`;
                 }
-            } else {
-                --i;
-                c = '/';
+                sortie += '\n~~~~~~~~~~~~~~~~~~~~~~~~';
+                errAccumlator[lineNumber].forEach((err) => {
+                    sortie += `\n${err}`;
+                });
             }
-        }
-        newContents.push(c);
+        });
+        throw sortie;
     }
-
-    newContents = newContents.join('');
-    newContents = newContents.replace(/\s+$/gm, '').replace(/^\s+/gm, '').replace(/\n+/gm, '\n');
-    return newContents;
 }
 
-let compileShaders_ = () => {
-    const shadersFiles = glob2Array(shaderGlob);
-    let shaders = {};
-    shadersFiles.forEach((file) => {
-        let typeShader = file.endsWith('vert') ? 'vertex' : 'fragment';
-        let last = file.split('/');
-        let name = last[last.length - 1].replace('.frag', '').replace('.vert', '');
-        let fileContent = readFileSync(file, 'utf8');
-        if (!shaders.hasOwnProperty(name)) {
-            shaders[name] = {};
-        }
-        const temp = glsl.compile(fileContent, { basedir: __dirname + '/src/application/shaders' });
-        shaders[name][typeShader] = commentStripper(temp);
-    });
-    return shaders;
-};
+function minifyShader(source) {
+    const commentsRegExp = /[ \t]*(?:(?:\/\*[\s\S]*?\*\/)|(?:\/\/.*\n))/g;
+    const symbolsRegExp = /\s*([{}=*,+/><&|[\]()\-!?:;])\s*/g;
 
-if (process.env.NODE_ENV === 'development') {
-    Promise.all([
-        import ('node-gles'),
-        import ('twgl.js')
-    ]).then(tab => {
-        const nodeGles = tab[0];
-        const { addExtensionsToContext } = tab[1];
+    let result = source.replace(/\r/g, "").replace(commentsRegExp, "");
+    let wrap = false;
+
+    result = result.split(/\n+/).reduce((acc, line) => {
+        line = line.trim().replace(/\s{2,}|\t/, " ");
+        if (line[0] === "#") {
+            if (wrap) {
+                acc.push("\n");
+            }
+            acc.push(line, "\n");
+            wrap = false;
+        } else {
+            line = line.replace(/(else)$/m, "$1 ");
+            acc.push(line.replace(symbolsRegExp, "$1"));
+            wrap = true;
+        }
+        return acc;
+    }, []).join("");
+    return result.replace(/\n{2,}/g, "\n");
+}
+
+let converter = (path) => {
+    return minifyShader(glsl.file(path, glsifyOpt));
+}
+
+const glsifyOpt = {
+    transform: [
+        ["glslify-import"]
+    ]
+}
+
+export function glsli(isDev = true) {
+    if (isDev) {
         const gl = nodeGles.createWebGLRenderingContext();
         addExtensionsToContext(gl);
-        const errorReg = /\d+:(\d+): /g;
-
-        function testSharder(text = '', isFragment = true) {
-            const shaderType = isFragment ? gl.FRAGMENT_SHADER : gl.VERTEX_SHADER;
-            const shader = gl.createShader(shaderType);
-            gl.shaderSource(shader, text);
-            gl.compileShader(shader);
-            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-                const errAccumlator = {};
-                gl.getShaderInfoLog(shader)
-                    .split('\n')
-                    .forEach((line) => {
-                        [...line.matchAll(errorReg)].map((m) => {
-                            const num = Number.parseInt(m[1]);
-                            if (!errAccumlator.hasOwnProperty(num)) {
-                                errAccumlator[num] = [];
-                            }
-                            errAccumlator[num].push(line);
-                        });
-                    });
-                let sortie = '';
-                text.split('\n').forEach((line, i, arr) => {
-                    const lineNumber = i + 1;
-                    if (errAccumlator.hasOwnProperty(lineNumber)) {
-                        for (let j = Math.max(0, i - 5); j < lineNumber; j++) {
-                            sortie += `\n${j + 1} : ${arr[j]}`;
-                        }
-                        sortie += '\n~~~~~~~~~~~~~~~~~~~~~~~~';
-                        errAccumlator[lineNumber].forEach((err) => {
-                            sortie += `\n${err}`;
-                        });
-                    }
-                });
-                sortie += '\n\n' + text;
-                throw sortie;
+        converter = (path) => {
+            const source = glsl.file(path, glsifyOpt);
+            try {
+                testSharder(gl, source, true);
+            } catch (error) {
+                throw error;
             }
+            return source;
         }
+    }
 
-        compileShaders_ = () => {
-            const shadersFiles = glob2Array(shaderGlob);
-            let shaders = {};
-            shadersFiles.forEach((file) => {
-                let typeShader = file.endsWith('vert') ? 'vertex' : 'fragment';
-                let last = file.split('/');
-                let name = last[last.length - 1].replace('.frag', '').replace('.vert', '');
-                let fileContent = readFileSync(file, 'utf8');
-                if (!shaders.hasOwnProperty(name)) {
-                    shaders[name] = {};
-                }
-                const temp = glsl.compile(fileContent, { basedir: __dirname + '/src/application/shaders' });
+    return {
+        name: "glsl",
+        setup(build) {
 
-                try {
-                    testSharder(temp, typeShader === 'fragment');
-                } catch (error) {
-                    throw file + '\n' + error;
-                }
-                shaders[name][typeShader] = commentStripper(temp);
-            });
-            return shaders;
+            async function onLoad(args) {
+
+                const source = converter(args.path);
+
+                return {
+                    contents: commentStripper(source),
+                    loader: "text"
+                };
+
+            }
+
+            build.onLoad({ filter: /\.(?:frag|vert|glsl|wgsl)$/ }, onLoad);
+
         }
-    })
-}
+    };
 
-export function glob2Array(inputs) {
-    const files = [];
-    inputs.forEach((path) => {
-        files.push(...glob.sync(path, { nodir: true }));
-    });
-    return files;
-}
-
-export function compileShaders() {
-    return compileShaders_();
 }

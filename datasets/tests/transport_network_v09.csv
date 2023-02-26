@@ -1,0 +1,7 @@
+eYearBegin,eYearEnd,cityCodeOri,nameOri,cityCodeDes,nameDes,transportModeCode,length,notes
+1977,2004,0,Paris,1,New York-Newark,11,,Concorde
+1977,2004,2,London,3,New York-Newark,11,,Concorde
+2010,2014,4,Sydney,5,Auckland,1,,air
+2010,2014,6,Abu Zaby (Abu Dhabi),7,Lahore,1,,air
+2010,2014,8,Lahore,9,Abu Zaby (Abu Dhabi),1,,air
+2010,2014,9,Nha Trang,0,Thành Pho Ho Chí Minh (Ho Chi Minh City),1,,air

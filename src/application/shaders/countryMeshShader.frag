@@ -24,8 +24,6 @@ void main() {
   ivec2 pos2 = ivec2(pos);
   vec3 cartoPosition = texelFetch(u_Positions, pos2, 0).xyz;
 
-  vec3 modelPosition = displayConversions(
-      cartoPosition, threeRadius, earthRadius, referenceEquiRectangular,standardParallel1,standardParallel2,
-      projectionInit, projectionEnd, percentProjection, conesShape, zCoeff);
+  vec3 modelPosition = displayConversions(cartoPosition, threeRadius, earthRadius, referenceEquiRectangular, standardParallel1, standardParallel2, projectionInit, projectionEnd, percentProjection, conesShape, zCoeff);
   myOutputColor = vec4(modelPosition, 0.0);
 }

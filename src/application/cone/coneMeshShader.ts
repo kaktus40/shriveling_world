@@ -8,7 +8,7 @@ import {
 } from 'three';
 import { CONFIGURATION } from '../common/configuration';
 import { PseudoCone } from './base';
-import { LatLonH, interpolator, matchingBBox } from '../common/utils';
+import { LonLatH, interpolator, matchingBBox } from '../common/utils';
 import type {
 	ILookupCityGraph,
 	IBBox,
@@ -71,11 +71,11 @@ fullCleanArrays();
  * @param boundaries
  * @param referential
  */
-function localLimitsRaw(boundaries: LatLonH[][], referential: NEDLocal): Array<{ clock: number; distance: number }> {
+function localLimitsRaw(boundaries: LonLatH[][], referential: NEDLocal): Array<{ clock: number; distance: number }> {
 	const allPoints: Coordinate[] = [];
 	boundaries.forEach((boundary) => {
 		boundary.forEach((position) => {
-			allPoints.push(referential.latLonH2NED(position));
+			allPoints.push(referential.lonLatH2NED(position));
 		});
 	});
 	const result: Array<{ clock: number; distance: number }> = [];
@@ -310,7 +310,7 @@ export class ConeMeshShader extends PseudoCone {
 	private _withLimits: boolean;
 	private readonly _cityCode: string;
 	// Private _transportName: string;
-	private readonly _position: LatLonH;
+	private readonly _position: LonLatH;
 	private readonly _coneAngles: ILookupConeAngles;
 
 	/**
@@ -405,7 +405,7 @@ export class ConeMeshShader extends PseudoCone {
 			if (lookup.hasOwnProperty(cityCode)) {
 				const cityTransport = lookup[cityCode];
 				const position = cityTransport.referential.latLonHRef;
-				const referentialGLSL = cityTransport.referential.ned2ECEFMatrix;
+				const referentialGLSL = cityTransport.referential.glslDatas;
 				const coneAngles = cityTransport.cone;
 				_localLimitsLookup[cityCode] = localLimitsRaw(
 					matchingBBox(position, bBoxes),
@@ -450,7 +450,7 @@ export class ConeMeshShader extends PseudoCone {
 	 * @param coneAngles
 	 * @param properties
 	 */
-	private constructor(cityCode: string, position: LatLonH, coneAngles: ILookupConeAngles, properties: any) {
+	private constructor(cityCode: string, position: LonLatH, coneAngles: ILookupConeAngles, properties: any) {
 		const interleavedBufferPosition = new InterleavedBuffer(new Float32Array(400 * 4 * 2), 4).setUsage(
 			DynamicDrawUsage
 		);
@@ -526,7 +526,7 @@ export class ConeMeshShader extends PseudoCone {
 		return this._cityCode;
 	}
 
-	get latLonHPosition(): LatLonH {
+	get latLonHPosition(): LonLatH {
 		return this._position;
 	}
 

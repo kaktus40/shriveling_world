@@ -6,12 +6,10 @@
 import type { MeshBasicMaterial, LineBasicMaterial, Material } from 'three';
 import type { TextGeometryParameters } from 'three/src/geometries/TextGeometry';
 import { generateUUID } from './utils';
-import {
-	PROJECTION_ENUM,
-	CONESSHAPE_ENUM,
-	CURVESPOSITION_ENUM,
+import { PROJECTION_ENUM, CONESSHAPE_ENUM, CURVESPOSITION_ENUM } from '../definitions/project';
+import type {
 	ICountryTextureURL,
-	ILatLonH,
+	ILonLatH,
 	configurationObservableEvt,
 	configurationCallback,
 } from '../definitions/project';
@@ -28,7 +26,7 @@ const _TWO_PI: number = 2 * Math.PI;
 const _earthRadiusMeters = 6371e3;
 const _OVER_PI: number = 1 / Math.PI;
 const _OVER_TWO_PI: number = 1 / (2 * Math.PI);
-const _referenceEquiRectangular: ILatLonH = { latitude: 0, longitude: 0, height: 0 };
+const _referenceEquiRectangular: ILonLatH = { latitude: 0, longitude: 0, height: 0 };
 const _referenceEquiRectangularFloat32Array = new Float32Array(3);
 let _standardParallel1: number = 30 * _deg2rad;
 let _standardParallel2: number = 45 * _deg2rad;
@@ -235,10 +233,10 @@ export const CONFIGURATION = {
 		'assets/pz.jpg',
 		'assets/nz.jpg',
 	],
-	get referenceEquiRectangular(): ILatLonH {
+	get referenceEquiRectangular(): ILonLatH {
 		return _referenceEquiRectangular;
 	},
-	set referenceEquiRectangular(value: ILatLonH) {
+	set referenceEquiRectangular(value: ILonLatH) {
 		let updated = false;
 		for (const attribute in value) {
 			if (_referenceEquiRectangular.hasOwnProperty(attribute)) {

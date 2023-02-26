@@ -1,5 +1,4 @@
 'use strict';
-import type { internalFormatType } from '../definitions/project';
 import {
 	TextureOptions,
 	BufferInfo,
@@ -22,6 +21,31 @@ import {
 declare class OffscreenCanvas extends HTMLCanvasElement {
 	constructor(width: number, height: number);
 }
+export type internalFormatType =
+	| 'R8'
+	| 'R32F'
+	| 'R16UI'
+	| 'R16I'
+	| 'R32UI'
+	| 'R32I'
+	| 'RG8'
+	| 'RG32F'
+	| 'RG16UI'
+	| 'RG16I'
+	| 'RG32UI'
+	| 'RG32I'
+	| 'RGB8'
+	| 'RGB32F'
+	| 'RGB16UI'
+	| 'RGB16I'
+	| 'RGB32UI'
+	| 'RGB32I'
+	| 'RGBA8'
+	| 'RGBA32F'
+	| 'RGBA16UI'
+	| 'RGBA16I'
+	| 'RGBA32UI'
+	| 'RGBA32I';
 
 const vertexCode =
 	'#version 300 es\n' +
@@ -32,6 +56,16 @@ const vertexCode =
 	'  pos = texture;\n' +
 	'  gl_Position = vec4(position.xy, 0.0, 1.0);\n' +
 	'}\n';
+
+const _gl = (
+	typeof OffscreenCanvas === 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(256, 256)
+).getContext('webgl2', { antialias: false });
+addExtensionsToContext(<WebGLRenderingContext>_gl);
+const _attributesInfo = createBufferInfoFromArrays(<WebGLRenderingContext>_gl, {
+	position: { numComponents: 2, data: [-1, -1, 1, -1, 1, 1, -1, 1] },
+	texture: { numComponents: 2, data: [0, 0, 1, 0, 1, 1, 0, 1] },
+	indices: [0, 2, 1, 0, 2, 3],
+});
 
 function generateTextureOptions(
 	gl: WebGL2RenderingContext,
@@ -80,9 +114,6 @@ function generateTextureOptions(
 }
 
 export class GPUComputer {
-	private static _gl: WebGL2RenderingContext = undefined;
-	private static _attributesInfo: BufferInfo = undefined;
-
 	private readonly _fbi: FramebufferInfo = undefined;
 	private readonly _attachments: TextureOptions[] = undefined;
 	private readonly _programInfo: ProgramInfo = undefined;
@@ -94,25 +125,9 @@ export class GPUComputer {
 	public static async GPUComputerFactory(
 		fragmentCode: string,
 		initTextures: { [x: string]: internalFormatType },
-		outputNumber = 1
+		outputFormats: internalFormatType[]
 	): Promise<GPUComputer> {
-		if (GPUComputer._gl === undefined) {
-			if (typeof OffscreenCanvas === 'undefined') {
-				GPUComputer._gl = document.createElement('canvas').getContext('webgl2', { antialias: false });
-			} else {
-				GPUComputer._gl = new OffscreenCanvas(256, 256).getContext('webgl2', { antialias: false });
-			}
-
-			addExtensionsToContext(<WebGLRenderingContext>GPUComputer._gl);
-			GPUComputer._attributesInfo = createBufferInfoFromArrays(<WebGLRenderingContext>GPUComputer._gl, {
-				position: { numComponents: 2, data: [-1, -1, 1, -1, 1, 1, -1, 1] },
-				texture: { numComponents: 2, data: [0, 0, 1, 0, 1, 1, 0, 1] },
-				indices: [0, 2, 1, 0, 2, 3],
-			});
-		}
-
-		const _gl = GPUComputer._gl;
-		const texturesOptions = generateTextureOptions(GPUComputer._gl, initTextures);
+		const texturesOptions = generateTextureOptions(_gl, initTextures);
 		return new Promise((resolve, reject) => {
 			createTextures(<WebGLRenderingContext>_gl, texturesOptions, (err, texs) => {
 				if (err !== undefined) {
@@ -126,7 +141,7 @@ export class GPUComputer {
 					}
 				}
 
-				resolve(new GPUComputer(fragmentCode, texturesOptions, texs, outputNumber));
+				resolve(new GPUComputer(fragmentCode, texturesOptions, texs, outputFormats));
 			});
 		});
 	}
@@ -135,20 +150,20 @@ export class GPUComputer {
 		fragmentCode: string,
 		texturesOptions: { [x: string]: TextureOptions },
 		textures: { [x: string]: WebGLTexture },
-		outputNumber: number
+		outputFormats: internalFormatType[]
 	) {
-		this._programInfo = createProgramInfo(<WebGLRenderingContext>GPUComputer._gl, [vertexCode, fragmentCode]);
+		this._programInfo = createProgramInfo(<WebGLRenderingContext>_gl, [vertexCode, fragmentCode]);
 		this._attachments = [];
-		for (let i = 0; i < outputNumber; i++) {
+		for (let i = 0; i < outputFormats.length; i++) {
 			this._attachments.push({
-				internalFormat: GPUComputer._gl.RGBA32F,
-				minMag: GPUComputer._gl.NEAREST,
-				wrap: GPUComputer._gl.CLAMP_TO_EDGE,
+				internalFormat: _gl[outputFormats[i]],
+				minMag: _gl.NEAREST,
+				wrap: _gl.CLAMP_TO_EDGE,
 			});
-			this._bufferAttachments.push(GPUComputer._gl.COLOR_ATTACHMENT0 + i);
+			this._bufferAttachments.push(_gl.COLOR_ATTACHMENT0 + i);
 		}
 
-		this._fbi = createFramebufferInfo(<WebGLRenderingContext>GPUComputer._gl, this._attachments, 1, 1);
+		this._fbi = createFramebufferInfo(<WebGLRenderingContext>_gl, this._attachments, 1, 1);
 		this._texturesOptions = texturesOptions;
 		this._textures = textures;
 	}
@@ -171,22 +186,16 @@ export class GPUComputer {
 				oldLookup.width = newLookup.width;
 				oldLookup.height = newLookup.height;
 				oldLookup.depth = newLookup.depth;
-				setTextureFromArray(
-					<WebGLRenderingContext>GPUComputer._gl,
-					this._textures[att],
-					newLookup.src,
-					oldLookup
-				);
+				setTextureFromArray(<WebGLRenderingContext>_gl, this._textures[att], newLookup.src, oldLookup);
 			}
 		}
 	}
 
 	public calculate(width: number, height: number): Float32Array[] {
-		const _gl = GPUComputer._gl;
 		const uniforms = Object.assign({}, this._textures, this._uniforms);
 
 		const end: Float32Array[] = [];
-		setAttribInfoBufferFromArray(<WebGLRenderingContext>_gl, GPUComputer._attributesInfo.attribs.texture, [
+		setAttribInfoBufferFromArray(<WebGLRenderingContext>_gl, _attributesInfo.attribs.texture, [
 			0,
 			0,
 			width,
@@ -204,10 +213,10 @@ export class GPUComputer {
 		_gl.clearDepth(1);
 		_gl.clear(_gl.COLOR_BUFFER_BIT | _gl.DEPTH_BUFFER_BIT);
 
-		setBuffersAndAttributes(<WebGLRenderingContext>_gl, this._programInfo, GPUComputer._attributesInfo);
+		setBuffersAndAttributes(<WebGLRenderingContext>_gl, this._programInfo, _attributesInfo);
 		setUniforms(this._programInfo, uniforms);
 		_gl.drawBuffers(this._bufferAttachments);
-		drawBufferInfo(<WebGLRenderingContext>_gl, GPUComputer._attributesInfo);
+		drawBufferInfo(<WebGLRenderingContext>_gl, _attributesInfo);
 		for (let i = 0; i < this._fbi.attachments.length; i++) {
 			const temp = new Float32Array(width * height * 4);
 			_gl.readBuffer(_gl.COLOR_ATTACHMENT0 + i);

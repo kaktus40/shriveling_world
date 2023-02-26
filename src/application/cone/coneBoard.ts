@@ -1,10 +1,8 @@
 'use strict';
 import { Scene, Camera, WebGLRenderer, Raycaster, Mesh, Vector2, BufferGeometry, Material } from 'three';
-import { CONFIGURATION } from '../common/configuration';
 import type { PseudoCone } from './base';
 import { ConeMeshShader } from './coneMeshShader';
-import { LatLonH, searchCriteria } from '../common/utils';
-import type { ISumUpCriteria, ILookupCurvesAndCityGraph, ICriteria as ICriteria } from '../definitions/project';
+import type { ILookupCurvesAndCityGraph } from '../definitions/project';
 import type { CountryBoard } from '../country/countryBoard';
 import { CurveMeshShader } from './curveMeshShader';
 const forbiddenAttributes = ['referential', 'position'];
@@ -15,13 +13,11 @@ export class ConeAndCurveBoard {
 	private readonly _scene: Scene;
 	private readonly _camera: Camera;
 	private readonly _raycaster: Raycaster;
-	private _highlightedCriteria: ICriteria = {};
 	private _selectedMeshes: Mesh[] = [];
 	private _scale = 1;
 	private _show = true;
 	private _withLimits = true;
 	private readonly _countries: CountryBoard;
-	private _sumUpProperties: ISumUpCriteria = {};
 	private readonly _renderer: WebGLRenderer;
 	private _opacity = 1;
 
@@ -61,10 +57,6 @@ export class ConeAndCurveBoard {
 		this._scale = value;
 	}
 
-	get lookupCriteria(): ISumUpCriteria {
-		return this._sumUpProperties;
-	}
-
 	get opacity(): number {
 		return this._opacity;
 	}
@@ -96,7 +88,6 @@ export class ConeAndCurveBoard {
 		const bBoxes = this._countries.countryMeshCollection.map((country) => country.bBox);
 		void ConeMeshShader.generateCones(lookup.lookupCityGraph, bBoxes).then((cones) => {
 			cones.forEach((cone) => {
-				// UpdateSumUpCriteria(that._sumUpProperties, cone.otherProperties);
 				// add object name to cone
 				cone.name = 'cone ' + cone.otherProperties.origCityProperties.cityName;
 				this.coneMeshCollection.push(cone);
@@ -117,11 +108,11 @@ export class ConeAndCurveBoard {
 		});
 	}
 
-	public setLayer(transport: string, show: boolean): void {
-		this.searchMesh({ transport: { value: transport } }).forEach((mesh) => {
-			mesh.visible = show;
-		});
-	}
+	// public setLayer(transport: string, show: boolean): void {
+	// 	this.searchMesh({ transport: { value: transport } }).forEach((mesh) => {
+	// 		mesh.visible = show;
+	// 	});
+	// }
 
 	public clean(): void {
 		for (let i = this.coneMeshCollection.length - 1; i >= 0; i--) {
@@ -135,89 +126,26 @@ export class ConeAndCurveBoard {
 			this.curveCollection[i].dispose();
 			this.curveCollection.splice(i, 1);
 		}
-
-		this._sumUpProperties = {};
 	}
 
-	public getMeshByMouse(event: MouseEvent, highLight = false): PseudoCone {
-		let result: PseudoCone;
-		const mouse = new Vector2();
-		mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-		mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-		this._raycaster.setFromCamera(mouse, this._camera);
-		const intersects = this._raycaster.intersectObjects(this.coneMeshCollection);
-		if (intersects.length > 0) {
-			result = <PseudoCone>intersects[0].object;
-			this.highLight(result.otherProperties, highLight);
-		} else {
-			this._selectedMeshes.forEach((mesh) => {
-				if (!Array.isArray(mesh.material)) {
-					mesh.material.visible = false;
-				}
-			});
-		}
+	// public getMeshByMouse(event: MouseEvent, highLight = false): PseudoCone {
+	// 	let result: PseudoCone;
+	// 	const mouse = new Vector2();
+	// 	mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+	// 	mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+	// 	this._raycaster.setFromCamera(mouse, this._camera);
+	// 	const intersects = this._raycaster.intersectObjects(this.coneMeshCollection);
+	// 	if (intersects.length > 0) {
+	// 		result = <PseudoCone>intersects[0].object;
+	// 		this.highLight(result.otherProperties, highLight);
+	// 	} else {
+	// 		this._selectedMeshes.forEach((mesh) => {
+	// 			if (!Array.isArray(mesh.material)) {
+	// 				mesh.material.visible = false;
+	// 			}
+	// 		});
+	// 	}
 
-		return result;
-	}
-
-	public setLimits(criteria: ICriteria, limit: boolean): void {
-		this.searchMesh(criteria).forEach((country) => {
-			country.withLimits = limit;
-		});
-	}
-
-	public highLight(criteria: ICriteria, light: boolean): void {
-		if (criteria !== this._highlightedCriteria) {
-			this._highlightedCriteria = criteria;
-			this._selectedMeshes.forEach((mesh) => {
-				this._scene.remove(mesh);
-			});
-			this._selectedMeshes = this.searchMesh(criteria).map((mesh) => {
-				const geometry = <BufferGeometry>mesh.geometry.clone();
-				const out = new Mesh(geometry, CONFIGURATION.highLightedMaterial);
-				this._scene.add(out);
-				out.scale.setScalar(this._scale);
-				return out;
-			});
-		}
-
-		this._selectedMeshes.forEach((mesh) => {
-			if (!Array.isArray(mesh.material)) {
-				mesh.material.visible = light;
-			}
-		});
-	}
-
-	public searchMesh(criteria: ICriteria | LatLonH, path = ''): PseudoCone[] {
-		let result: PseudoCone[];
-		if (criteria instanceof LatLonH) {
-			result = this.coneMeshCollection.filter(
-				(cone) => cone.latLonHPosition.approximateDistance(criteria) < 1e-13
-			);
-		} else {
-			result = searchCriteria(this.coneMeshCollection, criteria, forbiddenAttributes, 'otherProperties.' + path);
-		}
-
-		return result;
-	}
-
-	public showCriteria(criteria: ICriteria, state: boolean): void {
-		const realState = state && this._show;
-		this.searchMesh(criteria).forEach((cone) => {
-			cone.visible = realState;
-		});
-	}
-
-	// Private _reHighLight(): void {
-	//     if (this._selectedMeshes.length > 0) {
-	//         let visible = false;
-	//         let temp = this._selectedMeshes[0];
-	//         if (!Array.isArray(temp.material)) {
-	//             visible = temp.material.visible;
-	//         }
-	//         let criteria = this._highlightedCriteria;
-	//         this._highlightedCriteria = undefined;
-	//         this.highLight(criteria, visible);
-	//     }
+	// 	return result;
 	// }
 }

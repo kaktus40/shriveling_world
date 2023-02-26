@@ -9,6 +9,56 @@
 	}
 </script>
 
+{#if hover}
+	<nav class="menu" transition:slide={{ delay: 250, duration: 600 }}>
+		<ul>
+			<li class="menu-item" aria-haspopup="true">
+				<a href="./"
+					>Shriveling world
+					<Icon icon={faCaretDown} /></a
+				>
+				<ul class="sub-menu" aria-label="submenu">
+					<li class="menu-item"><a href="https://timespace.hypotheses.org/">Scientific blog</a></li>
+					<li class="menu-item">
+						<a href="https://github.com/theworldisnotflat/shriveling_world">Github</a>
+					</li>
+				</ul>
+			</li>
+			<li class="menu-item"><a href="app">Application</a></li>
+			<li class="menu-item" aria-haspopup="true">
+				<a href="#0"
+					>User Doc
+					<Icon icon={faCaretDown} /></a
+				>
+				<ul class="sub-menu" aria-label="submenu">
+					<li class="menu-item"><a href="marks/usrdoc/basic_usage_tutorial">Basic Usage tutorial</a></li>
+					<li class="menu-item">
+						<a href="https://github.com/theworldisnotflat/shriveling_world/discussions">Forum</a>
+					</li>
+					<li class="menu-item"><a href="marks/usrdoc/create_dataset">Dataset creation</a></li>
+					<li class="menu-item"><a href="marks/usrdoc/blender_tutorial">Blender tutorial</a></li>
+				</ul>
+			</li>
+			<li class="menu-item" aria-haspopup="true">
+				<a href="doc"
+					>Dev Doc
+					<Icon icon={faCaretDown} /></a
+				>
+				<ul class="sub-menu" aria-label="submenu">
+					<li class="menu-item"><a href="marks/devdoc/dev_instructions">Developer instructions</a></li>
+					<li class="menu-item"><a href="doc">Developer documentation</a></li>
+					<li class="menu-item">
+						<a href="https://github.com/theworldisnotflat/shriveling_world/discussions">Forum</a>
+					</li>
+				</ul>
+			</li>
+		</ul>
+	</nav>
+{/if}
+<main on:mousemove={handleMove}>
+	<slot />
+</main>
+
 <style>
 	nav {
 		position: static;
@@ -87,41 +137,3 @@
 		transition: all 0.5s ease;
 	}
 </style>
-
-{#if hover}
-	<nav class="menu" role="navigation" transition:slide={{ delay: 250, duration: 600 }}>
-		<ul>
-			<li class="menu-item" aria-haspopup="true">
-				<a href="./">Shriveling world
-					<Icon icon={faCaretDown} /></a>
-				<ul class="sub-menu" aria-label="submenu">
-					<li class="menu-item"><a href="https://timespace.hypotheses.org/">Scientific blog</a></li>
-					<li class="menu-item"><a href="https://github.com/theworldisnotflat/shriveling_world">Github</a></li>
-				</ul>
-			</li>
-			<li class="menu-item"><a href="app">Application</a></li>
-			<li class="menu-item" aria-haspopup="true">
-				<a href="#0">User Doc
-					<Icon icon={faCaretDown} /></a>
-				<ul class="sub-menu" aria-label="submenu">
-					<li class="menu-item"><a href="marks/usrdoc/basic_usage_tutorial">Basic Usage tutorial</a></li>
-					<li class="menu-item"><a href="https://github.com/theworldisnotflat/shriveling_world/discussions">Forum</a></li>
-					<li class="menu-item"><a href="marks/usrdoc/create_dataset">Dataset creation</a></li>
-					<li class="menu-item"><a href="marks/usrdoc/blender_tutorial">Blender tutorial</a></li>
-				</ul>
-			</li>
-			<li class="menu-item" aria-haspopup="true">
-				<a href="doc">Dev Doc
-					<Icon icon={faCaretDown} /></a>
-				<ul class="sub-menu" aria-label="submenu">
-					<li class="menu-item"><a href="marks/devdoc/dev_instructions">Developer instructions</a></li>
-					<li class="menu-item"><a href="doc">Developer documentation</a></li>
-					<li class="menu-item"><a href="https://github.com/theworldisnotflat/shriveling_world/discussions">Forum</a></li>
-				</ul>
-			</li>
-		</ul>
-	</nav>
-{/if}
-<main on:mousemove={handleMove}>
-	<slot />
-</main>

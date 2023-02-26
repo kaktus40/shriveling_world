@@ -1,5 +1,6 @@
 'use strict';
-import { Point, SweepContext, IPointLike } from 'poly2tri';
+import { Point, SweepContext } from 'poly2tri';
+import type { IPointLike } from 'poly2tri';
 import {
 	Mesh,
 	InterleavedBuffer,
@@ -9,7 +10,7 @@ import {
 	DynamicDrawUsage,
 } from 'three';
 import { CONFIGURATION } from '../common/configuration';
-import { LatLonH } from '../common/utils';
+import { LonLatH } from '../common/utils';
 import type { IBBox, IMarkLimits } from '../definitions/project';
 import { GPUComputer } from '../common/gpuComputer';
 import { getShader } from '../shaders';
@@ -20,7 +21,7 @@ interface IPreGeometry {
 	extruded: IMarkLimits; // Position des extruded dans la propriété vertices
 	uvs: Float32Array; // Uvs des vertices
 	indexes: Uint16Array; // Index des vertices!!
-	surfaceBoundary: LatLonH[];
+	surfaceBoundary: LonLatH[];
 }
 interface IPreMesh {
 	geometry: IPreGeometry;
@@ -44,9 +45,15 @@ function fullCleanArrays(): void {
 }
 
 fullCleanArrays();
-
+/**
+ * @see https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html
+ * @see https://web.archive.org/web/20130126163405/http://geomalgorithms.com/a03-_inclusion.html
+ * @param P point en 2D à tester
+ * @param V points constituant le polygone
+ * @returns si le point est inclus dans le polygone
+ */
 function cnPnPolyIsIn(P: number[], V: number[][]): boolean {
-	let cn = 0; // The  crossing number counter
+	let cn = false; // The  crossing number counter
 	let iPlus: number;
 	const n = V.length;
 	// Loop through all edges of the polygon
@@ -56,12 +63,12 @@ function cnPnPolyIsIn(P: number[], V: number[][]): boolean {
 		if ((V[i][1] <= P[1] && V[iPlus][1] > P[1]) || (V[i][1] > P[1] && V[iPlus][1] <= P[1])) {
 			const vt = (P[1] - V[i][1]) / (V[iPlus][1] - V[i][1]);
 			if (P[0] < V[i][0] + vt * (V[iPlus][0] - V[i][0])) {
-				cn++;
+				cn = !cn;
 			}
 		}
 	}
 
-	return cn % 2 === 1; // 0 if even (out), and 1 if  odd (in)
+	return cn; // 0 if even (out), and 1 if  odd (in)
 }
 
 function generateSteinerPointsFor(poly: number[][]): Point[] {
@@ -229,7 +236,7 @@ function generateVertices(geometry: GeoJSON.MultiPolygon | GeoJSON.Polygon): IPr
 		const indexes: number[] = [];
 		triangles.forEach((triangle) => indexes.push(...triangle.getPoints().map((t) => findAndAddVertexIndex(t))));
 		// Index n'a que la surface inférieure!
-		const vertices = verticesPoly2Tri.map((v) => new LatLonH(v.x, v.y, 0, false));
+		const vertices = verticesPoly2Tri.map((v) => new LonLatH(v.x, v.y, 0, false));
 		// Vertices n'a que la surface inférieure!
 		const uvs: number[] = [];
 		vertices.forEach((vertex) =>
@@ -271,7 +278,7 @@ function generateVertices(geometry: GeoJSON.MultiPolygon | GeoJSON.Polygon): IPr
 			indexes.push(latIndex);
 		});
 		const tempVertex: number[] = [];
-		vertices.forEach((vertex) => tempVertex.push(...vertex.toThreeGLSL()));
+		vertices.forEach((vertex) => tempVertex.push(...vertex.toGLSL()));
 		const result: IPreGeometry = {
 			vertices: tempVertex,
 			extruded: {
@@ -280,7 +287,7 @@ function generateVertices(geometry: GeoJSON.MultiPolygon | GeoJSON.Polygon): IPr
 			},
 			uvs: new Float32Array(uvs),
 			indexes: new Uint16Array(indexes),
-			surfaceBoundary: contour.map((point) => new LatLonH(point.x, point.y, 0, false)),
+			surfaceBoundary: contour.map((point) => new LonLatH(point.x, point.y, 0, false)),
 		};
 
 		return result;
@@ -296,7 +303,7 @@ function uniqueCaseCounter(list: any[]): string {
 					dictionary[att] = [];
 				}
 
-				if (dictionary[att].includes(item[att])) {
+				if (!dictionary[att].includes(item[att])) {
 					dictionary[att].push(item[att]);
 				}
 			}
@@ -443,6 +450,8 @@ export class CountryMeshShader extends Mesh {
 				);
 			});
 			const mainProperty = uniqueCaseCounter(uniqueProperties);
+			console.log(mainProperty);
+
 			let indexCount = 0;
 			let oldIndexCount = 0;
 			const vertexArrayEntries: number[] = [];
@@ -544,7 +553,7 @@ export class CountryMeshShader extends Mesh {
 		return this._mainProperty;
 	}
 
-	public isInside(pos: LatLonH): boolean {
+	public isInside(pos: LonLatH): boolean {
 		let result = false;
 		if (
 			pos.latitude >= this._boundaryBox.minLat &&
@@ -552,7 +561,7 @@ export class CountryMeshShader extends Mesh {
 			pos.longitude >= this._boundaryBox.minLong &&
 			pos.longitude <= this._boundaryBox.maxLong
 		) {
-			result = LatLonH.isInside(pos, this._boundaryBox.boundary);
+			result = LonLatH.isInside(pos, this._boundaryBox.boundary);
 		}
 
 		return result;

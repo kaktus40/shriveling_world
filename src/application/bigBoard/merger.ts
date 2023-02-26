@@ -18,7 +18,7 @@
 'use strict';
 import Papa from 'papaparse';
 import { NEDLocal } from '../common/referential';
-import { interpolator, LatLonH, reviver } from '../common/utils';
+import { interpolator, LonLatH, reviver } from '../common/utils';
 import type {
 	ITranspMode,
 	ICity,
@@ -37,7 +37,7 @@ import type {
 import { CONFIGURATION } from '../common/configuration';
 import * as FileSaver from 'file-saver';
 
-interface ICodeSpeedPerYear {
+export interface ICodeSpeedPerYear {
 	[code: string]: {
 		speed: number;
 		alpha?: number;
@@ -189,11 +189,11 @@ function getCSV(text: string, isTransportModeCode = false): any {
  * Gets the middle between two LatLonH positions :
  * [[posA]] and [[posB]]
  *
- * @param {LatLonH} posA
- * @param {LatLonH} posB
- * @returns {{ middle: LatLonH, theta: number }}
+ * @param {LonLatH} posA
+ * @param {LonLatH} posB
+ * @returns {{ middle: LonLatH, theta: number }}
  */
-function getMidPointAndTheta(posA: LatLonH, posB: LatLonH): { middle: LatLonH; theta: number } {
+function getMidPointAndTheta(posA: LonLatH, posB: LonLatH): { middle: LonLatH; theta: number } {
 	const theta = posA.exactDistance(posB);
 	const deltaLambda = posB.longitude - posA.longitude;
 	const cosPhi2 = Math.cos(posB.latitude);
@@ -202,7 +202,7 @@ function getMidPointAndTheta(posA: LatLonH, posB: LatLonH): { middle: LatLonH; t
 	const sinPhi1 = Math.sin(posA.latitude);
 	const bx = cosPhi2 * Math.cos(deltaLambda);
 	const by = cosPhi2 * Math.sin(deltaLambda);
-	const result = new LatLonH();
+	const result = new LonLatH();
 	result.latitude = Math.atan2(sinPhi1 + sinPhi2, Math.sqrt((cosPhi1 + bx) * (cosPhi1 + bx) + by * by));
 	result.longitude = posA.longitude + Math.atan2(by, cosPhi1 + bx);
 	return { middle: result, theta };
@@ -314,9 +314,9 @@ function networkFromCities(
 	 */
 	interface ILookupCacheAnchorsEdgeCone {
 		end?: ICityExtremityOfEdge;
-		pointP: LatLonH;
-		pointQ: LatLonH;
-		middle: LatLonH;
+		pointP: LonLatH;
+		pointQ: LonLatH;
+		middle: LonLatH;
 		theta: number;
 		clock: number;
 	}
@@ -361,13 +361,7 @@ function networkFromCities(
 		for (let year = minYearTransport; year <= maxYearTransport; year++) {
 			speed = interpolation(year);
 			tabSpeedPerYear[year] = { speed };
-			if (maxSpeedPerYear.hasOwnProperty(year)) {
-				if (maxSpeedPerYear[year] < speed) {
-					maxSpeedPerYear[year] = speed;
-				}
-			} else {
-				maxSpeedPerYear[year] = speed;
-			}
+			maxSpeedPerYear[year] = maxSpeedPerYear[year] > speed ? maxSpeedPerYear[year] : speed;
 		}
 		speedPerTranspModePerYear[transportCode] = {
 			tabSpeedPerYear: tabSpeedPerYear,
@@ -375,7 +369,9 @@ function networkFromCities(
 			terrestrial: transpMode.terrestrial,
 		};
 	});
-	console.log('speedPerTranspModePerYear', speedPerTranspModePerYear, 'maxSpeedPerYear', maxSpeedPerYear);
+	console.log(maxSpeedPerYear);
+
+	// console.log('speedPerTranspModePerYear', speedPerTranspModePerYear, 'maxSpeedPerYear', maxSpeedPerYear);
 	_firstYear = firstYear;
 	_lastYear = lastYear;
 	// for each transport mode, for each year determine [alpha]
@@ -399,7 +395,7 @@ function networkFromCities(
 	const lookupPosition: { [cityCode: string]: NEDLocal } = {};
 	const lookupMiddle: { [cityCodeBegin: number]: { [cityCodeEnd: number]: ILookupCacheAnchorsEdgeCone } } = {};
 	cities.forEach((city) => {
-		const position = new LatLonH(city.longitude, city.latitude, 0, false);
+		const position = new LonLatH(city.longitude, city.latitude, 0, false);
 		lookupPosition[city.cityCode] = new NEDLocal(position);
 	});
 	// tab of mode speeds used in legend
@@ -413,7 +409,7 @@ function networkFromCities(
 			}
 		});
 	});
-	console.log('Info for the legend: ', codeSpeedPerYear);
+	// console.log('Info for the legend: ', codeSpeedPerYear);
 	/**
 	 *
 	 * Function putting in cache the unit triangles (clock) of the cone
@@ -804,10 +800,9 @@ export class Merger {
 			this._state = 'pending';
 			// parsing Csv files into tables
 			const cities: ICity[] = JSON.parse(JSON.stringify(this._cities), reviver);
-			console.log(cities.length, ' cities');
 			const population: IPopulation[] = JSON.parse(JSON.stringify(this._populations), reviver);
 			const transportModes: ITranspMode[] = JSON.parse(JSON.stringify(this._transportModes), reviver);
-			console.log(transportModes.length, ' transportModes');
+			// console.log(transportModes.length, ' transportModes');
 			const transportModeSpeeds: ITransportModeSpeed[] = JSON.parse(
 				JSON.stringify(this._transportModeSpeeds),
 				reviver
@@ -822,7 +817,7 @@ export class Merger {
 			merger(cities, population, 'cityCode', 'cityCode', 'populations', false, true, false);
 			if (generateTraveTimeMatrix) {
 				//generate all straight line trips by road between cities (for travel time matrix)
-				console.log(transportNetwork.length);
+				// console.log(transportNetwork.length);
 				startIndexRoadCrowFlyEdges = transportNetwork.length + 1;
 				this.generateRoadCrowFlyEdges(cities, transportNetwork);
 			}
@@ -858,7 +853,7 @@ export class Merger {
 					}
 				}
 			});
-			console.log(nbConnectedEdges, ' connected edges');
+			// console.log(nbConnectedEdges, ' connected edges');
 			// for cases of countries of less than 2000 km length
 			if (_maxDistCrowAerial < distCrowThreshold) {
 				distCrowThreshold = _maxDistCrowAerial;
@@ -883,7 +878,7 @@ export class Merger {
 			// The main function that generates geometries (cones, curves) by exploring the subgraphs from cities
 			this._curvesAndCityGraph = networkFromCities(transportModes, cities, transportNetwork, transportModeSpeeds);
 			// for input data reading debugging
-			console.log('curves & cityGraph', this._curvesAndCityGraph);
+			// console.log('curves & cityGraph', this._curvesAndCityGraph);
 
 			if (generateTraveTimeMatrix) {
 				// generate travel time matrix with Dijkstra algorithm
@@ -1164,6 +1159,6 @@ function historicalTimeSpan(
 			if (transpMode.yearEnd < lastYear) lastYear = transpMode.yearEnd;
 		}
 	});
-	console.log('Dataset time span: ', firstYear, lastYear, transportModes);
+	// console.log('Dataset time span: ', firstYear, lastYear, transportModes);
 	return { firstYear, lastYear };
 }

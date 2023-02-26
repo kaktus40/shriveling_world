@@ -5,7 +5,7 @@
  * the [data model can be seen here](https://github.com/theworldisnotflat/shriveling_world/blob/master/model/modeles7.png)
  * Explanations about the [terminology choices can be found here](https://timespace.hypotheses.org/177)
  */
-import type { LatLonH } from '../common/utils';
+import type { LonLatH } from '../common/utils';
 import type { NEDLocal } from '../common/referential';
 export interface ICountryTextureURL {
 	map: string;
@@ -41,42 +41,20 @@ export enum CURVESPOSITION_ENUM {
 	stickToCone = 3,
 }
 
-export type internalFormatType =
-	| 'R8'
-	| 'R32F'
-	| 'R16UI'
-	| 'R16I'
-	| 'R32UI'
-	| 'R32I'
-	| 'RG8'
-	| 'RG32F'
-	| 'RG16UI'
-	| 'RG16I'
-	| 'RG32UI'
-	| 'RG32I'
-	| 'RGB8'
-	| 'RGB32F'
-	| 'RGB16UI'
-	| 'RGB16I'
-	| 'RGB32UI'
-	| 'RGB32I'
-	| 'RGBA8'
-	| 'RGBA32F'
-	| 'RGBA16UI'
-	| 'RGBA16I'
-	| 'RGBA32UI'
-	| 'RGBA32I';
-
 export interface INEDLocalGLSL {
 	ned2ECEF0: number[];
 	ned2ECEF1: number[];
 	ned2ECEF2: number[];
 	summit: number[];
+	ECEF2NED0: number[];
+	ECEF2NED1: number[];
+	ECEF2NED2: number[];
+	summitECEF: number[];
 }
 /**
  * In geographic (lat, lon, height) coordinates
  */
-export interface ILatLonH {
+export interface ILonLatH {
 	latitude?: number;
 	longitude?: number;
 	height?: number;
@@ -167,30 +145,12 @@ export interface ILookupCityGraph {
 	[cityCode: string]: ICityGraph;
 }
 
-export interface IItemCriteria {
-	value: number | string | Date | boolean;
-	comparator?: '=' | '>' | '>=' | '<' | '<=' | '!=';
-}
-
-export interface ICriteria {
-	[attribute: string]: IItemCriteria;
-}
-
 export interface IOrderAscendant {
 	attribute: string;
 	ascendant: boolean;
 }
 
 export type sumUpType = 'number' | 'date' | 'string' | 'array' | 'object' | 'boolean' | 'undefined';
-
-export interface ISumUpCriteriaItem {
-	type: sumUpType;
-	sumUp?: { max: Date | number; min: Date | number } | string[] | ISumUpCriteria;
-}
-
-export interface ISumUpCriteria {
-	[attribute: string]: ISumUpCriteriaItem;
-}
 
 export interface IPopulation {
 	cityCode?: number;
@@ -295,7 +255,7 @@ export interface IBBox {
 	maxLat: number;
 	minLong: number;
 	maxLong: number;
-	boundary: LatLonH[];
+	boundary: LonLatH[];
 }
 
 export interface IPseudoGeometry {
@@ -344,7 +304,7 @@ export interface ILookupCurvesAndCityGraph {
  */
 export interface ICityExtremityOfEdge {
 	cityCode: string | number;
-	position: LatLonH;
+	position: LonLatH;
 }
 /**
  * Curve data associated to an edge from a given city
@@ -355,9 +315,9 @@ export interface ICityExtremityOfEdge {
  */
 export interface IlookupCurveGeometry {
 	endCity: ICityExtremityOfEdge;
-	pointP: LatLonH;
-	pointQ: LatLonH;
-	middle: LatLonH;
+	pointP: LonLatH;
+	pointQ: LonLatH;
+	middle: LonLatH;
 	speedPerModePerYear: { [transportName: string]: { [year: string]: number } };
 	maxSpeedPerYear: { [year: string]: number };
 	theta: number;

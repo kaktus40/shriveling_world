@@ -1,34 +1,18 @@
 'use strict';
 import { CONFIGURATION } from './configuration';
 import type { NEDLocal, Coordinate } from './referential';
-import type {
-	ILatLonH,
-	ISumUpCriteria,
-	IItemCriteria,
-	ICriteria,
-	IOrderAscendant,
-	IBBox,
-	IListFile,
-} from '../definitions/project';
+import type { ILonLatH, IOrderAscendant, IBBox, IListFile } from '../definitions/project';
 
-export class LatLonH implements ILatLonH {
+export class LonLatH implements ILonLatH {
 	public latitude: number;
 	public longitude: number;
 	public height: number;
 
-	public static approximateDistance(pos1: LatLonH, pos2: LatLonH): number {
-		const x = (pos1.longitude - pos2.longitude) * Math.cos((pos1.latitude + pos2.latitude) / 2);
-		const y = pos1.latitude - pos2.latitude;
-		return Math.sqrt(x * x + y * y);
+	public static exactDistance(pos1: LonLatH, pos2: LonLatH): number {
+		return exactDistance([pos1.longitude, pos1.latitude], [pos2.longitude, pos2.latitude], true);
 	}
 
-	public static exactDistance(pos1: LatLonH, pos2: LatLonH): number {
-		let result = Math.sin(pos1.latitude) * Math.sin(pos2.latitude);
-		result += Math.cos(pos1.latitude) * Math.cos(pos2.latitude) * Math.cos(pos2.longitude - pos1.longitude);
-		return Math.acos(result);
-	}
-
-	public static isInside(position: LatLonH, boundary: LatLonH[]): boolean {
+	public static isInside(position: LonLatH, boundary: LonLatH[]): boolean {
 		let cn = 0; // The  crossing number counter
 		let iPlus: number;
 		const n = boundary.length;
@@ -54,34 +38,16 @@ export class LatLonH implements ILatLonH {
 		return cn % 2 === 1; // 0 if even (out), and 1 if  odd (in)
 	}
 
-	public static lerp(pos1: LatLonH, pos2: LatLonH, fractions: number[] = []): LatLonH[] {
-		const distance = LatLonH.exactDistance(pos1, pos2);
-		const result: LatLonH[] = [];
-		if (distance > 0) {
-			fractions.forEach((fraction) => {
-				const A = Math.sin((1 - fraction) * distance) / Math.sin(distance);
-				const B = Math.sin(fraction * distance) / Math.sin(distance);
-				const x =
-					A * Math.cos(pos1.latitude) * Math.cos(pos1.longitude) +
-					B * Math.cos(pos2.latitude) * Math.cos(pos2.longitude);
-				const y =
-					A * Math.cos(pos1.latitude) * Math.sin(pos1.longitude) +
-					B * Math.cos(pos2.latitude) * Math.sin(pos2.longitude);
-				const z = A * Math.sin(pos1.latitude) + B * Math.sin(pos2.latitude);
-				result.push(
-					new LatLonH(
-						Math.atan2(z, Math.sqrt(x * x + y * y)),
-						Math.atan2(y, x),
-						(1 - fraction) * pos1.height + fraction * pos2.height
-					)
-				);
-			});
-		}
-
-		return result;
+	public static lerp(pos1: LonLatH, pos2: LonLatH, fractions: number[] = []): LonLatH[] {
+		const { generator } = lerp([pos1.longitude, pos1.latitude], [pos2.longitude, pos2.latitude], true);
+		const deltaHeight = pos2.height - pos1.height;
+		return fractions.map((f) => {
+			const res = generator(f);
+			return new LonLatH(res[0], res[1], pos1.height + f * deltaHeight, true);
+		});
 	}
 
-	public static direction(pos1: LatLonH, pos2: LatLonH): number {
+	public static direction(pos1: LonLatH, pos2: LonLatH): number {
 		return Math.atan2(pos2.latitude - pos1.latitude, pos2.longitude - pos1.longitude);
 	}
 
@@ -96,309 +62,182 @@ export class LatLonH implements ILatLonH {
 		this.height = height;
 	}
 
-	public clone(): LatLonH {
-		return new LatLonH(this.longitude, this.latitude, this.height);
+	public clone(): LonLatH {
+		return new LonLatH(this.longitude, this.latitude, this.height);
 	}
 
-	public approximateDistance(pos2: LatLonH): number {
-		return LatLonH.approximateDistance(this, pos2);
+	public exactDistance(pos2: LonLatH): number {
+		return LonLatH.exactDistance(this, pos2);
 	}
 
-	public exactDistance(pos2: LatLonH): number {
-		return LatLonH.exactDistance(this, pos2);
+	public lerp(pos2: LonLatH, fractions: number[] = []): LonLatH[] {
+		return LonLatH.lerp(this, pos2, fractions);
 	}
 
-	public lerp(pos2: LatLonH, fractions: number[] = []): LatLonH[] {
-		return LatLonH.lerp(this, pos2, fractions);
+	public direction(pos: LonLatH): number {
+		return LonLatH.direction(this, pos);
 	}
 
-	public direction(pos: LatLonH): number {
-		return LatLonH.direction(this, pos);
-	}
-
-	public toThreeGLSL(): number[] {
+	public toGLSL(): number[] {
 		return [this.longitude, this.latitude, this.height];
 	}
 }
 
-export const ZERO_LATLONH = new LatLonH();
+export const ZERO_LATLONH = new LonLatH();
 
 Object.freeze(ZERO_LATLONH);
 
-function updateSumUpCriteriaByDateOrNumber(subObject: { max: Date | number; min: Date | number }, temporary): void {
-	const comparMin = compare(subObject.min, temporary, true);
-	const comparMax = compare(subObject.max, temporary, true);
-	if (comparMin > 0) {
-		subObject.min = temporary;
+/**
+ *
+ * @param pos1 longitude and latitude of point 1 in array of numbers
+ * @param pos2 longitude and latitude of point 2 in array of numbers
+ * @param isRadians coordinates in radians?
+ * @returns distance in radians between 2 points
+ */
+export function exactDistance(pos1: number[], pos2: number[], isRadians = true): number {
+	let lambda1 = pos1[0];
+	let phi1 = pos1[1];
+
+	let lambda2 = pos2[0];
+	let phi2 = pos2[1];
+
+	if (!isRadians) {
+		lambda1 *= CONFIGURATION.deg2rad;
+		phi1 *= CONFIGURATION.deg2rad;
+		lambda2 *= CONFIGURATION.deg2rad;
+		phi2 *= CONFIGURATION.deg2rad;
 	}
 
-	if (comparMax < 0) {
-		subObject.max = temporary;
+	const semiDLat = (phi2 - phi1) / 2;
+	const semiDLon = (lambda2 - lambda1) / 2;
+	const a = Math.sin(semiDLat) ** 2 + Math.sin(semiDLon) ** 2 * Math.cos(phi1) * Math.cos(phi2);
+	return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+/**
+ *
+ * @param pos1 longitude and latitude of point 1 in array of numbers
+ * @param pos2 longitude and latitude of point 2 in array of numbers
+ * @param isRadians coordinates in radians?
+ * @returns define a function that takes a fraction number and returns an interdediate point between 2 positions given in parameters ponderate by the fraction
+ */
+export function lerp(pos1: number[], pos2: number[], isRadians = true) {
+	if (!isRadians) {
+		pos1 = pos1.map((n) => n * CONFIGURATION.deg2rad);
+		pos2 = pos2.map((n) => n * CONFIGURATION.deg2rad);
 	}
+	const distance = exactDistance(pos1, pos2, true);
+	const cPhi1 = Math.cos(pos1[1]);
+	const sPhi1 = Math.sin(pos1[1]);
+	const cPhi2 = Math.cos(pos2[1]);
+	const sPhi2 = Math.sin(pos2[1]);
+
+	const cLambda1 = Math.cos(pos1[0]);
+	const cLambda2 = Math.cos(pos2[0]);
+	const sLambda2 = Math.sin(pos2[0]);
+
+	return {
+		generator: (f: number): [number, number] => {
+			const A = Math.sin((1 - f) * distance) / Math.sin(distance);
+			const B = Math.sin(f * distance) / Math.sin(distance);
+
+			const x = A * cPhi1 * cLambda1 + B * cPhi2 * cLambda2;
+			const y = A * cPhi1 * cLambda1 + B * cPhi2 * sLambda2;
+			const z = A * sPhi1 + B * sPhi2;
+			return [Math.atan2(y, x), Math.atan2(z, Math.sqrt(x * x + y * y))];
+		},
+		distance: isRadians ? distance : distance * CONFIGURATION.rad2deg,
+	};
 }
 
-export function updateSumUpCriteria(sumUp: ISumUpCriteria, properties: Record<string, unknown>): ISumUpCriteria {
-	let temporary;
-	let typeofTemporary;
-	// Attention si properties est un tableau
-	for (const attribute in properties) {
-		if (properties.hasOwnProperty(attribute)) {
-			temporary = properties[attribute];
-			if (temporary !== undefined || temporary !== null) {
-				typeofTemporary = typeof temporary;
-				if (sumUp.hasOwnProperty(attribute)) {
-					switch (typeofTemporary) {
-						case 'string':
-							if (sumUp[attribute].type === 'string') {
-								if (!(<string[]>sumUp[attribute].sumUp).includes(temporary)) {
-									(<string[]>sumUp[attribute].sumUp).push(temporary);
-								}
-							} else {
-								sumUp[attribute].type = 'undefined';
-								delete sumUp[attribute].sumUp;
-							}
+/**
+ *
+ * @param dim number of item to make a tuple
+ * @param tab flatten tuple of numbers [x0,y0,x1,y1,...] if dim =2;[x0,y0,z0,x1,y1,z1,...] if dim=3
+ * @returns return minimum for each coordinate of tuples given in parameter
+ */
+export function minArray(dim: number, ...tab: number[]): number[] {
+	const resultat: number[] = [];
+	dim = Math.ceil(dim);
+	if (dim <= 0) throw new Error('dim must be strictly positif');
 
-							break;
-						case 'object':
-							if (temporary instanceof Date && sumUp[attribute].type === 'date') {
-								updateSumUpCriteriaByDateOrNumber(
-									<{ max: Date; min: Date }>sumUp[attribute].sumUp,
-									temporary
-								);
-							} else if (Array.isArray(temporary) && sumUp[attribute].type === 'array') {
-								temporary.forEach((item) => {
-									updateSumUpCriteria(<ISumUpCriteria>sumUp[attribute].sumUp, item);
-								});
-							} else if (sumUp[attribute].type === 'object') {
-								updateSumUpCriteria(<ISumUpCriteria>sumUp[attribute].sumUp, temporary);
-							} else {
-								sumUp[attribute].type = 'undefined';
-								delete sumUp[attribute].sumUp;
-							}
-
-							break;
-						case 'boolean':
-							if (sumUp[attribute].type !== 'boolean') {
-								sumUp[attribute].type = 'undefined';
-								delete sumUp[attribute].sumUp;
-							}
-
-							break;
-						case 'symbol':
-							break;
-						case 'function':
-							break;
-						case 'number':
-							if (sumUp[attribute].type === 'number') {
-								updateSumUpCriteriaByDateOrNumber(
-									<{ max: number; min: number }>sumUp[attribute].sumUp,
-									temporary
-								);
-							} else {
-								sumUp[attribute].type = 'undefined';
-								delete sumUp[attribute].sumUp;
-							}
-
-							break;
-						default:
-					}
-				} else {
-					switch (typeofTemporary) {
-						case 'string':
-							sumUp[attribute] = { type: 'string', sumUp: [] };
-							(<string[]>sumUp[attribute].sumUp).push(temporary);
-							break;
-						case 'object':
-							if (temporary instanceof Date) {
-								sumUp[attribute] = { type: 'date', sumUp: { max: temporary, min: temporary } };
-							} else if (Array.isArray(temporary)) {
-								sumUp[attribute] = { type: 'array', sumUp: {} };
-								temporary.forEach((item) => {
-									updateSumUpCriteria(<ISumUpCriteria>sumUp[attribute].sumUp, item);
-								});
-							} else {
-								sumUp[attribute] = { type: 'object', sumUp: {} };
-								updateSumUpCriteria(<ISumUpCriteria>sumUp[attribute].sumUp, temporary);
-							}
-
-							break;
-						case 'boolean':
-							sumUp[attribute] = { type: 'boolean' };
-							break;
-						case 'symbol':
-							break;
-						case 'function':
-							break;
-						case 'number':
-							sumUp[attribute] = { type: 'number', sumUp: { max: temporary, min: temporary } };
-							break;
-						default:
-					}
-				}
-			}
+	for (let i = 0; i < dim; i++) {
+		resultat.push(Infinity);
+	}
+	for (let i = 0; i < tab.length; i += dim) {
+		for (let j = 0; j < dim; j++) {
+			resultat[j] = Math.min(resultat[j], tab[i + j]);
 		}
 	}
-
-	return sumUp;
+	return resultat;
 }
 
-function compare(ob1: any, ob2: any, ascendant: boolean): number {
-	let result = 0;
-	if (ob1 === undefined || ob1 === null) {
-		ob1 = '';
-	}
+/**
+ *
+ * @param dim number of item to make a tuple
+ * @param tab flatten tuple of numbers [x0,y0,x1,y1,...] if dim =2;[x0,y0,z0,x1,y1,z1,...] if dim=3
+ * @returns return maximum for each coordinate of tuples given in parameter
+ */
+export function maxArray(dim: number, ...tab: number[]): number[] {
+	const resultat: number[] = [];
+	dim = Math.ceil(dim);
+	if (dim <= 0) throw new Error('dim must be strictly positif');
 
-	if (ob2 === undefined || ob2 === null) {
-		ob2 = '';
+	for (let i = 0; i < dim; i++) {
+		resultat.push(-Infinity);
 	}
-
-	const ob1Float = Number.parseFloat(ob1);
-	const ob2Float = Number.parseFloat(ob2);
-	if (ob1 instanceof Date && ob2 instanceof Date) {
-		result = ob1.getTime() - ob2.getTime();
-	} else if (
-		!Number.isNaN(ob1Float) &&
-		!Number.isNaN(ob2Float) &&
-		ob1.length === ob1Float.toString().length &&
-		ob2.length === ob2Float.toString().length
-	) {
-		result = ob1Float - ob2Float;
-	} else {
-		const ob1String = ob1.toString().toLowerCase();
-		const ob2String = ob2.toString().toLowerCase();
-		if (ob1String === ob2String) {
-			result = 0;
-		} else if (ob1String > ob2String) {
-			result = 1;
-		} else {
-			result = -1;
+	for (let i = 0; i < tab.length; i += dim) {
+		for (let j = 0; j < dim; j++) {
+			resultat[j] = Math.max(resultat[j], tab[i + j]);
 		}
 	}
-
-	if (!ascendant) {
-		result = -result;
-	}
-
-	return result;
+	return resultat;
 }
 
-function compareItemCriteria(value: any, itemCriteria: IItemCriteria): boolean {
-	let result = false;
-	if (Array.isArray(value)) {
-		value.forEach((item) => {
-			result = result || compareItemCriteria(item, itemCriteria);
-		});
-	} else {
-		const comparison = compare(value, itemCriteria.value, true);
-		const comparator = itemCriteria.comparator;
-		if (comparator === '>') {
-			if (comparison > 0) {
-				result = true;
-			}
-		} else if (comparator === '>=') {
-			if (comparison >= 0) {
-				result = true;
-			}
-		} else if (comparator === '<') {
-			if (comparison < 0) {
-				result = true;
-			}
-		} else if (comparator === '<=') {
-			if (comparison <= 0) {
-				result = true;
-			}
-		} else if (comparator === '!=') {
-			if (comparison !== 0) {
-				result = true;
-			}
-		} else if (comparison === 0) {
-			result = true;
+/**
+ *
+ * @param dim number of item to make a tuple
+ * @param tab flatten tuple of numbers [x0,y0,x1,y1,...] if dim =2;[x0,y0,z0,x1,y1,z1,...] if dim=3
+ * @returns return mean for each coordinate of tuples given in parameter
+ */
+export function meanArray(dim: number, ...tab: number[]): number[] {
+	const resultat: number[] = [];
+	dim = Math.ceil(dim);
+	if (dim <= 0) throw new Error('dim must be strictly positif');
+
+	for (let i = 0; i < dim; i++) {
+		resultat.push(0);
+	}
+	for (let i = 0; i < tab.length; i += dim) {
+		for (let j = 0; j < dim; j++) {
+			resultat[j] += tab[i + j];
 		}
 	}
-
-	return result;
+	const nbElement = Math.floor(tab.length / dim);
+	if (nbElement === 0) return [];
+	return resultat.map((r) => r / nbElement);
 }
 
-function getObjectByString(objet: any, path: string): any {
-	path = path.replace(/\[(\w+|\*)]/g, '.$1'); // Convert indexes to properties
-	path = path.replace(/^\./, ''); // Strip a leading dot
-	const tab = path.split('.');
-	let subAttribute = tab.shift();
-	let finished = false;
-	while (subAttribute !== undefined && !finished && objet !== undefined) {
-		if (subAttribute === '') {
-			// Nothing
-		} else if (subAttribute === '*') {
-			const subPath = tab.join('.');
-			if (Array.isArray(objet)) {
-				objet = objet.map((item) => getObjectByString(item, subPath));
-				finished = true;
-			} else if (typeof objet === 'object' && !(objet instanceof Date)) {
-				objet = Object.getOwnPropertyNames(objet).map((attributeName) =>
-					getObjectByString(objet[attributeName], subPath)
-				);
-				finished = true;
-			}
-		} else if (subAttribute in objet) {
-			objet = objet[subAttribute];
-		} else {
-			objet = undefined;
-		}
+/**
+ *
+ * @param dim number of item to make a tuple
+ * @param tab flatten tuple of numbers [x0,y0,x1,y1,...] if dim =2;[x0,y0,z0,x1,y1,z1,...] if dim=3
+ * @returns return min-max for each coordinate of tuples given in parameter [xmin,xmax,ymin,ymax,zmin,zmax] for dim=3
+ */
+export function boundingBoxArray(dim: number, ...tab: number[]): number[] {
+	const resultat: number[] = [];
+	dim = Math.ceil(dim);
+	if (dim <= 0) throw new Error('dim must be strictly positif');
 
-		subAttribute = tab.shift();
+	for (let i = 0; i < dim; i++) {
+		resultat.push(Infinity, -Infinity);
 	}
-
-	return objet;
-}
-
-export function searchCriteria<T>(
-	collection: T[],
-	criteria: ICriteria,
-	forbiddenAttributes: string[] = [],
-	child?: string
-): T[] {
-	const criteriaKey = Object.keys(criteria);
-	const regex = new RegExp('(' + forbiddenAttributes.join('|') + ')', 'g');
-	function megaFilter(item: T): boolean {
-		let found = true;
-		let foundedObject: any;
-		const out: any = child === undefined ? item : getObjectByString(item, child);
-		let attribute: string;
-		for (let i = 0; i < criteriaKey.length && found; i++) {
-			attribute = criteriaKey[i];
-			if (regex.exec(attribute) === null) {
-				foundedObject = getObjectByString(out, attribute);
-				if (foundedObject === undefined) {
-					found = false;
-				} else {
-					found = found && compareItemCriteria(foundedObject, criteria[attribute]);
-				}
-			}
+	for (let i = 0; i < tab.length; i += dim) {
+		for (let j = 0; j < dim; j++) {
+			resultat[2 * j] = Math.min(resultat[2 * j], tab[i + j]);
+			resultat[2 * j + 1] = Math.max(resultat[2 * j + 1], tab[i + j]);
 		}
-
-		return found;
 	}
-
-	return collection.filter((x) => megaFilter(x));
-}
-
-export function orderCriteria<T>(collection: T[], criteriaOrder: IOrderAscendant[] = []): T[] {
-	function megaSorter(item1: T, item2: T): number {
-		let result = 0;
-		let orderAscendant: IOrderAscendant;
-		for (let i = 0; i < criteriaOrder.length && result === 0; i++) {
-			orderAscendant = criteriaOrder[i];
-			result = compare(
-				item1[orderAscendant.attribute],
-				item2[orderAscendant.attribute],
-				orderAscendant.ascendant
-			);
-		}
-
-		return result;
-	}
-
-	return collection.sort(megaSorter);
+	return resultat;
 }
 
 export function DragNDrop(id: string | HTMLElement, callback: (list: IListFile[]) => void, scope: unknown): void {
@@ -529,7 +368,7 @@ export const reviver: any = <U>(_key: string, value: any): U | any => {
 	return result;
 };
 
-export function matchingBBox(pos: LatLonH, bBoxes: IBBox[]): LatLonH[][] {
+export function matchingBBox(pos: LonLatH, bBoxes: IBBox[]): LonLatH[][] {
 	return bBoxes
 		.filter(
 			(bBox) =>
@@ -537,19 +376,19 @@ export function matchingBBox(pos: LatLonH, bBoxes: IBBox[]): LatLonH[][] {
 				pos.latitude <= bBox.maxLat &&
 				pos.longitude >= bBox.minLong &&
 				pos.longitude <= bBox.maxLong &&
-				LatLonH.isInside(pos, bBox.boundary)
+				LonLatH.isInside(pos, bBox.boundary)
 		)
 		.map((bBox) => bBox.boundary);
 }
 
 export function getLocalLimits(
-	boundaries: LatLonH[][],
+	boundaries: LonLatH[][],
 	referential: NEDLocal
 ): Array<{ clock: number; distance: number }> {
 	const allPoints: Coordinate[] = [];
 	boundaries.forEach((boundary) => {
 		boundary.forEach((position) => {
-			allPoints.push(referential.latLonH2NED(position));
+			allPoints.push(referential.lonLatH2NED(position));
 		});
 	});
 	const clockDistance = allPoints
@@ -584,7 +423,6 @@ export function getLocalLimits(
 
 	return result.sort((a, b) => a.clock - b.clock);
 }
-
 const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split('');
 let rnd = 0;
 let r: number;

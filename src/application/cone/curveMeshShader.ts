@@ -140,7 +140,7 @@ function computation(transName?: any): void {
 export class CurveMeshShader extends Line {
 	public begin: string | number;
 	public end: string | number;
-	private readonly theta: number;
+	public readonly theta: number;
 	private readonly _speedPerYear: { [year: string]: number };
 	private readonly _maxSpeedPerYear: { [year: string]: number };
 	private readonly _transportName: string;
@@ -204,13 +204,13 @@ export class CurveMeshShader extends Line {
 			if (lookup.hasOwnProperty(cityCodeBegin)) {
 				const begin = lookup[cityCodeBegin].beginCity;
 				const _curveList = lookup[cityCodeBegin].curvesList;
-				const beginGLSL = begin.position.toThreeGLSL();
+				const beginGLSL = begin.position.toGLSL();
 				for (const cityCodeEnd in _curveList) {
 					if (_curveList.hasOwnProperty(cityCodeEnd)) {
 						const _curve = _curveList[cityCodeEnd];
-						const pointPGLSL = _curve.pointP.toThreeGLSL();
-						const pointQGLSL = _curve.pointQ.toThreeGLSL();
-						const endGLSL = _curve.endCity.position.toThreeGLSL();
+						const pointPGLSL = _curve.pointP.toGLSL();
+						const pointQGLSL = _curve.pointQ.toGLSL();
+						const endGLSL = _curve.endCity.position.toGLSL();
 						for (const transportName in _curve.speedPerModePerYear) {
 							if (_curve.speedPerModePerYear.hasOwnProperty(transportName)) {
 								const _speedPerYear = _curve.speedPerModePerYear[transportName];
@@ -334,10 +334,6 @@ export class CurveMeshShader extends Line {
 	public dispose(): void {
 		this.geometry.dispose();
 		(<Material>this.material).dispose();
-	}
-
-	public get getTheta(): number {
-		return this.theta;
 	}
 
 	public get transportName(): string {

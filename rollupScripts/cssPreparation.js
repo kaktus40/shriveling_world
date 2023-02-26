@@ -3,12 +3,16 @@ import postcss from 'postcss';
 import autoprefixer from 'autoprefixer';
 import cssnano from 'cssnano';
 import comments from 'postcss-discard-comments';
-import { outputFileSync } from 'fs-extra';
 
+import FsExtra from 'fs-extra';
+
+const {
+    outputFileSync,
+} = FsExtra;
 const purge = new purgecss();
 const post = postcss([autoprefixer({ add: false }), cssnano, comments({ removeAll: true })]);
 
-export async function cssPreparation() {
+export async function cssPreparation(__dirname) {
     const purgeCSSResults = await purge.purge({
         content: [
             __dirname + '/src/**/*.html',
@@ -22,7 +26,7 @@ export async function cssPreparation() {
         whitelistPatterns: [/^title/, /^is-/, /^h[0-9]/, /^tbody/, /^tr/, /^td/, /^th/],
     });
     await Promise.all(
-        purgeCSSResults.map(async(item) => {
+        purgeCSSResults.map(async (item) => {
             let css = (await post.process(item.css, { from: item.file })).css;
             outputFileSync(item.file, css);
         })

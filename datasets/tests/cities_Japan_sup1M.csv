@@ -1,0 +1,11 @@
+index,countryCode,countryName,cityCode,cityName,latitude,longitude,radius,yearMotorway,yearHST
+0,0,center0,0,center,0,0,,,1964
+1,1,North East0,1,North East,39,39,,,1964
+2,2,South East0,2,South East,-41,39,,,1964
+3,3,South West0,3,South West,-41,-41,,,1964
+4,4,North West0,4,North West,39,-41,,,1975
+5,0,center1,5,center1,0.999,0.5,,,1965
+6,1,North East1,6,North East1,39.99,39.99,,,1965
+7,2,South East1,7,South East1,-40.99,39.99,,,1965
+8,3,South West1,8,South West1,-41.99,-41.99,,,1965
+9,4,North West1,9,North West1,39.99,-41.99,,,1695
