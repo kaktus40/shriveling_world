@@ -15,6 +15,8 @@ La migration poursuit quatre objectifs principaux:
 
 La migration ne doit pas etre une reecriture monolithique. Elle doit etre decoupee en etapes testables, avec des sorties de reference permettant de distinguer une regression d'une evolution intentionnelle du modele.
 
+Le suivi operationnel des jalons, criteres d'acceptation et validations est maintenu dans `docs/migration-validation-roadmap.md`. Ce document doit etre mis a jour et committe a chaque jalon valide.
+
 ## Etat Historique
 
 L'application historique repose sur:
