@@ -40,6 +40,63 @@ Les fichiers critiques de l'architecture historique sont:
 - `src/application/shaders/*.frag`
 - `src/application/shaders/*.glsl`
 
+## Pipeline De Build Historique A Preserver
+
+Le build Rollup historique ne se limite pas a compiler Sapper. Il execute plusieurs traitements applicatifs indispensables.
+
+Responsabilites identifiees:
+
+- `rollupScripts/shaderCompiler.js` compile les shaders GLSL avec `glslify`.
+- `rollupScripts/shaderCompiler.js` valide les shaders en developpement via un contexte WebGL cree avec `node-gles`.
+- `rollupScripts/shaderCompiler.js` supprime les commentaires et espaces inutiles des shaders compiles.
+- `rollup.config.js` injecte le dictionnaire des shaders dans le code via le placeholder `__SHADERS_HERE__`.
+- `rollupScripts/zipper.js` lit les dossiers de `datasets/`, transforme chaque dataset en liste `{ name, text }`, compresse le JSON avec `zlib.deflate` niveau 9, puis ecrit les resultats dans `static/datasets/`.
+- `rollupScripts/zipper.js` genere aussi `static/datasets/datasets.json`.
+- `rollup.config.js` copie les assets declares dans `package.json#toCopy`.
+- `rollup.config.js` lance la generation Typedoc.
+- `rollup.config.js` adapte certains liens HTML de documentation.
+- `rollup.config.js` lance la preparation/compression CSS.
+
+La migration SvelteKit/Vite doit donc reconstituer explicitement un pipeline equivalent. Supprimer Rollup sans remplacer ces hooks casserait:
+
+- le chargement dynamique des shaders;
+- le chargement des datasets compresses dans l'application;
+- la disponibilite des assets statiques;
+- la documentation developpeur generee;
+- potentiellement la preparation CSS historique.
+
+Approche cible:
+
+- creer des scripts Node independants du bundler pour les traitements applicatifs;
+- creer un plugin Vite uniquement pour l'integration au cycle `dev` et `build`;
+- eviter de cacher des traitements metier dans la configuration SvelteKit;
+- rendre la generation des datasets et shaders testable par commande dediee.
+
+Scripts cibles indicatifs:
+
+```text
+scripts/
+  build-shaders.ts
+  build-datasets.ts
+  build-docs.ts
+  build-static-assets.ts
+```
+
+Commandes cibles indicatives:
+
+```bash
+pnpm build:shaders
+pnpm build:datasets
+pnpm build:docs
+pnpm build:assets
+pnpm build:pre
+```
+
+Le passage futur a WGSL/WebGPU ne supprime pas immediatement ce besoin. Pendant la migration, il faudra prendre en charge a la fois:
+
+- les shaders GLSL historiques tant que des passes WebGL2 existent;
+- les shaders WGSL WebGPU pour les nouvelles passes compute.
+
 ## Principe D'Architecture Cible
 
 L'architecture cible doit separer clairement cinq couches:

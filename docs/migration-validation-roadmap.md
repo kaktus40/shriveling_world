@@ -59,6 +59,7 @@ Utiliser les statuts suivants:
 | M0 | validated | Branche propre et documentation initiale |
 | M1 | todo | Baseline de regression et fixtures |
 | M2 | todo | Migration SvelteKit/Vite minimale |
+| M2.1 | todo | Migration des hooks Rollup applicatifs |
 | M3 | todo | Extraction du domaine metier |
 | M4 | todo | Architecture explicite de precalcul |
 | M5 | todo | Rendu Babylon.js minimal |
@@ -169,6 +170,10 @@ Objectif:
 
 Remplacer le socle Sapper/Rollup par SvelteKit/Vite sans modifier le modele scientifique ni les algorithmes.
 
+Attention:
+
+Rollup porte actuellement des responsabilites applicatives qui doivent etre migrees explicitement. La migration SvelteKit/Vite n'est valide que si le jalon `M2.1` est aussi traite ou temporairement documente comme bloque.
+
 Travail attendu:
 
 - remplacer les scripts Sapper par des scripts SvelteKit;
@@ -213,6 +218,98 @@ Critere d'acceptation:
 - les tests M1 passent;
 - aucun changement algorithmique n'est introduit;
 - l'ancien routage Sapper est retire ou neutralise proprement.
+- les hooks applicatifs Rollup sont remplaces ou couverts par `M2.1`.
+
+Validation:
+
+- A renseigner apres implementation.
+
+## M2.1: Migration Des Hooks Rollup Applicatifs
+
+Statut: `todo`
+
+Objectif:
+
+Preserver les traitements applicatifs actuellement executes par Rollup lors du passage a SvelteKit/Vite.
+
+Responsabilites historiques a migrer:
+
+- compilation GLSL avec `glslify`;
+- validation des shaders GLSL en developpement via `node-gles`;
+- suppression des commentaires et espaces inutiles des shaders;
+- injection du dictionnaire de shaders via le placeholder `__SHADERS_HERE__`;
+- compression des datasets depuis `datasets/` vers `static/datasets/`;
+- generation de `static/datasets/datasets.json`;
+- copie des assets declares dans `package.json#toCopy`;
+- generation de la documentation Typedoc;
+- reecriture des liens HTML de documentation;
+- preparation/compression CSS historique.
+
+Fichiers historiques concernes:
+
+```text
+rollup.config.js
+rollupScripts/shaderCompiler.js
+rollupScripts/zipper.js
+rollupScripts/cssPreparation.js
+package.json
+src/application/shaders.ts
+```
+
+Architecture cible proposee:
+
+```text
+scripts/
+  build-shaders.ts
+  build-datasets.ts
+  build-docs.ts
+  build-static-assets.ts
+  build-pre.ts
+src/lib/build/
+  shaderCompiler.ts
+  datasetBundler.ts
+```
+
+Commandes cible:
+
+```bash
+pnpm build:shaders
+pnpm build:datasets
+pnpm build:docs
+pnpm build:assets
+pnpm build:pre
+```
+
+Integration Vite/SvelteKit:
+
+- `build:pre` doit pouvoir etre lance avant `vite build`;
+- en dev, les shaders et datasets doivent etre regeneres au demarrage;
+- un plugin Vite peut surveiller `src/application/shaders/**/*.glsl`, `*.frag`, `*.vert` et `datasets/**`;
+- les scripts Node doivent rester executables hors Vite pour les tests et la CI.
+
+Compatibilite temporaire:
+
+- tant que des passes WebGL2 existent, le pipeline GLSL doit rester fonctionnel;
+- les nouveaux kernels WGSL devront etre geres par un pipeline adjacent, sans casser GLSL;
+- l'injection `__SHADERS_HERE__` peut etre remplacee par des imports virtuels Vite, mais ce changement doit etre documente.
+
+Tests attendus:
+
+- verifier que les shaders compiles contiennent les imports `glslify` resolus;
+- verifier que le dictionnaire des shaders contient les cles attendues;
+- verifier que chaque dossier de `datasets/` produit un fichier compresse dans `static/datasets/`;
+- verifier que `static/datasets/datasets.json` liste les datasets;
+- verifier que l'application peut charger et inflater un dataset genere;
+- verifier que les assets declares sont copies.
+
+Critere d'acceptation:
+
+- les traitements Rollup historiques ont un equivalent SvelteKit/Vite ou script Node;
+- le chargement de dataset compresse fonctionne;
+- le chargement des shaders fonctionne;
+- les commandes sont documentees;
+- les tests M1 passent toujours;
+- aucun changement algorithmique n'est introduit.
 
 Validation:
 
