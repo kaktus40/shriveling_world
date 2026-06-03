@@ -268,15 +268,22 @@ Validation:
 
 - A renseigner apres implementation.
 
-## M2.1: Migration Des Hooks Rollup Applicatifs
+## M2.1: Evaluation Et Migration Des Hooks Rollup Applicatifs
 
 Statut: `todo`
 
 Objectif:
 
-Preserver les traitements applicatifs actuellement executes par Rollup lors du passage a SvelteKit/Vite.
+Evaluer les traitements applicatifs actuellement executes par Rollup lors du passage a SvelteKit/Vite, puis ne migrer que ceux qui restent necessaires.
 
-Responsabilites historiques a migrer:
+Principe:
+
+- ne pas recopier les hooks Rollup par reflexe;
+- utiliser les capacites natives de Vite quand elles couvrent le besoin;
+- ajouter des declarations TypeScript pour les imports shader;
+- conserver des scripts dedies pour les traitements qui restent applicatifs, notamment la compression des datasets.
+
+Responsabilites historiques a evaluer:
 
 - compilation GLSL avec `glslify`;
 - validation des shaders GLSL en developpement via `node-gles`;
@@ -304,20 +311,33 @@ Architecture cible proposee:
 
 ```text
 scripts/
-  build-shaders.ts
   build-datasets.ts
   build-docs.ts
   build-static-assets.ts
   build-pre.ts
 src/lib/build/
-  shaderCompiler.ts
   datasetBundler.ts
+src/vite-env.d.ts
 ```
 
-Commandes cible:
+Import shader cible possible:
+
+```ts
+import rawConesShader from './raw-cones.wgsl?raw';
+```
+
+Declaration TypeScript cible:
+
+```ts
+declare module '*.wgsl?raw' {
+  const source: string;
+  export default source;
+}
+```
+
+Commandes cible possibles:
 
 ```bash
-pnpm build:shaders
 pnpm build:datasets
 pnpm build:docs
 pnpm build:assets
@@ -327,20 +347,25 @@ pnpm build:pre
 Integration Vite/SvelteKit:
 
 - `build:pre` doit pouvoir etre lance avant `vite build`;
-- en dev, les shaders et datasets doivent etre regeneres au demarrage;
-- un plugin Vite peut surveiller `src/application/shaders/**/*.glsl`, `*.frag`, `*.vert` et `datasets/**`;
+- en dev, les datasets doivent etre regeneres au demarrage si l'application depend des versions compressees;
+- les shaders WGSL doivent d'abord etre testes avec des imports Vite `?raw`;
+- les shaders GLSL historiques doivent etre testes avec des imports Vite `?raw` si `glslify` n'est plus necessaire;
+- un plugin Vite peut surveiller `datasets/**` ou les shaders uniquement si les imports natifs ne suffisent pas;
 - les scripts Node doivent rester executables hors Vite pour les tests et la CI.
 
 Compatibilite temporaire:
 
 - tant que des passes WebGL2 existent, le pipeline GLSL doit rester fonctionnel;
 - les nouveaux kernels WGSL devront etre geres par un pipeline adjacent, sans casser GLSL;
-- l'injection `__SHADERS_HERE__` peut etre remplacee par des imports virtuels Vite, mais ce changement doit etre documente.
+- l'injection `__SHADERS_HERE__` doit etre remplacee si possible par des imports modules explicites;
+- `glslify` ne doit etre conserve que pour les shaders qui utilisent encore ses directives.
 
 Tests attendus:
 
-- verifier que les shaders compiles contiennent les imports `glslify` resolus;
-- verifier que le dictionnaire des shaders contient les cles attendues;
+- verifier qu'un fichier WGSL peut etre importe avec Vite et TypeScript;
+- verifier qu'un fichier GLSL historique peut etre importe ou compile selon le besoin reel;
+- verifier que les declarations TypeScript couvrent les extensions shader utilisees;
+- verifier que l'ancien dictionnaire global de shaders n'est plus necessaire ou qu'il a un equivalent documente;
 - verifier que chaque dossier de `datasets/` produit un fichier compresse dans `static/datasets/`;
 - verifier que `static/datasets/datasets.json` liste les datasets;
 - verifier que l'application peut charger et inflater un dataset genere;
@@ -348,9 +373,10 @@ Tests attendus:
 
 Critere d'acceptation:
 
-- les traitements Rollup historiques ont un equivalent SvelteKit/Vite ou script Node;
+- chaque traitement Rollup historique est classe en `supprime`, `remplace par Vite`, `remplace par script`, ou `a conserver temporairement`;
 - le chargement de dataset compresse fonctionne;
 - le chargement des shaders fonctionne;
+- les shaders WGSL sont importables avec typage TypeScript;
 - les commandes sont documentees;
 - les tests M1 passent toujours;
 - aucun changement algorithmique n'est introduit.

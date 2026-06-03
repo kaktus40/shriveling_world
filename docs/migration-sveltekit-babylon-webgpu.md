@@ -57,7 +57,9 @@ Responsabilites identifiees:
 - `rollup.config.js` adapte certains liens HTML de documentation.
 - `rollup.config.js` lance la preparation/compression CSS.
 
-La migration SvelteKit/Vite doit donc reconstituer explicitement un pipeline equivalent. Supprimer Rollup sans remplacer ces hooks casserait:
+La migration SvelteKit/Vite doit donc evaluer explicitement ces responsabilites. Il ne faut pas reconduire automatiquement tous les hooks historiques: certains traitements peuvent devenir inutiles parce que Vite sait importer directement des ressources texte ou binaires, avec une declaration TypeScript adaptee.
+
+Supprimer Rollup sans analyser ces responsabilites casserait:
 
 - le chargement dynamique des shaders;
 - le chargement des datasets compresses dans l'application;
@@ -67,12 +69,31 @@ La migration SvelteKit/Vite doit donc reconstituer explicitement un pipeline equ
 
 Approche cible:
 
-- creer des scripts Node independants du bundler pour les traitements applicatifs;
-- creer un plugin Vite uniquement pour l'integration au cycle `dev` et `build`;
+- utiliser les imports Vite natifs quand ils suffisent, notamment pour les shaders WGSL/GLSL importes comme sources texte;
+- ajouter les declarations TypeScript necessaires pour les extensions shader;
+- creer des scripts Node independants du bundler uniquement pour les traitements encore necessaires;
+- creer un plugin Vite seulement si les imports natifs ou les scripts dedies ne couvrent pas le besoin;
 - eviter de cacher des traitements metier dans la configuration SvelteKit;
 - rendre la generation des datasets et shaders testable par commande dediee.
 
-Scripts cibles indicatifs:
+Exemple de direction possible pour WGSL:
+
+```ts
+import rawConesShader from './raw-cones.wgsl?raw';
+```
+
+Avec une declaration de type:
+
+```ts
+declare module '*.wgsl?raw' {
+	const source: string;
+	export default source;
+}
+```
+
+La meme approche peut etre evaluee pour les fichiers GLSL historiques si le pipeline WebGL2 temporaire reste necessaire.
+
+Scripts cibles indicatifs, seulement si les fonctionnalites Vite natives ne suffisent pas:
 
 ```text
 scripts/
@@ -96,6 +117,13 @@ Le passage futur a WGSL/WebGPU ne supprime pas immediatement ce besoin. Pendant 
 
 - les shaders GLSL historiques tant que des passes WebGL2 existent;
 - les shaders WGSL WebGPU pour les nouvelles passes compute.
+
+Decision a prendre pendant `M2.1`:
+
+- importer WGSL/GLSL directement avec Vite quand c'est suffisant;
+- conserver un compilateur `glslify` seulement pour les shaders GLSL qui utilisent encore ses directives;
+- supprimer l'injection `__SHADERS_HERE__` si des imports modules explicites la remplacent proprement;
+- conserver un script de compression datasets tant que les datasets doivent etre servis sous forme deflatee.
 
 ## Principe D'Architecture Cible
 
