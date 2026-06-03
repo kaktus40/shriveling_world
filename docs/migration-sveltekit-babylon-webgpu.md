@@ -109,6 +109,123 @@ L'architecture cible doit separer clairement cinq couches:
 
 Le point majeur est la distinction entre precalcul et calcul interactif.
 
+## Strategie Web Et Client Lourd
+
+Decision d'architecture validee:
+
+```text
+UI commune:
+  SvelteKit
+
+Web:
+  SvelteKit + Babylon.js + WebGPU orchestre en TypeScript
+
+Desktop:
+  Tauri + le meme frontend SvelteKit
+
+Kernels GPU:
+  WGSL commun
+
+Rust:
+  backend Tauri, acces systeme, packaging desktop
+  backend compute natif wgpu possible dans un second temps
+```
+
+Cette strategie correspond a l'option hybride:
+
+- commencer par une application web moderne;
+- garder une seule interface utilisateur;
+- embarquer cette interface dans un client lourd Linux/Windows avec Tauri;
+- ecrire les kernels intensifs en WGSL pour maximiser la portabilite;
+- orchestrer WebGPU en TypeScript dans le navigateur;
+- garder la possibilite d'ajouter un backend Rust/wgpu natif si la webview desktop ou le backend TypeScript/WebGPU ne suffit pas.
+
+Ce choix evite une reecriture immediate en Rust tout en preservant une trajectoire vers un client lourd robuste.
+
+### Role De TypeScript
+
+TypeScript reste le langage principal pour:
+
+- l'interface SvelteKit;
+- l'orchestration du pipeline web;
+- les stores et controles utilisateur;
+- le chargement des datasets;
+- le pipeline de build;
+- le premier backend WebGPU;
+- les tests applicatifs.
+
+### Role De WGSL
+
+WGSL devient le langage commun des calculs GPU intensifs.
+
+Les kernels WGSL doivent etre concus comme des actifs portables:
+
+- utilisables par WebGPU cote navigateur;
+- reutilisables par un backend Rust/wgpu natif;
+- versionnes separement;
+- testes par comparaison numerique;
+- independants du renderer.
+
+### Role De Rust Et Tauri
+
+Rust est introduit via Tauri, pas comme reecriture globale initiale.
+
+Rust sert d'abord a:
+
+- packager l'application en client lourd Linux/Windows;
+- fournir un acces systeme controle;
+- gerer les fichiers locaux;
+- gerer les exports;
+- executer eventuellement des traitements offline;
+- fournir une base pour un backend compute natif futur.
+
+Un backend Rust/wgpu natif devient pertinent si:
+
+- la webview ne fournit pas WebGPU de maniere fiable;
+- les performances desktop exigent un acces GPU natif;
+- certains calculs CPU/precalcul deviennent trop couteux en TypeScript;
+- le partage de logique metier via WASM devient rentable.
+
+### Role De Deno
+
+Deno n'est pas retenu comme socle principal.
+
+Il peut rester une option pour des scripts autonomes, mais la migration cible:
+
+- `pnpm` et Node pour SvelteKit/Vite;
+- Tauri/Rust pour le client lourd;
+- WGSL pour le compute intensif.
+
+L'introduction de Deno dans le chemin principal ajouterait un runtime supplementaire sans resoudre directement le besoin de client lourd graphique.
+
+### Frontiere A Respecter
+
+L'architecture doit rester compatible avec deux backends compute:
+
+```text
+ComputeBackend
+  WebGpuBrowserBackend   // TypeScript + navigateur
+  WgpuNativeBackend      // Rust + wgpu, futur
+```
+
+Le reste de l'application doit dependre d'une interface stable, pas d'une implementation specifique.
+
+API indicative:
+
+```ts
+interface ComputeBackend {
+  prepareStaticBuffers(prepared: PreparedDataset): Promise<PreparedGpuResources>;
+  computeFrame(input: InteractiveComputeInput): Promise<ComputedFrame>;
+  dispose(): Promise<void>;
+}
+```
+
+Cette interface doit permettre:
+
+- le backend WebGPU TypeScript comme implementation initiale;
+- un backend Rust/wgpu natif ulterieur;
+- des tests avec backend CPU simplifie si necessaire.
+
 ## Separation Precalcul / Calcul Interactif
 
 Le pipeline doit etre explicitement divise en deux phases.
@@ -214,8 +331,8 @@ Objectif: securiser la migration avant de changer le socle.
 
 Actions:
 
-- Creer un dataset minimal de test.
-- Selectionner un dataset realiste de reference.
+- Creer des datasets reduits fictifs ou derives pour tests rapides.
+- Selectionner des datasets realistes de reference.
 - Ajouter des tests sur la lecture CSV/GeoJSON.
 - Ajouter des tests sur le `Merger`.
 - Verifier:
@@ -235,6 +352,15 @@ Livrables:
 - tests unitaires du pipeline data;
 - snapshots de reference;
 - commandes de test reproductibles.
+
+Strategie de datasets retenue:
+
+- `World_1M` sert de reference globale reduite, avec environ 500 villes dispersees sur le globe;
+- `Europe_1M` sert de reference europeenne rapide, avec environ 50 villes;
+- les fixtures rapides sont generees en prenant les 30 premieres villes d'un fichier `cities*.csv`;
+- les populations et le reseau de transport sont filtres sur ces villes;
+- les modes, vitesses et GeoJSON sont conserves pour garder un contexte coherent;
+- des datasets fictifs analytiques pourront etre ajoutes pour les cas geometriques precis.
 
 Critere de validation:
 

@@ -51,6 +51,10 @@ Utiliser les statuts suivants:
 - Les readbacks CPU WebGPU sont reserves aux tests, exports ou debug.
 - Les changements scientifiques intentionnels sont documentes.
 - Les tests de regression sont mis a jour avant les migrations risquées.
+- L'interface utilisateur commune reste SvelteKit.
+- Les kernels GPU intensifs sont ecrits en WGSL portable.
+- Le client lourd cible Tauri, sans reecriture initiale complete en Rust.
+- Le backend Rust/wgpu natif reste une extension possible, pas une dependance du premier portage.
 
 ## Vue D'Ensemble Des Jalons
 
@@ -67,6 +71,7 @@ Utiliser les statuts suivants:
 | M7 | todo | Portage WGSL des passes existantes |
 | M8 | todo | Nouveau pipeline d'intersections |
 | M9 | todo | Integration interactive complete |
+| M9.1 | todo | Packaging client lourd Tauri |
 | M10 | todo | Nettoyage, documentation utilisateur et stabilisation |
 
 ## M0: Branche Propre Et Documentation Initiale
@@ -110,11 +115,28 @@ Travail attendu:
 - tester le `Merger`;
 - produire des snapshots JSON lisibles pour les sorties de reference.
 
-Datasets proposes:
+Datasets de reference retenus:
 
-- dataset minimal: `datasets/19` ou une fixture reduite extraite de `datasets/tests` si disponible;
-- dataset realiste: `datasets/World_1M`, `datasets/Europe_1M` ou `datasets/Germany_22` selon le temps d'execution;
-- dataset de non-regression frontieres: GeoJSON le plus petit possible couvrant plusieurs polygones.
+- `datasets/World_1M`: dataset reduit a environ 500 villes dispersees sur tout le globe;
+- `datasets/Europe_1M`: dataset reduit a environ 50 villes situees en Europe;
+- fixtures fictives ou reduites generees a partir des 30 premieres lignes de fichiers `cities*.csv`.
+
+Strategie de fixtures reduites:
+
+- pour chaque dataset source utile, prendre les 30 premieres villes du fichier `cities*.csv`;
+- conserver le header CSV;
+- filtrer `population*.csv` sur les `cityCode` conserves;
+- filtrer `transport_network*.csv` pour ne garder que les arcs dont `cityCodeOri` et `cityCodeDes` appartiennent aux villes conservees;
+- conserver les fichiers `transport_modes*.csv` et `transport_mode_speed*.csv` tels quels;
+- conserver le GeoJSON source pour les premiers tests data;
+- creer plus tard un GeoJSON artificiel minimal pour les tests geometriques analytiques.
+
+Datasets de test proposes pour M1:
+
+- `fixture-30-world`: derive de `datasets/World_1M` avec les 30 premieres villes;
+- `fixture-30-europe`: derive de `datasets/Europe_1M` avec les 30 premieres villes;
+- `reference-world-1m`: utilise `datasets/World_1M` tel quel pour un test plus large;
+- `reference-europe-1m`: utilise `datasets/Europe_1M` tel quel pour un test europeen rapide.
 
 Sorties a figer:
 
@@ -136,13 +158,33 @@ Fichiers attendus:
 ```text
 tests/
   fixtures/
-    minimal/
-    reference/
+    fixture-30-world/
+    fixture-30-europe/
+    reference-world-1m/
+    reference-europe-1m/
   golden/
-    merger-minimal.json
-    merger-reference.json
+    merger-fixture-30-world.json
+    merger-fixture-30-europe.json
+    merger-reference-world-1m.json
+    merger-reference-europe-1m.json
   merger.test.ts
 ```
+
+Script de generation attendu:
+
+```text
+scripts/
+  create-reduced-dataset-fixture.ts
+```
+
+Comportement attendu du script:
+
+- detecter automatiquement le fichier `cities*.csv`;
+- extraire les 30 premieres villes;
+- filtrer populations et reseau de transport;
+- copier modes, vitesses et GeoJSON;
+- ecrire une fixture reproductible dans `tests/fixtures/`;
+- echouer explicitement si les fichiers attendus sont absents ou ambigus.
 
 Commandes de validation attendues:
 
@@ -157,6 +199,8 @@ Critere d'acceptation:
 - les snapshots sont versionnes;
 - les tolerances numeriques sont explicites;
 - aucune migration SvelteKit/Babylon/WebGPU n'est incluse dans ce jalon.
+- les fixtures 30 villes sont generees de maniere reproductible;
+- `World_1M` et `Europe_1M` sont documentes comme datasets de reference.
 
 Validation:
 
@@ -471,6 +515,13 @@ Objectif:
 
 Creer le remplacement structurel de `GPUComputer`, sans encore porter tout le modele.
 
+Decision d'architecture:
+
+- l'implementation initiale est un backend WebGPU orchestre en TypeScript;
+- les kernels sont ecrits en WGSL;
+- l'API doit rester compatible avec un futur backend Rust/wgpu natif;
+- le framework compute ne doit pas dependre de Babylon.js, Tauri ou SvelteKit.
+
 Travail attendu:
 
 - initialiser `GPUAdapter` et `GPUDevice`;
@@ -493,12 +544,23 @@ src/lib/compute/kernels/
   smoke.wgsl
 ```
 
+Interface cible indicative:
+
+```ts
+interface ComputeBackend {
+  prepareStaticBuffers(prepared: PreparedDataset): Promise<PreparedGpuResources>;
+  computeFrame(input: InteractiveComputeInput): Promise<ComputedFrame>;
+  dispose(): Promise<void>;
+}
+```
+
 Critere d'acceptation:
 
 - un test WebGPU simple passe quand WebGPU est disponible;
 - un skip explicite existe quand WebGPU est indisponible;
 - le framework compute ne depend pas de Babylon;
 - le framework compute ne depend pas de SvelteKit.
+- l'API ne bloque pas l'ajout futur d'un backend Rust/wgpu.
 
 Validation:
 
@@ -582,6 +644,12 @@ Objectif:
 
 Relier SvelteKit, precalcul, WebGPU compute et Babylon.js en une application interactive coherente.
 
+Perimetre:
+
+- ce jalon vise d'abord l'application web;
+- le client lourd Tauri est traite dans `M9.1`;
+- l'interface doit toutefois deja rester compatible avec un build statique embarquable.
+
 Travail attendu:
 
 - charger un dataset;
@@ -598,6 +666,75 @@ Critere d'acceptation:
 - le changement de representation est interactif;
 - les couches peuvent etre affichees/masquees;
 - les tests et le build passent.
+- le build frontend peut etre produit sous forme statique ou embarquable.
+
+Validation:
+
+- A renseigner apres implementation.
+
+## M9.1: Packaging Client Lourd Tauri
+
+Statut: `todo`
+
+Objectif:
+
+Produire un client lourd Linux/Windows en reutilisant l'interface SvelteKit et le pipeline de calcul existant.
+
+Decision d'architecture:
+
+```text
+Frontend commun:
+  SvelteKit
+
+Desktop shell:
+  Tauri
+
+Backend desktop:
+  Rust pour acces systeme, fichiers, exports, packaging
+
+Compute initial:
+  WebGPU via frontend/webview si disponible
+
+Compute futur possible:
+  Rust/wgpu natif derriere la meme interface ComputeBackend
+```
+
+Travail attendu:
+
+- ajouter la configuration Tauri;
+- verifier que le build SvelteKit peut etre embarque;
+- definir les commandes Rust minimales;
+- gerer l'acces aux fichiers locaux;
+- tester le chargement de datasets locaux;
+- tester les exports;
+- documenter les limitations WebGPU des webviews Linux/Windows;
+- definir la strategie de fallback si WebGPU est indisponible dans la webview.
+
+Fichiers attendus:
+
+```text
+src-tauri/
+  Cargo.toml
+  tauri.conf.json
+  src/
+    main.rs
+```
+
+Commandes attendues:
+
+```bash
+pnpm tauri dev
+pnpm tauri build
+```
+
+Critere d'acceptation:
+
+- l'application desktop se lance sous Linux;
+- la configuration Windows est preparee;
+- le frontend est le meme que l'application web;
+- les datasets peuvent etre charges;
+- les exports ou acces fichiers essentiels passent par Tauri/Rust;
+- les limitations WebGPU desktop sont documentees.
 
 Validation:
 
