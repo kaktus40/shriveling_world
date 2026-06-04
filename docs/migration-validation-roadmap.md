@@ -711,6 +711,11 @@ Objectif:
 
 Formaliser la phase qui transforme le dataset brut en entrees stables pour les calculs interactifs.
 
+Analyse de reference:
+
+- `docs/precompute-dataflow-cpu-gpu.md` decrit le cheminement des donnees,
+  les responsabilites CPU/GPU/renderer et les entrees/sorties de chaque phase.
+
 API cible:
 
 ```ts
