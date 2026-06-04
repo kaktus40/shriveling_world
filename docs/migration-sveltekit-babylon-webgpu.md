@@ -67,14 +67,17 @@ Supprimer Rollup sans analyser ces responsabilites casserait:
 - la documentation developpeur generee;
 - potentiellement la preparation CSS historique.
 
-Approche cible:
+Decision cible:
 
-- utiliser les imports Vite natifs quand ils suffisent, notamment pour les shaders WGSL/GLSL importes comme sources texte;
+- profiter des mecanismes SvelteKit/Vite pour integrer les shaders directement dans le code;
+- importer les fichiers WGSL/GLSL comme modules sources texte;
 - ajouter les declarations TypeScript necessaires pour les extensions shader;
-- creer des scripts Node independants du bundler uniquement pour les traitements encore necessaires;
+- supprimer l'injection globale `__SHADERS_HERE__`;
+- eviter un nouveau hook shader tant que les imports Vite suffisent;
+- creer des scripts Node independants du bundler uniquement pour les traitements encore necessaires, notamment les datasets;
 - creer un plugin Vite seulement si les imports natifs ou les scripts dedies ne couvrent pas le besoin;
 - eviter de cacher des traitements metier dans la configuration SvelteKit;
-- rendre la generation des datasets et shaders testable par commande dediee.
+- rendre la generation des datasets testable par commande dediee.
 
 Exemple de direction possible pour WGSL:
 
@@ -91,13 +94,12 @@ declare module '*.wgsl?raw' {
 }
 ```
 
-La meme approche peut etre evaluee pour les fichiers GLSL historiques si le pipeline WebGL2 temporaire reste necessaire.
+La meme approche sera appliquee aux fichiers GLSL historiques si le pipeline WebGL2 temporaire reste necessaire.
 
-Scripts cibles indicatifs, seulement si les fonctionnalites Vite natives ne suffisent pas:
+Scripts cibles indicatifs, seulement pour les traitements qui restent necessaires:
 
 ```text
 scripts/
-  build-shaders.ts
   build-datasets.ts
   build-docs.ts
   build-static-assets.ts
@@ -106,7 +108,6 @@ scripts/
 Commandes cibles indicatives:
 
 ```bash
-pnpm build:shaders
 pnpm build:datasets
 pnpm build:docs
 pnpm build:assets
@@ -118,12 +119,28 @@ Le passage futur a WGSL/WebGPU ne supprime pas immediatement ce besoin. Pendant 
 - les shaders GLSL historiques tant que des passes WebGL2 existent;
 - les shaders WGSL WebGPU pour les nouvelles passes compute.
 
-Decision a prendre pendant `M2.1`:
+Decision pour `M2.1`:
 
-- importer WGSL/GLSL directement avec Vite quand c'est suffisant;
+- importer WGSL/GLSL directement avec Vite/SvelteKit;
 - conserver un compilateur `glslify` seulement pour les shaders GLSL qui utilisent encore ses directives;
-- supprimer l'injection `__SHADERS_HERE__` si des imports modules explicites la remplacent proprement;
+- ne pas introduire d'equivalent `glslify` pour WGSL tant qu'un besoin concret d'assemblage n'est pas demontre;
+- organiser d'abord les kernels WGSL en fichiers explicites, importes comme sources texte;
+- evaluer un preprocesseur WGSL seulement si la factorisation manuelle devient un probleme mesurable;
+- supprimer l'injection `__SHADERS_HERE__` au profit d'import modules explicites;
 - conserver un script de compression datasets tant que les datasets doivent etre servis sous forme deflatee.
+
+Alternatives a evaluer pour les datasets:
+
+- continuer a generer des fichiers deflates comme le pipeline historique;
+- servir des fichiers JSON/CSV non precompresses et laisser le serveur ou l'hebergeur appliquer gzip/brotli;
+- produire un format applicatif plus adapte au futur precalcul, par exemple JSON compacte, NDJSON ou buffers binaires;
+- en client lourd Tauri, permettre le chargement direct de dossiers datasets locaux sans zip prealable.
+
+Decision provisoire:
+
+- garder la compression datasets comme script separe pour compatibilite;
+- ne pas coupler cette compression a Vite ni au pipeline shader;
+- reevaluer le format de distribution des datasets apres definition du pipeline de precalcul.
 
 ## Principe D'Architecture Cible
 

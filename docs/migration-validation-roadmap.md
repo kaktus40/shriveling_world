@@ -381,6 +381,15 @@ Compatibilite temporaire:
 - les nouveaux kernels WGSL devront etre geres par un pipeline adjacent, sans casser GLSL;
 - l'injection `__SHADERS_HERE__` doit etre remplacee si possible par des imports modules explicites;
 - `glslify` ne doit etre conserve que pour les shaders qui utilisent encore ses directives.
+- aucun equivalent `glslify` pour WGSL ne doit etre ajoute par defaut;
+- un preprocesseur WGSL ne sera evalue que si l'assemblage manuel ou les imports Vite deviennent insuffisants.
+
+Alternatives datasets a evaluer:
+
+- conserver le script de compression deflate historique;
+- laisser l'hebergement appliquer gzip/brotli a des assets non precompresses;
+- produire un format applicatif specifique au futur precalcul;
+- permettre a Tauri de charger directement des dossiers datasets locaux.
 
 Tests attendus:
 
@@ -392,6 +401,7 @@ Tests attendus:
 - verifier que `static/datasets/datasets.json` liste les datasets;
 - verifier que l'application peut charger et inflater un dataset genere;
 - verifier que les assets declares sont copies.
+- documenter si la compression applicative reste necessaire ou si la compression serveur suffit.
 
 Critere d'acceptation:
 
