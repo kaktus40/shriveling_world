@@ -181,6 +181,14 @@ scripts/build-datasets.*
 
 La sortie devra rester compatible avec le chargeur historique tant que l'UI et le pipeline data ne sont pas remplaces.
 
+Implementation `M2`:
+
+- `scripts/build-datasets.mjs` remplace le hook Rollup `rollupScripts/zipper.js`.
+- La commande `npm run build:datasets` genere `static/datasets/<datasetName>` et `static/datasets/datasets.json`.
+- La commande `npm run build` execute `npm run build:datasets` avant `vite build`.
+- Le format reste volontairement compatible avec le chargeur historique: tableau JSON `{ name, text }[]` compresse avec `zlib.deflate` niveau 9.
+- `static/` reste ignore par Git parce que ces fichiers sont des artefacts generes.
+
 ### Alternatives A Evaluer Plus Tard
 
 - Servir les CSV/GeoJSON directement et laisser l'hebergeur appliquer gzip/brotli.
@@ -271,6 +279,14 @@ Avant ou pendant la migration SvelteKit:
 - ne pas migrer `glslify` tant que les passes GLSL ne sont pas explicitement conservees;
 - remplacer l'injection `__SHADERS_HERE__` seulement au moment ou les modules concernes sont portes;
 - documenter tout traitement Rollup supprime.
+
+Etat `M2`:
+
+- import WGSL minimal prouve avec `src/lib/compute/kernels/smoke.wgsl?raw`;
+- declarations TypeScript shader ajoutees dans `src/vite-env.d.ts`;
+- compression datasets portee dans `scripts/build-datasets.mjs`;
+- service worker Sapper supprime;
+- Typedoc, CSS preparation et copie d'assets restent a reevaluer dans un jalon ulterieur.
 
 ## Validation M2.1
 

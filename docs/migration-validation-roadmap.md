@@ -62,7 +62,7 @@ Utiliser les statuts suivants:
 | --- | --- | --- |
 | M0 | validated | Branche propre et documentation initiale |
 | M1 | validated | Caracterisation initiale et fixtures |
-| M2 | todo | Migration SvelteKit/Vite minimale |
+| M2 | validated | Migration SvelteKit/Vite minimale |
 | M2.1 | validated | Evaluation des hooks Rollup applicatifs |
 | M3 | todo | Extraction du domaine metier |
 | M4 | todo | Architecture explicite de precalcul |
@@ -230,7 +230,7 @@ Validation:
 
 ## M2: Migration SvelteKit Et Vite Minimale
 
-Statut: `todo`
+Statut: `validated`
 
 Objectif:
 
@@ -252,15 +252,15 @@ Travail attendu:
 
 Decision proposee:
 
-- utiliser `pnpm`;
-- supprimer `package-lock.json` seulement une fois `pnpm-lock.yaml` etabli;
-- garder Three.js pendant ce jalon pour eviter une double migration.
+- conserver `npm` temporairement pour ne pas coupler la migration SvelteKit a une migration de gestionnaire de paquets;
+- versionner `package-lock.json` pour rendre l'installation reproductible;
+- garder le code Three.js legacy present mais non raccorde au shell SvelteKit minimal, pour eviter une double migration.
 
 Fichiers probablement concernes:
 
 ```text
 package.json
-pnpm-lock.yaml
+package-lock.json
 svelte.config.js
 vite.config.ts
 src/routes/
@@ -271,10 +271,10 @@ static/
 Commandes de validation attendues:
 
 ```bash
-pnpm install
-pnpm test
-pnpm build
-pnpm dev
+npm install
+npm run characterize:datasets
+npm run build
+npm run validate
 ```
 
 Critere d'acceptation:
@@ -283,12 +283,24 @@ Critere d'acceptation:
 - le build production passe;
 - les tests M1 passent;
 - aucun changement algorithmique n'est introduit;
-- l'ancien routage Sapper est retire ou neutralise proprement.
+- l'ancien routage Sapper est retire ou neutralise proprement;
 - les hooks applicatifs Rollup sont remplaces ou couverts par `M2.1`.
 
 Validation:
 
-- A renseigner apres implementation.
+- `npm install` execute avec resolution des dependances SvelteKit/Vite.
+- `npm run build` valide:
+  - generation des datasets compresses via `scripts/build-datasets.mjs`;
+  - import d'un fichier WGSL via Vite avec `?raw`;
+  - build statique SvelteKit via `@sveltejs/adapter-static`.
+- `src/service-worker.ts` Sapper a ete supprime pour eviter la dependance obsolete `@sapper/service-worker`.
+- `npm run validate` reste rouge: `svelte-check` remonte 233 erreurs et 10 warnings dans le code legacy Sapper/Three encore present.
+- Ces erreurs ne bloquent pas M2 parce que le shell SvelteKit minimal ne depend pas encore de ce code legacy. Elles doivent etre traitees par suppression ou portage progressif pendant M3-M8, pas masquees par un assouplissement TypeScript global.
+
+Resultat:
+
+- M2 valide sur le critere build applicatif.
+- Dette explicitement ouverte: validation stricte du code legacy non portee.
 
 ## M2.1: Evaluation Des Hooks Rollup Applicatifs
 

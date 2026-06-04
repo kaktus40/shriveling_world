@@ -3,6 +3,7 @@
 /src/node_modules/@sapper/
 yarn-error.log
 /__sapper__/
+.svelte-kit/
+build/
 static
-package-lock.json
 package-lock.json~upstream_master

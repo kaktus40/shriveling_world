@@ -2,6 +2,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync,
 import path from 'path';
 
 export function ensureCleanDir(dir) {
+	mkdirSync(path.dirname(dir), { recursive: true });
 	if (existsSync(dir)) {
 		rmSync(dir, { recursive: true, force: true });
 	}

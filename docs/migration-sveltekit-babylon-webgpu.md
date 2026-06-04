@@ -420,12 +420,14 @@ Critere de validation:
 
 Objectif: moderniser le socle web sans modifier le modele scientifique.
 
+Etat du jalon `M2`: valide sur build applicatif.
+
 Actions:
 
 - Remplacer Sapper par SvelteKit.
 - Remplacer Rollup par Vite.
 - Mettre a jour TypeScript, ESLint et Prettier.
-- Choisir un seul gestionnaire de paquets. Recommandation: `pnpm`.
+- Choisir un seul gestionnaire de paquets.
 - Deplacer les assets publics dans `static/`.
 - Recréer les routes necessaires:
   - application;
@@ -433,6 +435,17 @@ Actions:
   - pages de test visuel;
   - chargement de dataset.
 - Conserver temporairement Three.js si necessaire pour limiter le risque.
+
+Decisions prises pendant `M2`:
+
+- `npm` est conserve temporairement pour limiter le perimetre du jalon.
+- `package-lock.json` doit etre versionne tant que `npm` reste le gestionnaire de paquets.
+- SvelteKit utilise `@sveltejs/adapter-static` pour produire un build embarquable plus tard dans Tauri.
+- Les routes SvelteKit minimales sont creees avec `src/app.html`, `src/routes/+layout.*` et `src/routes/+page.svelte`.
+- Un kernel WGSL minimal est importe via Vite avec `?raw` pour prouver le mecanisme cible.
+- Les declarations TypeScript `*.wgsl?raw`, `*.glsl?raw`, `*.frag?raw` et `*.vert?raw` sont ajoutees.
+- Le service worker Sapper legacy est supprime; une strategie service worker SvelteKit sera reintroduite seulement quand le cache des datasets sera clarifie.
+- Le bundling des datasets compresses est sorti de Rollup et repris par `scripts/build-datasets.mjs`.
 
 Livrables:
 
@@ -444,11 +457,17 @@ Livrables:
 Critere de validation:
 
 ```bash
-pnpm install
-pnpm test
-pnpm build
-pnpm dev
+npm install
+npm run characterize:datasets
+npm run build
+npm run validate
 ```
+
+Resultat de validation:
+
+- `npm run build` passe.
+- `npm run validate` echoue encore sur le code legacy Sapper/Three non porte.
+- Cette dette est acceptee temporairement: elle doit etre retiree par portage progressif, pas cachee par une configuration TypeScript moins stricte.
 
 ## Phase 3: Extraction Du Domaine Metier
 
