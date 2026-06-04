@@ -492,6 +492,13 @@ Tables d'enrichissement rattachees aux villes:
 - ces fichiers ne sont pas obligatoires pour construire le reseau de transport de base;
 - le fichier historiquement appele `population.csv` est un cas particulier de cette famille, pas un contrat population global.
 
+Contrainte d'ordre:
+
+- l'ordre d'arrivee des fichiers est inconnu et ne doit jamais influencer le resultat;
+- le pipeline doit d'abord collecter tous les fichiers, puis inspecter le dataset complet;
+- aucune jointure ni aucun parsing complet ne doit commencer avant la resolution globale du manifest;
+- le meme dataset doit donner le meme manifest et le meme reseau, que les fichiers arrivent par drag and drop, archive, dossier local, ordre alphabetique ou ordre aleatoire.
+
 Mecanisme propose:
 
 1. `DatasetInspection`
@@ -502,13 +509,20 @@ Mecanisme propose:
    - classe en table d'enrichissement ville tout CSV restant qui possede `cityCode`;
    - produit un rapport de classification, d'ambiguite et d'erreurs.
 
-2. `DatasetParsing`
+2. `DatasetManifestResolution`
+   - choisit les fichiers primaires requis;
+   - verifie l'unicite des fichiers primaires;
+   - regroupe les fichiers optionnels;
+   - conserve les fichiers inconnus et ambigus dans les diagnostics;
+   - echoue avant assemblage si le manifest est incomplet ou contradictoire.
+
+3. `DatasetParsing`
    - parse chaque fichier classifie;
    - conserve chaque ligne source complete dans `raw`;
    - extrait les champs caracteristiques dans une vue typee minimale;
    - conserve les champs libres dans `extra` sans interpretation metier.
 
-3. `BaseNetworkAssembly`
+4. `BaseNetworkAssembly`
    - construit des index immuables par identifiants caracteristiques;
    - relie les fichiers par index, pas par mutation de tables;
    - conserve les relations sous forme d'adjacence et de references stables;

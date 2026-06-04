@@ -261,23 +261,64 @@ Les calculs utilisent `characteristic`.
 
 Les requetes utilisateur et enrichissements utilisent `raw` ou `extra` via un mapping explicite.
 
+### Independance De L'Ordre Des Fichiers
+
+L'ordre d'arrivee des fichiers n'est pas connu.
+
+Le pipeline data ne doit donc jamais dependre de l'ordre fourni par:
+
+- un drag and drop;
+- une archive;
+- un dossier local;
+- le dataset compresse de l'application;
+- un tri alphabetique;
+- un ordre aleatoire.
+
+Le flux obligatoire est:
+
+1. collecter tous les fichiers;
+2. inspecter les en-tetes de tous les fichiers;
+3. resoudre un `DatasetManifest` global;
+4. parser completement les fichiers classifies;
+5. assembler le reseau.
+
+Aucune jointure et aucun nettoyage ne doivent etre executes avant la resolution du manifest.
+
+Forme cible:
+
+```ts
+interface DatasetManifest {
+  primary: {
+    cities: InspectedDatasetFile;
+    transportNetwork: InspectedDatasetFile;
+    transportModes: InspectedDatasetFile;
+    transportModeSpeeds: InspectedDatasetFile;
+  };
+  cityLinkedAttributes: InspectedDatasetFile[];
+  geojson: InspectedDatasetFile[];
+  unknown: InspectedDatasetFile[];
+  diagnostics: DatasetDiagnostic[];
+}
+```
+
 ### Mecanisme D'Aggregation Propose
 
 L'aggregation historique dans `Merger` enrichit des objets par mutations successives. Ce fonctionnement est difficile a tester, difficile a diagnostiquer et favorise les dependances implicites entre donnees, rendu et calcul.
 
 Le mecanisme cible est une aggregation par index et references stables:
 
-1. parse lossless des fichiers classifies;
-2. normalisation technique des colonnes caracteristiques;
-3. creation d'index:
+1. resolution globale du `DatasetManifest`;
+2. parse lossless des fichiers classifies;
+3. normalisation technique des colonnes caracteristiques;
+4. creation d'index:
    - `cityByCode`;
    - `modeByCode`;
    - `speedByModeAndYear`;
    - `edgesByOrigin`;
    - `edgesByDestination`;
    - index des records libres rattaches aux villes par `cityCode`;
-4. creation d'entites reseau qui referencent les records sources;
-5. production de diagnostics avant tout calcul intensif.
+5. creation d'entites reseau qui referencent les records sources;
+6. production de diagnostics avant tout calcul intensif.
 
 Forme cible indicative:
 
