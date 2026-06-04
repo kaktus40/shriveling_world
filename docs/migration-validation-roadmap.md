@@ -383,6 +383,8 @@ Compatibilite temporaire:
 - `glslify` ne doit etre conserve que pour les shaders qui utilisent encore ses directives.
 - aucun equivalent `glslify` pour WGSL ne doit etre ajoute par defaut;
 - un preprocesseur WGSL ne sera evalue que si l'assemblage manuel ou les imports Vite deviennent insuffisants.
+- la validation WGSL reste obligatoire et sera assuree par creation de `GPUShaderModule` puis lecture de `getCompilationInfo()`;
+- une validation native Rust/wgpu/Naga sera evaluee quand le backend desktop natif sera introduit.
 
 Alternatives datasets a evaluer:
 
@@ -394,6 +396,8 @@ Alternatives datasets a evaluer:
 Tests attendus:
 
 - verifier qu'un fichier WGSL peut etre importe avec Vite et TypeScript;
+- verifier qu'un shader WGSL valide compile via WebGPU;
+- verifier qu'un shader WGSL invalide produit une erreur de validation lisible;
 - verifier qu'un fichier GLSL historique peut etre importe ou compile selon le besoin reel;
 - verifier que les declarations TypeScript couvrent les extensions shader utilisees;
 - verifier que l'ancien dictionnaire global de shaders n'est plus necessaire ou qu'il a un equivalent documente;

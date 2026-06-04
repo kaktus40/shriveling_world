@@ -126,6 +126,8 @@ Decision pour `M2.1`:
 - ne pas introduire d'equivalent `glslify` pour WGSL tant qu'un besoin concret d'assemblage n'est pas demontre;
 - organiser d'abord les kernels WGSL en fichiers explicites, importes comme sources texte;
 - evaluer un preprocesseur WGSL seulement si la factorisation manuelle devient un probleme mesurable;
+- valider les WGSL par creation de `GPUShaderModule` et lecture de `getCompilationInfo()`;
+- prevoir une validation native Rust/wgpu/Naga lorsque le backend desktop natif sera introduit;
 - supprimer l'injection `__SHADERS_HERE__` au profit d'import modules explicites;
 - conserver un script de compression datasets tant que les datasets doivent etre servis sous forme deflatee.
 

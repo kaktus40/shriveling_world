@@ -17,7 +17,8 @@ La regle de migration est de ne pas recopier les hooks Rollup par reflexe. Chaqu
 | Compilation GLSL avec `glslify` | `rollupScripts/shaderCompiler.js` | conserve temporairement | Les GLSL historiques utilisent vraiment `#pragma glslify`. A supprimer quand WebGL2/GLSL disparait. |
 | Validation GLSL avec `node-gles` | `rollupScripts/shaderCompiler.js` | conserve temporairement ou supprime | Utile tant que GLSL reste actif, mais ne doit pas bloquer la migration SvelteKit si fragile. |
 | Import WGSL | nouveau pipeline WebGPU | remplace par Vite | Les WGSL seront importes avec `?raw` et declarations TypeScript. |
-| Preprocesseur WGSL type `glslify` | aucun | supprime par defaut | Aucun besoin prouve. A evaluer seulement si la duplication WGSL devient problematique. |
+| Validation WGSL | nouveau pipeline WebGPU | remplace par validation WebGPU/Naga | La validation est indispensable, mais elle ne doit pas etre confondue avec l'assemblage de fichiers. |
+| Preprocesseur WGSL type `glslify` | aucun | supprime par defaut | Aucun besoin d'assemblage prouve. A evaluer seulement si la duplication WGSL devient problematique. |
 | Compression datasets deflate | `rollupScripts/zipper.js` | remplace par script | Le format est applicatif: l'app fetch puis `pako.inflate`. Ce n'est pas juste une compression HTTP. |
 | Generation `datasets.json` | `rollupScripts/zipper.js` | remplace par script | L'UI depend de cette liste pour presenter les datasets. |
 | Copie assets `package.json#toCopy` | `rollup.config.js`, `package.json` | a evaluer | Une partie peut etre remplacee par `static/` SvelteKit, le reste par script. |
@@ -92,6 +93,50 @@ declare module '*.wgsl?raw' {
 ```
 
 Il n'y aura pas d'equivalent `glslify` pour WGSL par defaut.
+
+Cette decision concerne l'assemblage des fichiers, pas la validation. La validation WGSL reste obligatoire.
+
+### Validation WGSL
+
+Le besoin historique couvert en partie par `glslify` et `node-gles` etait double:
+
+- assembler les morceaux de GLSL;
+- verifier que les shaders produits etaient valides.
+
+Pour WGSL, ces deux responsabilites doivent etre separees.
+
+Strategie de validation cible:
+
+1. Importer les fichiers WGSL via Vite avec `?raw`.
+2. Creer un `GPUShaderModule` pour chaque shader.
+3. Appeler `shaderModule.getCompilationInfo()`.
+4. Echouer en dev/test si des messages de type `error` sont retournes.
+5. Plus tard, ajouter une validation native Rust/wgpu/Naga pour le client lourd si necessaire.
+
+API indicative cote TypeScript:
+
+```ts
+export async function validateWgslShader(device: GPUDevice, label: string, source: string): Promise<void> {
+	const module = device.createShaderModule({ label, code: source });
+	const info = await module.getCompilationInfo();
+	const errors = info.messages.filter((message) => message.type === 'error');
+	if (errors.length > 0) {
+		throw new Error(formatWgslCompilationMessages(label, errors));
+	}
+}
+```
+
+Validation minimale attendue pendant `M6`:
+
+- un shader WGSL valide passe;
+- un shader WGSL invalide produit une erreur lisible;
+- les messages indiquent au moins fichier/label, ligne et message compilateur quand disponibles.
+
+Validation future cote Rust:
+
+- utiliser le chemin `wgpu`/`naga` pour valider les memes sources WGSL dans le backend natif;
+- conserver les kernels WGSL dans un format partageable entre TypeScript/WebGPU et Rust/wgpu;
+- comparer les diagnostics quand ils different entre navigateur et backend natif.
 
 Un preprocesseur WGSL ne sera evalue que si:
 
