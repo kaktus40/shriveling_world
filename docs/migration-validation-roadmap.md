@@ -596,22 +596,26 @@ Critere d'acceptation:
 Validation:
 
 - Implementation:
-  - `scripts/dataset-inspection.mjs` ajoute l'inspection par schema et la resolution de manifest;
-  - `scripts/dataset-assembly.mjs` ajoute l'assemblage lossless du reseau de base;
-  - `scripts/create-reduced-dataset-fixtures.mjs` ne depend plus des noms de fichiers;
-  - `scripts/characterize-datasets.mjs` ne depend plus des noms de fichiers;
+  - `src/lib/domain/data/inspection.ts` porte l'inspection par schema et la resolution de manifest;
+  - `src/lib/domain/data/assembly.ts` porte l'assemblage lossless du reseau de base;
+  - `scripts/dataset-files.ts` fournit l'adaptateur fichier Node vers le module de domaine;
+  - `scripts/create-reduced-dataset-fixtures.ts` ne depend plus des noms de fichiers;
+  - `scripts/characterize-datasets.ts` ne depend plus des noms de fichiers;
+  - les anciens prototypes `scripts/dataset-inspection.mjs` et `scripts/dataset-assembly.mjs` sont supprimes pour eviter une double implementation;
   - les CSV non primaires contenant `cityCode` sont traites comme `cityLinkedAttributes`;
   - les rapports de caracterisation exposent les fichiers detectes, colonnes libres, index et diagnostics d'assemblage;
   - l'assembleur accepte une liste `{ name, text }[]`, donc il peut recevoir les fichiers dans un ordre non determine.
 - Validations executees:
   - `npm run characterize:datasets`;
+  - `./node_modules/.bin/tsc --noEmit --ignoreConfig --strict --allowJs --moduleResolution bundler --module esnext --target es2022 scripts/*.ts src/lib/domain/data/*.ts`;
   - verification de manifest identique entre ordre naturel et ordre inverse des fichiers pour `datasets/World_1M`;
   - verification d'assemblage identique entre ordre naturel et ordre inverse des fichiers pour `datasets/World_1M`;
   - `npm run build`.
 - Diagnostics observes:
   - les datasets complets contiennent des arcs references vers des villes absentes du sous-ensemble de villes charge;
   - `population.csv` est correctement rattache comme `cityLinkedAttributes`, avec lignes orphelines conservees en diagnostics;
-  - `datasets/World_1M/transport_mode_speed_v05.csv` contient quelques lignes historiques mal formees ou commentees dans des champs numeriques; elles sont conservees en source et signalees par diagnostics.
+  - `datasets/World_1M/transport_mode_speed_v05.csv` contient quelques lignes historiques mal formees ou commentees dans des champs numeriques; elles sont conservees en source et signalees par diagnostics;
+  - les valeurs numeriques caracteristiques invalides sans valeur exploitable sont normalisees a `null` dans les rapports JSON.
 - Limite volontaire:
   - le nouveau reseau de base n'est pas encore branche dans l'application interactive;
   - `Merger` historique reste le chemin applicatif jusqu'au jalon d'extraction/portage suivant.

@@ -39,7 +39,7 @@ function numberCharacteristic(
 			severity: 'error',
 			code: 'invalid-number-characteristic',
 			column,
-			value: record[column],
+			value: record[column] ?? null,
 			...context,
 		});
 		return Number.NaN;
@@ -120,8 +120,7 @@ function catalogFields(recordsByKind: Record<string, SourceRecord[]>): Queryable
 /**
  * Assembles a lossless base network from source files and a resolved manifest.
  *
- * This is the TypeScript domain equivalent of the migration prototype in
- * `scripts/dataset-assembly.mjs`. It intentionally stops before `IMergerData`:
+ * It intentionally stops before `IMergerData`:
  * prepared static and dynamic structures belong to the next preparation phase.
  *
  * @param input Source files and an already resolved dataset manifest.
@@ -374,4 +373,3 @@ export function assembleBaseNetworkFromFiles(files: SourceFile[]): BaseNetwork {
 	const manifest = resolveDatasetManifest(inspectedFiles);
 	return assembleBaseNetwork({ files, manifest });
 }
-

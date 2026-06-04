@@ -278,7 +278,7 @@
         "severity": "error",
         "code": "invalid-number-characteristic",
         "column": "transportModeCode",
-        "value": "",
+        "value": null,
         "sourceFileName": "transport_mode_speed_v05.csv",
         "rowIndex": 44
       },
@@ -294,7 +294,7 @@
         "severity": "error",
         "code": "invalid-number-characteristic",
         "column": "speedKPH",
-        "value": "",
+        "value": null,
         "sourceFileName": "transport_mode_speed_v05.csv",
         "rowIndex": 44
       },

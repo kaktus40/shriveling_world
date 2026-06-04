@@ -1,19 +1,19 @@
-#!/usr/bin/env node
-import path from 'path';
-import { fileURLToPath } from 'url';
-import {
-	copyDatasetFile,
-	ensureCleanDir,
-	readCsv,
-	writeCsv,
-	writeJson,
-} from './dataset-utils.mjs';
-import { requireValidDatasetManifest } from './dataset-inspection.mjs';
+#!/usr/bin/env -S tsx
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { copyDatasetFile, ensureCleanDir, writeCsv, writeJson } from './dataset-utils.mjs';
+import { readManifestCsv, requireValidDatasetManifest } from './dataset-files';
+
+interface FixtureInput {
+	name: string;
+	source: string;
+	limit: number;
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 
-const fixtures = [
+const fixtures: FixtureInput[] = [
 	{
 		name: 'fixture-30-world',
 		source: path.join(rootDir, 'datasets', 'World_1M'),
@@ -26,7 +26,8 @@ const fixtures = [
 	},
 ];
 
-function createFixture({ name, source, limit }) {
+/** Creates one deterministic reduced fixture while preserving original file names. */
+function createFixture({ name, source, limit }: FixtureInput) {
 	const { manifest: datasetManifest } = requireValidDatasetManifest(source);
 	const files = {
 		cities: datasetManifest.primary.cities.originalName,
@@ -39,11 +40,11 @@ function createFixture({ name, source, limit }) {
 	const target = path.join(rootDir, 'tests', 'fixtures', name);
 	ensureCleanDir(target);
 
-	const cities = readCsv(path.join(source, files.cities));
+	const cities = readManifestCsv(source, datasetManifest.primary.cities);
 	const selectedCities = cities.records.slice(0, limit);
 	const selectedCityCodes = new Set(selectedCities.map((record) => record.cityCode));
 
-	const network = readCsv(path.join(source, files.transportNetwork));
+	const network = readManifestCsv(source, datasetManifest.primary.transportNetwork);
 	const selectedNetwork = network.records.filter(
 		(record) => selectedCityCodes.has(record.cityCodeOri) && selectedCityCodes.has(record.cityCodeDes)
 	);
@@ -55,7 +56,11 @@ function createFixture({ name, source, limit }) {
 	files.geojson.forEach((fileName) => copyDatasetFile(source, target, fileName));
 
 	const selectedCityLinkedAttributes = files.cityLinkedAttributes.map((fileName) => {
-		const cityLinkedAttributes = readCsv(path.join(source, fileName));
+		const inspectedFile = datasetManifest.cityLinkedAttributes.find((file) => file.originalName === fileName);
+		if (!inspectedFile) {
+			throw new Error(`Missing inspected city-linked file: ${fileName}`);
+		}
+		const cityLinkedAttributes = readManifestCsv(source, inspectedFile);
 		const selectedRecords = cityLinkedAttributes.records.filter((record) => selectedCityCodes.has(record.cityCode));
 		writeCsv(path.join(target, fileName), cityLinkedAttributes.headers, selectedRecords);
 		return {
