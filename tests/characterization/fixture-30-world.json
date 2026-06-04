@@ -1,0 +1,153 @@
+{
+  "name": "fixture-30-world",
+  "directory": "tests/fixtures/fixture-30-world",
+  "files": {
+    "cities": "cities_sup_1M.csv",
+    "population": "population.csv",
+    "transportNetwork": "transport_network_v16.csv",
+    "transportModes": "transport_modes_v04.csv",
+    "transportModeSpeed": "transport_mode_speed_v05.csv",
+    "geojson": "110m_land_shrivel_v03.geojson"
+  },
+  "counts": {
+    "cities": 30,
+    "population": 30,
+    "transportNetwork": 5,
+    "transportNetworkInsideCities": 5,
+    "transportModes": 7,
+    "transportModeSpeeds": 58
+  },
+  "headers": {
+    "cities": [
+      "cityCode",
+      "index",
+      "countryCode",
+      "countryName",
+      "cityName",
+      "latitude",
+      "longitude",
+      "radius",
+      "yearMotorway",
+      "yearHST",
+      "Index",
+      "pop1950",
+      "pop1955",
+      "pop1960",
+      "pop1965",
+      "pop1970",
+      "pop1975",
+      "pop1980",
+      "pop1985",
+      "pop1990",
+      "pop1995",
+      "pop2000",
+      "pop2005",
+      "pop2010",
+      "pop2015",
+      "pop2020",
+      "pop2025",
+      "pop2030",
+      "nbOri",
+      "nbDes"
+    ],
+    "population": [
+      "Index",
+      "cityCode",
+      "pop1950",
+      "pop1955",
+      "pop1960",
+      "pop1965",
+      "pop1970",
+      "pop1975",
+      "pop1980",
+      "pop1985",
+      "pop1990",
+      "pop1995",
+      "pop2000",
+      "pop2005",
+      "pop2010",
+      "pop2015",
+      "pop2020",
+      "pop2025",
+      "pop2030"
+    ],
+    "transportNetwork": [
+      "eYearBegin",
+      "eYearEnd",
+      "cityCodeOri",
+      "nameOri",
+      "cityCodeDes",
+      "nameDes",
+      "transportModeCode",
+      "length",
+      "notes"
+    ],
+    "transportModes": [
+      "name",
+      "code",
+      "terrestrial"
+    ],
+    "transportModeSpeeds": [
+      "year",
+      "transportModeCode",
+      "speedKPH"
+    ]
+  },
+  "cityCodeSample": [
+    "20002",
+    "20006",
+    "20049",
+    "20050",
+    "20053",
+    "20058",
+    "20059",
+    "20068",
+    "20075",
+    "20107"
+  ],
+  "bounds": {
+    "latitude": {
+      "min": -34.605083,
+      "max": 50.846735
+    },
+    "longitude": {
+      "min": -68.82717,
+      "max": 91.83639
+    }
+  },
+  "years": {
+    "population": {
+      "min": 1950,
+      "max": 2030
+    },
+    "transportModeSpeeds": {
+      "min": 1920,
+      "max": 2030
+    },
+    "transportNetwork": {
+      "min": 1940,
+      "max": 1940
+    }
+  },
+  "transport": {
+    "roadModeCodes": [
+      "7"
+    ],
+    "modeNames": [
+      "Supersonic",
+      "Aircraft",
+      "Train",
+      "HST",
+      "Road",
+      "Expressway",
+      "Rocket"
+    ],
+    "modeCodesInNetwork": [
+      "1"
+    ]
+  },
+  "notes": [
+    "Characterization only. These values describe the current datasets and are not target expectations.",
+    "Future expected behavior must be validated explicitly per migration step."
+  ]
+}

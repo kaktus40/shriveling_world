@@ -1,0 +1,218 @@
+eYearBegin,eYearEnd,cityCodeOri,nameOri,cityCodeDes,nameDes,transportModeCode,length,notes
+2010,2014,20144,Bruxelles-Brussel,20937,Helsinki,1,,air
+2010,2014,20937,Helsinki,20144,Bruxelles-Brussel,1,,air
+2010,2014,20937,Helsinki,20107,Wien (Vienna),1,,air
+2010,2014,20107,Wien (Vienna),20937,Helsinki,1,,air
+2010,2014,20107,Wien (Vienna),22606,Zürich (Zurich),1,,air
+2010,2014,22606,Zürich (Zurich),20107,Wien (Vienna),1,,air
+2010,2014,21930,Amsterdam,20985,Paris,1,,air
+2010,2014,22597,Stockholm,20985,Paris,1,,air
+2010,2014,21113,Athínai (Athens),20985,Paris,1,,air
+2010,2014,22525,Barcelona,20985,Paris,1,,air
+2010,2014,21138,Budapest,20985,Paris,1,,air
+2010,2014,20985,Paris,21930,Amsterdam,1,,air
+2010,2014,20985,Paris,22597,Stockholm,1,,air
+2010,2014,20985,Paris,21113,Athínai (Athens),1,,air
+2010,2014,20985,Paris,22525,Barcelona,1,,air
+2010,2014,20985,Paris,21138,Budapest,1,,air
+2010,2014,20985,Paris,20894,København (Copenhagen),1,,air
+2010,2014,20985,Paris,21588,Roma (Rome),1,,air
+2010,2014,20985,Paris,20937,Helsinki,1,,air
+2010,2014,20985,Paris,21571,Milano (Milan),1,,air
+2010,2014,20985,Paris,22167,Lisboa (Lisbon),1,,air
+2010,2014,20985,Paris,20972,Lyon,1,,air
+2010,2014,20985,Paris,22549,Madrid,1,,air
+2010,2014,20985,Paris,20973,Marseille-Aix-en-Provence,1,,air
+2010,2014,20985,Paris,22191,Bucuresti (Bucharest),1,,air
+2010,2014,20985,Paris,20887,Praha (Prague),1,,air
+2010,2014,20985,Paris,20107,Wien (Vienna),1,,air
+2010,2014,20985,Paris,22161,Warszawa (Warsaw),1,,air
+2010,2014,20894,København (Copenhagen),20985,Paris,1,,air
+2010,2014,21588,Roma (Rome),20985,Paris,1,,air
+2010,2014,20937,Helsinki,20985,Paris,1,,air
+2010,2014,21571,Milano (Milan),20985,Paris,1,,air
+2010,2014,21571,Milano (Milan),20985,Paris,1,,air
+2010,2014,22167,Lisboa (Lisbon),20985,Paris,1,,air
+2010,2014,20972,Lyon,20985,Paris,1,,air
+2010,2014,22549,Madrid,20985,Paris,1,,air
+2010,2014,20973,Marseille-Aix-en-Provence,20985,Paris,1,,air
+2010,2014,20973,Marseille-Aix-en-Provence,20985,Paris,1,,air
+2010,2014,20985,Paris,21571,Milano (Milan),1,,air
+2010,2014,20985,Paris,20973,Marseille-Aix-en-Provence,1,,air
+2010,2014,22191,Bucuresti (Bucharest),20985,Paris,1,,air
+2010,2014,20887,Praha (Prague),20985,Paris,1,,air
+2010,2014,20107,Wien (Vienna),20985,Paris,1,,air
+2010,2014,22161,Warszawa (Warsaw),20985,Paris,1,,air
+2010,2014,20985,Paris,21571,Milano (Milan),1,,air
+2010,2014,21571,Milano (Milan),20985,Paris,1,,air
+2010,2014,20144,Bruxelles-Brussel,22167,Lisboa (Lisbon),1,,air
+2010,2014,20985,Paris,20937,Helsinki,1,,air
+2010,2014,20894,København (Copenhagen),20937,Helsinki,1,,air
+2010,2014,20937,Helsinki,20985,Paris,1,,air
+2010,2014,20937,Helsinki,20894,København (Copenhagen),1,,air
+2010,2014,20937,Helsinki,20887,Praha (Prague),1,,air
+2010,2014,22167,Lisboa (Lisbon),20144,Bruxelles-Brussel,1,,air
+2010,2014,20887,Praha (Prague),20937,Helsinki,1,,air
+2010,2014,21930,Amsterdam,21588,Roma (Rome),1,,air
+2010,2014,22597,Stockholm,20985,Paris,1,,air
+2010,2014,21113,Athínai (Athens),21588,Roma (Rome),1,,air
+2010,2014,22525,Barcelona,21588,Roma (Rome),1,,air
+2010,2014,20144,Bruxelles-Brussel,21588,Roma (Rome),1,,air
+2010,2014,20985,Paris,22597,Stockholm,1,,air
+2010,2014,20985,Paris,20894,København (Copenhagen),1,,air
+2010,2014,20985,Paris,21588,Roma (Rome),1,,air
+2010,2014,20985,Paris,21571,Milano (Milan),1,,air
+2010,2014,20985,Paris,22167,Lisboa (Lisbon),1,,air
+2010,2014,20985,Paris,20887,Praha (Prague),1,,air
+2010,2014,20894,København (Copenhagen),20985,Paris,1,,air
+2010,2014,21588,Roma (Rome),21930,Amsterdam,1,,air
+2010,2014,21588,Roma (Rome),21113,Athínai (Athens),1,,air
+2010,2014,21588,Roma (Rome),22525,Barcelona,1,,air
+2010,2014,21588,Roma (Rome),20144,Bruxelles-Brussel,1,,air
+2010,2014,21588,Roma (Rome),20985,Paris,1,,air
+2010,2014,21588,Roma (Rome),21571,Milano (Milan),1,,air
+2010,2014,21588,Roma (Rome),22167,Lisboa (Lisbon),1,,air
+2010,2014,21588,Roma (Rome),22549,Madrid,1,,air
+2010,2014,21588,Roma (Rome),21597,Torino (Turin),1,,air
+2010,2014,21588,Roma (Rome),20107,Wien (Vienna),1,,air
+2010,2014,21588,Roma (Rome),22606,Zürich (Zurich),1,,air
+2010,2014,21571,Milano (Milan),20985,Paris,1,,air
+2010,2014,21571,Milano (Milan),21588,Roma (Rome),1,,air
+2010,2014,21571,Milano (Milan),22191,Bucuresti (Bucharest),1,,air
+2010,2014,22167,Lisboa (Lisbon),20985,Paris,1,,air
+2010,2014,22167,Lisboa (Lisbon),21588,Roma (Rome),1,,air
+2010,2014,22549,Madrid,21588,Roma (Rome),1,,air
+2010,2014,21574,Napoli (Naples),21588,Roma (Rome),1,,air
+2010,2014,21574,Napoli (Naples),21571,Milano (Milan),1,,air
+2010,2014,22191,Bucuresti (Bucharest),21571,Milano (Milan),1,,air
+2010,2014,20887,Praha (Prague),20985,Paris,1,,air
+2010,2014,21597,Torino (Turin),21588,Roma (Rome),1,,air
+2010,2014,20107,Wien (Vienna),21588,Roma (Rome),1,,air
+2010,2014,22606,Zürich (Zurich),21588,Roma (Rome),1,,air
+2010,2014,20937,Helsinki,22597,Stockholm,1,,air
+2010,2014,21930,Amsterdam,20327,Sofia,1,,air
+2010,2014,21588,Roma (Rome),20327,Sofia,1,,air
+2010,2014,22549,Madrid,20327,Sofia,1,,air
+2010,2014,20327,Sofia,21930,Amsterdam,1,,air
+2010,2014,20327,Sofia,21588,Roma (Rome),1,,air
+2010,2014,20327,Sofia,22549,Madrid,1,,air
+2010,2014,21588,Roma (Rome),20107,Wien (Vienna),1,,air
+2010,2014,20107,Wien (Vienna),21588,Roma (Rome),1,,air
+2010,2014,20107,Wien (Vienna),22606,Zürich (Zurich),1,,air
+2010,2014,22606,Zürich (Zurich),20107,Wien (Vienna),1,,air
+2010,2014,22525,Barcelona,22549,Madrid,1,,air
+2010,2014,22167,Lisboa (Lisbon),22549,Madrid,1,,air
+2010,2014,22549,Madrid,22525,Barcelona,1,,air
+2010,2014,22549,Madrid,22167,Lisboa (Lisbon),1,,air
+2010,2014,22549,Madrid,20985,Paris,1,,air
+2010,2014,22549,Madrid,20327,Sofia,1,,air
+2010,2014,22549,Madrid,20107,Wien (Vienna),1,,air
+2010,2014,20985,Paris,22549,Madrid,1,,air
+2010,2014,20327,Sofia,22549,Madrid,1,,air
+2010,2014,20107,Wien (Vienna),22549,Madrid,1,,air
+2010,2014,21930,Amsterdam,20887,Praha (Prague),1,,air
+2010,2014,20887,Praha (Prague),21930,Amsterdam,1,,air
+2010,2014,21113,Athínai (Athens),22161,Warszawa (Warsaw),1,,air
+2010,2014,20144,Bruxelles-Brussel,22161,Warszawa (Warsaw),1,,air
+2010,2014,22161,Warszawa (Warsaw),21113,Athínai (Athens),1,,air
+2010,2014,22161,Warszawa (Warsaw),20144,Bruxelles-Brussel,1,,air
+2010,2014,21138,Budapest,22606,Zürich (Zurich),1,,air
+2010,2014,20985,Paris,22606,Zürich (Zurich),1,,air
+2010,2014,21588,Roma (Rome),22606,Zürich (Zurich),1,,air
+2010,2014,20107,Wien (Vienna),22606,Zürich (Zurich),1,,air
+2010,2014,22606,Zürich (Zurich),21138,Budapest,1,,air
+2010,2014,22606,Zürich (Zurich),20985,Paris,1,,air
+2010,2014,22606,Zürich (Zurich),21588,Roma (Rome),1,,air
+2010,2014,22606,Zürich (Zurich),20107,Wien (Vienna),1,,air
+2010,2014,21930,Amsterdam,20894,København (Copenhagen),1,,air
+2010,2014,20894,København (Copenhagen),21930,Amsterdam,1,,air
+2010,2014,22525,Barcelona,20887,Praha (Prague),1,,air
+2010,2014,21588,Roma (Rome),20887,Praha (Prague),1,,air
+2010,2014,20887,Praha (Prague),22525,Barcelona,1,,air
+2010,2014,20887,Praha (Prague),21588,Roma (Rome),1,,air
+2010,2014,21930,Amsterdam,20107,Wien (Vienna),1,,air
+2010,2014,22597,Stockholm,20107,Wien (Vienna),1,,air
+2010,2014,20144,Bruxelles-Brussel,20107,Wien (Vienna),1,,air
+2010,2014,20985,Paris,20107,Wien (Vienna),1,,air
+2010,2014,20894,København (Copenhagen),20107,Wien (Vienna),1,,air
+2010,2014,21588,Roma (Rome),20107,Wien (Vienna),1,,air
+2010,2014,22191,Bucuresti (Bucharest),20107,Wien (Vienna),1,,air
+2010,2014,20327,Sofia,20107,Wien (Vienna),1,,air
+2010,2014,20107,Wien (Vienna),21930,Amsterdam,1,,air
+2010,2014,20107,Wien (Vienna),22597,Stockholm,1,,air
+2010,2014,20107,Wien (Vienna),20144,Bruxelles-Brussel,1,,air
+2010,2014,20107,Wien (Vienna),20985,Paris,1,,air
+2010,2014,20107,Wien (Vienna),20894,København (Copenhagen),1,,air
+2010,2014,20107,Wien (Vienna),21588,Roma (Rome),1,,air
+2010,2014,20107,Wien (Vienna),22191,Bucuresti (Bucharest),1,,air
+2010,2014,20107,Wien (Vienna),20327,Sofia,1,,air
+2010,2014,20107,Wien (Vienna),22606,Zürich (Zurich),1,,air
+2010,2014,22606,Zürich (Zurich),20107,Wien (Vienna),1,,air
+2010,2014,20985,Paris,20887,Praha (Prague),1,,air
+2010,2014,21588,Roma (Rome),20887,Praha (Prague),1,,air
+2010,2014,20887,Praha (Prague),20985,Paris,1,,air
+2010,2014,20887,Praha (Prague),21588,Roma (Rome),1,,air
+2010,2014,22191,Bucuresti (Bucharest),20107,Wien (Vienna),1,,air
+2010,2014,20107,Wien (Vienna),22191,Bucuresti (Bucharest),1,,air
+2010,2014,22525,Barcelona,22167,Lisboa (Lisbon),1,,air
+2010,2014,22167,Lisboa (Lisbon),22525,Barcelona,1,,air
+2010,2014,22167,Lisboa (Lisbon),22549,Madrid,1,,air
+2010,2014,22167,Lisboa (Lisbon),22168,Porto,1,,air
+2010,2014,22549,Madrid,22167,Lisboa (Lisbon),1,,air
+2010,2014,22168,Porto,22167,Lisboa (Lisbon),1,,air
+2010,2014,21930,Amsterdam,22597,Stockholm,1,,air
+2010,2014,21930,Amsterdam,20894,København (Copenhagen),1,,air
+2010,2014,22597,Stockholm,21930,Amsterdam,1,,air
+2010,2014,22597,Stockholm,20144,Bruxelles-Brussel,1,,air
+2010,2014,22597,Stockholm,20985,Paris,1,,air
+2010,2014,22597,Stockholm,20894,København (Copenhagen),1,,air
+2010,2014,22597,Stockholm,21542,Dublin,1,,air
+2010,2014,22597,Stockholm,20937,Helsinki,1,,air
+2010,2014,22597,Stockholm,21571,Milano (Milan),1,,air
+2010,2014,22597,Stockholm,22606,Zürich (Zurich),1,,air
+2010,2014,20144,Bruxelles-Brussel,22597,Stockholm,1,,air
+2010,2014,20144,Bruxelles-Brussel,20894,København (Copenhagen),1,,air
+2010,2014,20985,Paris,22597,Stockholm,1,,air
+2010,2014,20985,Paris,20894,København (Copenhagen),1,,air
+2010,2014,20894,København (Copenhagen),21930,Amsterdam,1,,air
+2010,2014,20894,København (Copenhagen),22597,Stockholm,1,,air
+2010,2014,20894,København (Copenhagen),20144,Bruxelles-Brussel,1,,air
+2010,2014,20894,København (Copenhagen),20985,Paris,1,,air
+2010,2014,20894,København (Copenhagen),22606,Zürich (Zurich),1,,air
+2010,2014,21542,Dublin,22597,Stockholm,1,,air
+2010,2014,20937,Helsinki,22597,Stockholm,1,,air
+2010,2014,21571,Milano (Milan),22597,Stockholm,1,,air
+2010,2014,22606,Zürich (Zurich),22597,Stockholm,1,,air
+2010,2014,22606,Zürich (Zurich),20894,København (Copenhagen),1,,air
+2010,2014,20144,Bruxelles-Brussel,20972,Lyon,1,,air
+2010,2014,20144,Bruxelles-Brussel,22191,Bucuresti (Bucharest),1,,air
+2010,2014,20144,Bruxelles-Brussel,20107,Wien (Vienna),1,,air
+2010,2014,20972,Lyon,20144,Bruxelles-Brussel,1,,air
+2010,2014,22549,Madrid,20144,Bruxelles-Brussel,1,,air
+2010,2014,22191,Bucuresti (Bucharest),20144,Bruxelles-Brussel,1,,air
+2010,2014,20107,Wien (Vienna),20144,Bruxelles-Brussel,1,,air
+2010,2014,22525,Barcelona,22167,Lisboa (Lisbon),1,,air
+2010,2014,20144,Bruxelles-Brussel,22167,Lisboa (Lisbon),1,,air
+2010,2014,20144,Bruxelles-Brussel,22168,Porto,1,,air
+2010,2014,21138,Budapest,22167,Lisboa (Lisbon),1,,air
+2010,2014,21588,Roma (Rome),22167,Lisboa (Lisbon),1,,air
+2010,2014,22167,Lisboa (Lisbon),22525,Barcelona,1,,air
+2010,2014,22167,Lisboa (Lisbon),20144,Bruxelles-Brussel,1,,air
+2010,2014,22167,Lisboa (Lisbon),21138,Budapest,1,,air
+2010,2014,22167,Lisboa (Lisbon),21588,Roma (Rome),1,,air
+2010,2014,22167,Lisboa (Lisbon),22549,Madrid,1,,air
+2010,2014,22167,Lisboa (Lisbon),22168,Porto,1,,air
+2010,2014,22167,Lisboa (Lisbon),20985,Paris,1,,air
+2010,2014,22167,Lisboa (Lisbon),22606,Zürich (Zurich),1,,air
+2010,2014,22549,Madrid,22167,Lisboa (Lisbon),1,,air
+2010,2014,22168,Porto,20144,Bruxelles-Brussel,1,,air
+2010,2014,22168,Porto,22167,Lisboa (Lisbon),1,,air
+2010,2014,20985,Paris,22167,Lisboa (Lisbon),1,,air
+2010,2014,22606,Zürich (Zurich),22167,Lisboa (Lisbon),1,,air
+2010,2014,22167,Lisboa (Lisbon),20144,Bruxelles-Brussel,1,,air
+2010,2014,22167,Lisboa (Lisbon),22549,Madrid,1,,air
+2010,2014,22167,Lisboa (Lisbon),22168,Porto,1,,air
+2010,2014,22549,Madrid,22167,Lisboa (Lisbon),1,,air
+2010,2014,22168,Porto,22167,Lisboa (Lisbon),1,,air
+1983,,20972,Lyon,20985,Paris,31,,HST
+1997,,20144,Bruxelles-Brussel,20969,Lille,31,,HST

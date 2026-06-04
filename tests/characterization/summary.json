@@ -1,0 +1,148 @@
+{
+  "reports": [
+    {
+      "name": "fixture-30-world",
+      "directory": "tests/fixtures/fixture-30-world",
+      "counts": {
+        "cities": 30,
+        "population": 30,
+        "transportNetwork": 5,
+        "transportNetworkInsideCities": 5,
+        "transportModes": 7,
+        "transportModeSpeeds": 58
+      },
+      "bounds": {
+        "latitude": {
+          "min": -34.605083,
+          "max": 50.846735
+        },
+        "longitude": {
+          "min": -68.82717,
+          "max": 91.83639
+        }
+      },
+      "years": {
+        "population": {
+          "min": 1950,
+          "max": 2030
+        },
+        "transportModeSpeeds": {
+          "min": 1920,
+          "max": 2030
+        },
+        "transportNetwork": {
+          "min": 1940,
+          "max": 1940
+        }
+      }
+    },
+    {
+      "name": "fixture-30-europe",
+      "directory": "tests/fixtures/fixture-30-europe",
+      "counts": {
+        "cities": 30,
+        "population": 30,
+        "transportNetwork": 217,
+        "transportNetworkInsideCities": 217,
+        "transportModes": 5,
+        "transportModeSpeeds": 51
+      },
+      "bounds": {
+        "latitude": {
+          "min": 37.00167,
+          "max": 60.169246
+        },
+        "longitude": {
+          "min": -9.139867,
+          "max": 44.83368
+        }
+      },
+      "years": {
+        "population": {
+          "min": 1950,
+          "max": 2030
+        },
+        "transportModeSpeeds": {
+          "min": 0,
+          "max": 2020
+        },
+        "transportNetwork": {
+          "min": 1983,
+          "max": 2014
+        }
+      }
+    },
+    {
+      "name": "reference-world-1m",
+      "directory": "datasets/World_1M",
+      "counts": {
+        "cities": 498,
+        "population": 1681,
+        "transportNetwork": 4397,
+        "transportNetworkInsideCities": 2987,
+        "transportModes": 7,
+        "transportModeSpeeds": 58
+      },
+      "bounds": {
+        "latitude": {
+          "min": -37.814,
+          "max": 60.169246
+        },
+        "longitude": {
+          "min": -123.11934,
+          "max": 174.76667
+        }
+      },
+      "years": {
+        "population": {
+          "min": 1950,
+          "max": 2030
+        },
+        "transportModeSpeeds": {
+          "min": 1920,
+          "max": 2030
+        },
+        "transportNetwork": {
+          "min": 1940,
+          "max": 2026
+        }
+      }
+    },
+    {
+      "name": "reference-europe-1m",
+      "directory": "datasets/Europe_1M",
+      "counts": {
+        "cities": 49,
+        "population": 1681,
+        "transportNetwork": 4389,
+        "transportNetworkInsideCities": 561,
+        "transportModes": 5,
+        "transportModeSpeeds": 51
+      },
+      "bounds": {
+        "latitude": {
+          "min": 36.90812,
+          "max": 60.169246
+        },
+        "longitude": {
+          "min": -9.139867,
+          "max": 44.83368
+        }
+      },
+      "years": {
+        "population": {
+          "min": 1950,
+          "max": 2030
+        },
+        "transportModeSpeeds": {
+          "min": 0,
+          "max": 2020
+        },
+        "transportNetwork": {
+          "min": 1964,
+          "max": 2019
+        }
+      }
+    }
+  ]
+}

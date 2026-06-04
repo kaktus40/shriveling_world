@@ -61,7 +61,7 @@ Utiliser les statuts suivants:
 | Jalon | Statut | Objectif |
 | --- | --- | --- |
 | M0 | validated | Branche propre et documentation initiale |
-| M1 | todo | Baseline de regression et fixtures |
+| M1 | validated | Caracterisation initiale et fixtures |
 | M2 | todo | Migration SvelteKit/Vite minimale |
 | M2.1 | todo | Migration des hooks Rollup applicatifs |
 | M3 | todo | Extraction du domaine metier |
@@ -99,7 +99,7 @@ Validation:
 
 ## M1: Caracterisation Initiale Et Fixtures
 
-Statut: `todo`
+Statut: `validated`
 
 Objectif:
 
@@ -174,21 +174,26 @@ tests/
   fixtures/
     fixture-30-world/
     fixture-30-europe/
-    reference-world-1m/
-    reference-europe-1m/
   characterization/
     fixture-30-world.json
     fixture-30-europe.json
     reference-world-1m.json
     reference-europe-1m.json
+    summary.json
 ```
+
+Les datasets de reference complets ne sont pas copies dans `tests/fixtures/`; ils restent dans `datasets/World_1M` et `datasets/Europe_1M` pour eviter la duplication.
 
 Script de generation attendu:
 
 ```text
 scripts/
-  create-reduced-dataset-fixture.ts
+  dataset-utils.mjs
+  create-reduced-dataset-fixtures.mjs
+  characterize-datasets.mjs
 ```
+
+Les scripts sont volontairement en `.mjs` pour rester executables dans le socle historique sans introduire de runner TypeScript avant la migration SvelteKit/Vite.
 
 Comportement attendu du script:
 
@@ -202,7 +207,7 @@ Comportement attendu du script:
 Commandes de validation attendues:
 
 ```bash
-pnpm characterize:datasets
+npm run characterize:datasets
 ```
 
 Critere d'acceptation:
@@ -215,7 +220,13 @@ Critere d'acceptation:
 
 Validation:
 
-- A renseigner apres implementation.
+- Commande lancee: `npm run characterize:datasets`.
+- Resultat: fixtures reduites generees et rapports de caracterisation produits.
+- `fixture-30-world`: 30 villes, 5 arcs internes.
+- `fixture-30-europe`: 30 villes, 217 arcs internes.
+- `reference-world-1m`: 498 villes, 4397 arcs, 2987 arcs internes.
+- `reference-europe-1m`: 49 villes, 4389 arcs, 561 arcs internes.
+- Les rapports sont descriptifs uniquement et ne figent aucun attendu scientifique futur.
 
 ## M2: Migration SvelteKit Et Vite Minimale
 

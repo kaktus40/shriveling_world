@@ -8,7 +8,9 @@
         "build": "sapper build",
         "export": "sapper export  --basepath shriveling_world",
         "start": "node __sapper__/build",
-        "validate": "svelte-check --ignore src/node_modules/@sapper"
+        "validate": "svelte-check --ignore src/node_modules/@sapper",
+        "fixtures:create": "node scripts/create-reduced-dataset-fixtures.mjs",
+        "characterize:datasets": "npm run fixtures:create && node scripts/characterize-datasets.mjs"
     },
     "dependencies": {
         "@types/three": "^0.127.1",
