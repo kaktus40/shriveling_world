@@ -63,7 +63,7 @@ Utiliser les statuts suivants:
 | M0 | validated | Branche propre et documentation initiale |
 | M1 | validated | Caracterisation initiale et fixtures |
 | M2 | todo | Migration SvelteKit/Vite minimale |
-| M2.1 | todo | Migration des hooks Rollup applicatifs |
+| M2.1 | validated | Evaluation des hooks Rollup applicatifs |
 | M3 | todo | Extraction du domaine metier |
 | M4 | todo | Architecture explicite de precalcul |
 | M5 | todo | Rendu Babylon.js minimal |
@@ -290,9 +290,9 @@ Validation:
 
 - A renseigner apres implementation.
 
-## M2.1: Evaluation Et Migration Des Hooks Rollup Applicatifs
+## M2.1: Evaluation Des Hooks Rollup Applicatifs
 
-Statut: `todo`
+Statut: `validated`
 
 Objectif:
 
@@ -415,7 +415,13 @@ Critere d'acceptation:
 
 Validation:
 
-- A renseigner apres implementation.
+- Audit produit dans `docs/migration-build-pipeline-audit.md`.
+- L'injection globale `__SHADERS_HERE__` sera remplacee par des imports modules explicites.
+- Les futurs WGSL seront importes via Vite/SvelteKit avec `?raw` et declarations TypeScript.
+- Aucun preprocesseur WGSL n'est retenu par defaut.
+- `glslify` est conserve uniquement comme compatibilite temporaire si les GLSL historiques restent actifs.
+- La compression datasets est conservee comme script applicatif separe a court terme.
+- Le lint auto-fix dans le build est marque comme a supprimer.
 
 ## M3: Extraction Du Domaine Metier
 
