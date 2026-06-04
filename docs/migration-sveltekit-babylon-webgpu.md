@@ -379,6 +379,23 @@ Implementation `M3.1`:
 - l'assembleur accepte directement une liste `{ name, text }[]` pour rester compatible avec un ordre d'arrivee non determine;
 - les scripts de fixtures et de caracterisation utilisent ce pipeline sans modifier le `Merger` applicatif.
 
+Implementation TypeScript `M3`:
+
+- `src/lib/domain/data/types.ts` definit les interfaces documentees TypeDoc;
+- `src/lib/domain/data/csv.ts` encapsule PapaParse avec `dynamicTyping: false`;
+- `src/lib/domain/data/inspection.ts` porte l'inspection par schema en TypeScript;
+- `src/lib/domain/data/assembly.ts` porte l'assemblage lossless en TypeScript;
+- `src/lib/domain/data/index.ts` expose le point d'entree public du module data;
+- le module ne depend pas de SvelteKit, Three.js, Babylon.js, WebGPU ou du DOM;
+- le module n'est pas encore branche dans le `Merger` historique.
+
+Decision CSV:
+
+- PapaParse est retenu pour le module `domain/data`, car il est deja utilise par le projet historique;
+- les valeurs source restent en chaines de caracteres;
+- les conversions numeriques se font uniquement dans l'assemblage, avec diagnostics;
+- le wrapper `parseCsv()` permet de changer de parseur plus tard sans modifier l'inspection ou l'assemblage.
+
 ### Alignement Avec Les Interfaces `toBabylon`
 
 La branche `toBabylon` contient une formalisation importante dans:

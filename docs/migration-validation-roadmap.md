@@ -630,6 +630,25 @@ src/lib/domain/
   config/
 ```
 
+Implementation initiale:
+
+```text
+src/lib/domain/data/
+  types.ts
+  csv.ts
+  inspection.ts
+  assembly.ts
+  index.ts
+```
+
+Contraintes de code:
+
+- les exports publics doivent etre documentes pour TypeDoc;
+- le parseur CSV utilise PapaParse via un wrapper de domaine;
+- `dynamicTyping` reste desactive pour conserver les valeurs source;
+- les conversions typées restent dans l'assemblage avec diagnostics;
+- le module `domain/data` reste independant de SvelteKit, Three.js, Babylon.js, WebGPU et du DOM.
+
 Points critiques:
 
 - `src/application/common/configuration.ts` importe aujourd'hui des types Three.js;
@@ -654,7 +673,17 @@ Critere d'acceptation:
 
 Validation:
 
-- A renseigner apres implementation.
+- Implementation partielle:
+  - `src/lib/domain/data/types.ts`, `csv.ts`, `inspection.ts`, `assembly.ts` et `index.ts` crees;
+  - code documente pour TypeDoc;
+  - PapaParse retenu comme parseur CSV du domaine.
+- Validations executees:
+  - compilation TypeScript ciblee des fichiers `src/lib/domain/data/*.ts`;
+  - `npm run build`.
+- Reste a faire:
+  - raccorder les scripts de caracterisation au module TypeScript ou ajouter un runner dedie;
+  - ajouter des tests unitaires ciblees sur `domain/data`;
+  - porter progressivement les consommateurs du `Merger`.
 
 ## M4: Architecture Explicite De Precalcul
 
