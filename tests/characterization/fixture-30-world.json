@@ -2,16 +2,275 @@
   "name": "fixture-30-world",
   "directory": "tests/fixtures/fixture-30-world",
   "files": {
-    "cities": "cities_sup_1M.csv",
-    "population": "population.csv",
-    "transportNetwork": "transport_network_v16.csv",
-    "transportModes": "transport_modes_v04.csv",
-    "transportModeSpeed": "transport_mode_speed_v05.csv",
-    "geojson": "110m_land_shrivel_v03.geojson"
+    "primary": {
+      "cities": "cities_sup_1M.csv",
+      "transportNetwork": "transport_network_v16.csv",
+      "transportModes": "transport_modes_v04.csv",
+      "transportModeSpeeds": "transport_mode_speed_v05.csv"
+    },
+    "cityLinkedAttributes": [
+      "population.csv"
+    ],
+    "geojson": [
+      "110m_land_shrivel_v03.geojson"
+    ],
+    "unknown": [
+      "fixture-manifest.json"
+    ]
+  },
+  "inspection": {
+    "files": [
+      {
+        "originalName": "110m_land_shrivel_v03.geojson",
+        "kind": "geojson",
+        "confidence": 1,
+        "headers": [],
+        "candidateKinds": [
+          "geojson"
+        ],
+        "requiredHeadersFound": [],
+        "missingHeaders": [],
+        "extraHeaders": [],
+        "errors": []
+      },
+      {
+        "originalName": "cities_sup_1M.csv",
+        "kind": "cities",
+        "confidence": 1,
+        "headers": [
+          "cityCode",
+          "index",
+          "countryCode",
+          "countryName",
+          "cityName",
+          "latitude",
+          "longitude",
+          "radius",
+          "yearMotorway",
+          "yearHST",
+          "Index",
+          "pop1950",
+          "pop1955",
+          "pop1960",
+          "pop1965",
+          "pop1970",
+          "pop1975",
+          "pop1980",
+          "pop1985",
+          "pop1990",
+          "pop1995",
+          "pop2000",
+          "pop2005",
+          "pop2010",
+          "pop2015",
+          "pop2020",
+          "pop2025",
+          "pop2030",
+          "nbOri",
+          "nbDes"
+        ],
+        "candidateKinds": [
+          "cities"
+        ],
+        "requiredHeadersFound": [
+          "cityCode",
+          "latitude",
+          "longitude",
+          "radius"
+        ],
+        "missingHeaders": [],
+        "extraHeaders": [
+          "index",
+          "countryCode",
+          "countryName",
+          "cityName",
+          "yearMotorway",
+          "yearHST",
+          "Index",
+          "pop1950",
+          "pop1955",
+          "pop1960",
+          "pop1965",
+          "pop1970",
+          "pop1975",
+          "pop1980",
+          "pop1985",
+          "pop1990",
+          "pop1995",
+          "pop2000",
+          "pop2005",
+          "pop2010",
+          "pop2015",
+          "pop2020",
+          "pop2025",
+          "pop2030",
+          "nbOri",
+          "nbDes"
+        ],
+        "errors": []
+      },
+      {
+        "originalName": "fixture-manifest.json",
+        "kind": "unknown",
+        "confidence": 0,
+        "headers": [],
+        "candidateKinds": [],
+        "requiredHeadersFound": [],
+        "missingHeaders": [],
+        "extraHeaders": [],
+        "errors": [
+          "json file is not GeoJSON"
+        ]
+      },
+      {
+        "originalName": "population.csv",
+        "kind": "cityLinkedAttributes",
+        "confidence": 0.8,
+        "headers": [
+          "Index",
+          "cityCode",
+          "pop1950",
+          "pop1955",
+          "pop1960",
+          "pop1965",
+          "pop1970",
+          "pop1975",
+          "pop1980",
+          "pop1985",
+          "pop1990",
+          "pop1995",
+          "pop2000",
+          "pop2005",
+          "pop2010",
+          "pop2015",
+          "pop2020",
+          "pop2025",
+          "pop2030"
+        ],
+        "candidateKinds": [
+          "cityLinkedAttributes"
+        ],
+        "requiredHeadersFound": [
+          "cityCode"
+        ],
+        "missingHeaders": [],
+        "extraHeaders": [
+          "Index",
+          "pop1950",
+          "pop1955",
+          "pop1960",
+          "pop1965",
+          "pop1970",
+          "pop1975",
+          "pop1980",
+          "pop1985",
+          "pop1990",
+          "pop1995",
+          "pop2000",
+          "pop2005",
+          "pop2010",
+          "pop2015",
+          "pop2020",
+          "pop2025",
+          "pop2030"
+        ],
+        "errors": []
+      },
+      {
+        "originalName": "transport_mode_speed_v05.csv",
+        "kind": "transportModeSpeeds",
+        "confidence": 1,
+        "headers": [
+          "year",
+          "transportModeCode",
+          "speedKPH"
+        ],
+        "candidateKinds": [
+          "transportModeSpeeds"
+        ],
+        "requiredHeadersFound": [
+          "year",
+          "transportModeCode",
+          "speedKPH"
+        ],
+        "missingHeaders": [],
+        "extraHeaders": [],
+        "errors": []
+      },
+      {
+        "originalName": "transport_modes_v04.csv",
+        "kind": "transportModes",
+        "confidence": 1,
+        "headers": [
+          "name",
+          "code",
+          "terrestrial"
+        ],
+        "candidateKinds": [
+          "transportModes"
+        ],
+        "requiredHeadersFound": [
+          "code",
+          "terrestrial"
+        ],
+        "missingHeaders": [],
+        "extraHeaders": [
+          "name"
+        ],
+        "errors": []
+      },
+      {
+        "originalName": "transport_network_v16.csv",
+        "kind": "transportNetwork",
+        "confidence": 1,
+        "headers": [
+          "eYearBegin",
+          "eYearEnd",
+          "cityCodeOri",
+          "nameOri",
+          "cityCodeDes",
+          "nameDes",
+          "transportModeCode",
+          "length",
+          "notes"
+        ],
+        "candidateKinds": [
+          "transportNetwork"
+        ],
+        "requiredHeadersFound": [
+          "cityCodeOri",
+          "cityCodeDes",
+          "transportModeCode"
+        ],
+        "missingHeaders": [],
+        "extraHeaders": [
+          "eYearBegin",
+          "eYearEnd",
+          "nameOri",
+          "nameDes",
+          "length",
+          "notes"
+        ],
+        "errors": []
+      }
+    ],
+    "diagnostics": [
+      {
+        "severity": "warning",
+        "code": "unknown-file",
+        "file": "fixture-manifest.json",
+        "errors": [
+          "json file is not GeoJSON"
+        ]
+      }
+    ]
   },
   "counts": {
     "cities": 30,
-    "population": 30,
+    "cityLinkedAttributes": 1,
+    "cityLinkedAttributeRows": 30,
+    "cityLinkedAttributeLinkedRows": 30,
+    "cityLinkedAttributeOrphanRows": 0,
     "transportNetwork": 5,
     "transportNetworkInsideCities": 5,
     "transportModes": 7,
@@ -50,26 +309,54 @@
       "nbOri",
       "nbDes"
     ],
-    "population": [
-      "Index",
-      "cityCode",
-      "pop1950",
-      "pop1955",
-      "pop1960",
-      "pop1965",
-      "pop1970",
-      "pop1975",
-      "pop1980",
-      "pop1985",
-      "pop1990",
-      "pop1995",
-      "pop2000",
-      "pop2005",
-      "pop2010",
-      "pop2015",
-      "pop2020",
-      "pop2025",
-      "pop2030"
+    "cityLinkedAttributes": [
+      {
+        "file": "population.csv",
+        "rows": 30,
+        "linkedRows": 30,
+        "orphanRows": 0,
+        "headers": [
+          "Index",
+          "cityCode",
+          "pop1950",
+          "pop1955",
+          "pop1960",
+          "pop1965",
+          "pop1970",
+          "pop1975",
+          "pop1980",
+          "pop1985",
+          "pop1990",
+          "pop1995",
+          "pop2000",
+          "pop2005",
+          "pop2010",
+          "pop2015",
+          "pop2020",
+          "pop2025",
+          "pop2030"
+        ],
+        "extraHeaders": [
+          "Index",
+          "pop1950",
+          "pop1955",
+          "pop1960",
+          "pop1965",
+          "pop1970",
+          "pop1975",
+          "pop1980",
+          "pop1985",
+          "pop1990",
+          "pop1995",
+          "pop2000",
+          "pop2005",
+          "pop2010",
+          "pop2015",
+          "pop2020",
+          "pop2025",
+          "pop2030"
+        ]
+      }
     ],
     "transportNetwork": [
       "eYearBegin",
@@ -116,10 +403,6 @@
     }
   },
   "years": {
-    "population": {
-      "min": 1950,
-      "max": 2030
-    },
     "transportModeSpeeds": {
       "min": 1920,
       "max": 2030

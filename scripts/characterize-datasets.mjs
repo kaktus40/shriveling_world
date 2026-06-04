@@ -4,12 +4,12 @@ import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 import {
 	ensureDir,
-	findDatasetFiles,
 	minMax,
 	readCsv,
 	toNumber,
 	writeJson,
 } from './dataset-utils.mjs';
+import { requireValidDatasetManifest } from './dataset-inspection.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -54,17 +54,36 @@ function yearRangeFromFields(records, fieldNames) {
 	return minMax(values);
 }
 
+function readManifestCsv(dir, inspectedFile) {
+	return readCsv(path.join(dir, inspectedFile.originalName));
+}
+
+function summarizeCityLinkedAttributes(dir, inspectedFiles, cityCodes) {
+	return inspectedFiles.map((file) => {
+		const csv = readManifestCsv(dir, file);
+		const linkedRecords = csv.records.filter((record) => cityCodes.has(record.cityCode));
+		const orphanRecords = csv.records.filter((record) => !cityCodes.has(record.cityCode));
+		return {
+			file: file.originalName,
+			rows: csv.records.length,
+			linkedRows: linkedRecords.length,
+			orphanRows: orphanRecords.length,
+			headers: csv.headers,
+			extraHeaders: file.extraHeaders,
+		};
+	});
+}
+
 function characterizeDataset({ name, dir }) {
 	if (!existsSync(dir)) {
 		throw new Error(`${name}: dataset directory not found: ${dir}`);
 	}
 
-	const files = findDatasetFiles(dir);
-	const cities = readCsv(path.join(dir, files.cities));
-	const population = readCsv(path.join(dir, files.population));
-	const network = readCsv(path.join(dir, files.transportNetwork));
-	const modes = readCsv(path.join(dir, files.transportModes));
-	const modeSpeeds = readCsv(path.join(dir, files.transportModeSpeed));
+	const { files, manifest } = requireValidDatasetManifest(dir);
+	const cities = readManifestCsv(dir, manifest.primary.cities);
+	const network = readManifestCsv(dir, manifest.primary.transportNetwork);
+	const modes = readManifestCsv(dir, manifest.primary.transportModes);
+	const modeSpeeds = readManifestCsv(dir, manifest.primary.transportModeSpeeds);
 
 	const cityCodes = new Set(cities.records.map((record) => record.cityCode));
 	const networkInsideCities = network.records.filter(
@@ -75,17 +94,29 @@ function characterizeDataset({ name, dir }) {
 
 	const latitudeValues = cities.records.map((record) => toNumber(record.latitude));
 	const longitudeValues = cities.records.map((record) => toNumber(record.longitude));
-	const populationYears = population.headers
-		.filter((header) => /^pop\d{4}$/.test(header))
-		.map((header) => Number(header.slice(3)));
+	const cityLinkedAttributes = summarizeCityLinkedAttributes(dir, manifest.cityLinkedAttributes, cityCodes);
 
 	return {
 		name,
 		directory: path.relative(rootDir, dir),
-		files,
+		files: {
+			primary: Object.fromEntries(
+				Object.entries(manifest.primary).map(([kind, file]) => [kind, file.originalName])
+			),
+			cityLinkedAttributes: manifest.cityLinkedAttributes.map((file) => file.originalName),
+			geojson: manifest.geojson.map((file) => file.originalName),
+			unknown: manifest.unknown.map((file) => file.originalName),
+		},
+		inspection: {
+			files,
+			diagnostics: manifest.diagnostics,
+		},
 		counts: {
 			cities: cities.records.length,
-			population: population.records.length,
+			cityLinkedAttributes: cityLinkedAttributes.length,
+			cityLinkedAttributeRows: cityLinkedAttributes.reduce((sum, file) => sum + file.rows, 0),
+			cityLinkedAttributeLinkedRows: cityLinkedAttributes.reduce((sum, file) => sum + file.linkedRows, 0),
+			cityLinkedAttributeOrphanRows: cityLinkedAttributes.reduce((sum, file) => sum + file.orphanRows, 0),
 			transportNetwork: network.records.length,
 			transportNetworkInsideCities: networkInsideCities.length,
 			transportModes: modes.records.length,
@@ -93,7 +124,7 @@ function characterizeDataset({ name, dir }) {
 		},
 		headers: {
 			cities: cities.headers,
-			population: population.headers,
+			cityLinkedAttributes,
 			transportNetwork: network.headers,
 			transportModes: modes.headers,
 			transportModeSpeeds: modeSpeeds.headers,
@@ -104,7 +135,6 @@ function characterizeDataset({ name, dir }) {
 			longitude: minMax(longitudeValues),
 		},
 		years: {
-			population: minMax(populationYears),
 			transportModeSpeeds: yearRangeFromFields(modeSpeeds.records, ['year']),
 			transportNetwork: yearRangeFromFields(network.records, ['eYearBegin', 'eYearEnd']),
 		},

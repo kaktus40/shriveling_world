@@ -5,7 +5,10 @@
       "directory": "tests/fixtures/fixture-30-world",
       "counts": {
         "cities": 30,
-        "population": 30,
+        "cityLinkedAttributes": 1,
+        "cityLinkedAttributeRows": 30,
+        "cityLinkedAttributeLinkedRows": 30,
+        "cityLinkedAttributeOrphanRows": 0,
         "transportNetwork": 5,
         "transportNetworkInsideCities": 5,
         "transportModes": 7,
@@ -22,10 +25,6 @@
         }
       },
       "years": {
-        "population": {
-          "min": 1950,
-          "max": 2030
-        },
         "transportModeSpeeds": {
           "min": 1920,
           "max": 2030
@@ -41,7 +40,10 @@
       "directory": "tests/fixtures/fixture-30-europe",
       "counts": {
         "cities": 30,
-        "population": 30,
+        "cityLinkedAttributes": 1,
+        "cityLinkedAttributeRows": 30,
+        "cityLinkedAttributeLinkedRows": 30,
+        "cityLinkedAttributeOrphanRows": 0,
         "transportNetwork": 217,
         "transportNetworkInsideCities": 217,
         "transportModes": 5,
@@ -58,10 +60,6 @@
         }
       },
       "years": {
-        "population": {
-          "min": 1950,
-          "max": 2030
-        },
         "transportModeSpeeds": {
           "min": 0,
           "max": 2020
@@ -77,7 +75,10 @@
       "directory": "datasets/World_1M",
       "counts": {
         "cities": 498,
-        "population": 1681,
+        "cityLinkedAttributes": 1,
+        "cityLinkedAttributeRows": 1681,
+        "cityLinkedAttributeLinkedRows": 498,
+        "cityLinkedAttributeOrphanRows": 1183,
         "transportNetwork": 4397,
         "transportNetworkInsideCities": 2987,
         "transportModes": 7,
@@ -94,10 +95,6 @@
         }
       },
       "years": {
-        "population": {
-          "min": 1950,
-          "max": 2030
-        },
         "transportModeSpeeds": {
           "min": 1920,
           "max": 2030
@@ -113,7 +110,10 @@
       "directory": "datasets/Europe_1M",
       "counts": {
         "cities": 49,
-        "population": 1681,
+        "cityLinkedAttributes": 1,
+        "cityLinkedAttributeRows": 1681,
+        "cityLinkedAttributeLinkedRows": 49,
+        "cityLinkedAttributeOrphanRows": 1632,
         "transportNetwork": 4389,
         "transportNetworkInsideCities": 561,
         "transportModes": 5,
@@ -130,10 +130,6 @@
         }
       },
       "years": {
-        "population": {
-          "min": 1950,
-          "max": 2030
-        },
         "transportModeSpeeds": {
           "min": 0,
           "max": 2020

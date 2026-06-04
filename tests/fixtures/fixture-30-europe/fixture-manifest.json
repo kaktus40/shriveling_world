@@ -4,14 +4,23 @@
   "limit": 30,
   "files": {
     "cities": "cities_Europe_sup_1M.csv",
-    "population": "population.csv",
     "transportNetwork": "transport_network_v14.csv",
     "transportModes": "transport_modes_v03.csv",
-    "transportModeSpeed": "transport_mode_speed_v04.csv",
-    "geojson": "110m_land_shrivel_v03.geojson"
+    "transportModeSpeeds": "transport_mode_speed_v04.csv",
+    "cityLinkedAttributes": [
+      "population.csv"
+    ],
+    "geojson": [
+      "110m_land_shrivel_v03.geojson"
+    ]
   },
   "selectedCityCount": 30,
-  "selectedPopulationCount": 30,
+  "selectedCityLinkedAttributes": [
+    {
+      "file": "population.csv",
+      "selectedRecordCount": 30
+    }
+  ],
   "selectedNetworkEdgeCount": 217,
   "selectedCityCodes": [
     "20107",

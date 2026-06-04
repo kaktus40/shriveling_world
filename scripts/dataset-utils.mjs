@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import path from 'path';
 
 export function ensureCleanDir(dir) {
@@ -20,33 +20,6 @@ export function readText(file) {
 export function writeJson(file, data) {
 	ensureDir(path.dirname(file));
 	writeFileSync(file, `${JSON.stringify(data, null, 2)}\n`);
-}
-
-export function findOneFile(dir, matcher, label) {
-	const matches = readdirSync(dir).filter(matcher).sort();
-	if (matches.length !== 1) {
-		throw new Error(`${label}: expected exactly one file in ${dir}, found ${matches.length}: ${matches.join(', ')}`);
-	}
-	return matches[0];
-}
-
-export function findDatasetFiles(datasetDir) {
-	return {
-		cities: findOneFile(datasetDir, (name) => /^cities.*\.csv$/i.test(name), 'cities csv'),
-		population: findOneFile(datasetDir, (name) => /^population.*\.csv$/i.test(name), 'population csv'),
-		transportNetwork: findOneFile(
-			datasetDir,
-			(name) => /^transport_network.*\.csv$/i.test(name),
-			'transport network csv'
-		),
-		transportModes: findOneFile(datasetDir, (name) => /^transport_modes.*\.csv$/i.test(name), 'transport modes csv'),
-		transportModeSpeed: findOneFile(
-			datasetDir,
-			(name) => /^transport_mode_speed.*\.csv$/i.test(name),
-			'transport mode speed csv'
-		),
-		geojson: findOneFile(datasetDir, (name) => /\.geojson$/i.test(name), 'geojson'),
-	};
 }
 
 function detectDelimiter(text) {

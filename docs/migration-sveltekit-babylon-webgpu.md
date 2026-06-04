@@ -655,7 +655,7 @@ Strategie de datasets retenue:
 
 - `World_1M` sert de reference globale reduite, avec environ 500 villes dispersees sur le globe;
 - `Europe_1M` sert de reference europeenne rapide, avec environ 50 villes;
-- les fixtures rapides sont generees en prenant les 30 premieres villes d'un fichier `cities*.csv`;
+- les fixtures rapides sont generees en prenant les 30 premieres villes du fichier classe `cities` par inspection de schema;
 - les populations et le reseau de transport sont filtres sur ces villes;
 - les modes, vitesses et GeoJSON sont conserves pour garder un contexte coherent;
 - des datasets fictifs analytiques pourront etre ajoutes pour les cas geometriques precis.

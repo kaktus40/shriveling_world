@@ -132,16 +132,16 @@ Datasets de reference retenus:
 
 - `datasets/World_1M`: dataset reduit a environ 500 villes dispersees sur tout le globe;
 - `datasets/Europe_1M`: dataset reduit a environ 50 villes situees en Europe;
-- fixtures fictives ou reduites generees a partir des 30 premieres lignes de fichiers `cities*.csv`.
+- fixtures fictives ou reduites generees a partir des 30 premieres villes du fichier classe `cities` par inspection de schema.
 
 Strategie de fixtures reduites:
 
-- pour chaque dataset source utile, prendre les 30 premieres villes du fichier `cities*.csv`;
+- pour chaque dataset source utile, prendre les 30 premieres villes du fichier classe `cities`;
 - conserver le header CSV;
-- filtrer `population*.csv` sur les `cityCode` conserves;
-- filtrer `transport_network*.csv` pour ne garder que les arcs dont `cityCodeOri` et `cityCodeDes` appartiennent aux villes conservees;
-- conserver les fichiers `transport_modes*.csv` et `transport_mode_speed*.csv` tels quels;
-- conserver le GeoJSON source pour les premiers tests data;
+- filtrer toutes les tables `cityLinkedAttributes` sur les `cityCode` conserves;
+- filtrer le fichier classe `transportNetwork` pour ne garder que les arcs dont `cityCodeOri` et `cityCodeDes` appartiennent aux villes conservees;
+- conserver les fichiers classes `transportModes` et `transportModeSpeeds` tels quels;
+- conserver les GeoJSON sources pour les premiers tests data;
 - creer plus tard un GeoJSON artificiel minimal pour les tests geometriques analytiques.
 
 Datasets de test proposes pour M1:
@@ -154,7 +154,7 @@ Datasets de test proposes pour M1:
 Sorties a observer, sans les figer comme attendus definitifs:
 
 - nombre de villes;
-- nombre de populations;
+- nombre de tables d'enrichissement ville et de lignes rattachees;
 - nombre de modes de transport;
 - nombre de lignes du reseau;
 - detection du mode `Road`;
@@ -198,10 +198,10 @@ Les scripts sont volontairement en `.mjs` pour rester executables dans le socle 
 
 Comportement attendu du script:
 
-- detecter automatiquement le fichier `cities*.csv`;
+- detecter automatiquement les fichiers par inspection de schema, sans dependance aux noms;
 - extraire les 30 premieres villes;
-- filtrer populations et reseau de transport;
-- copier modes, vitesses et GeoJSON;
+- filtrer les enrichissements ville et le reseau de transport;
+- copier modes, vitesses et GeoJSON detectes;
 - ecrire une fixture reproductible dans `tests/fixtures/`;
 - echouer explicitement si les fichiers attendus sont absents ou ambigus.
 
@@ -580,7 +580,21 @@ Critere d'acceptation:
 
 Validation:
 
-- A renseigner apres implementation.
+- Implementation initiale:
+  - `scripts/dataset-inspection.mjs` ajoute l'inspection par schema et la resolution de manifest;
+  - `scripts/create-reduced-dataset-fixtures.mjs` ne depend plus des noms de fichiers;
+  - `scripts/characterize-datasets.mjs` ne depend plus des noms de fichiers;
+  - les CSV non primaires contenant `cityCode` sont traites comme `cityLinkedAttributes`;
+  - les rapports de caracterisation exposent les fichiers detectes, colonnes libres et diagnostics.
+- Validations executees:
+  - `npm run characterize:datasets`;
+  - verification manuelle de manifest identique entre ordre naturel et ordre inverse des fichiers pour `datasets/World_1M`;
+  - `npm run build`.
+- Reste a faire avant validation complete de M3.1:
+  - implementer `BaseNetworkAssembly`;
+  - produire les index `cityByCode`, `modeByCode`, `speedByModeAndYear`, `edgesByOrigin`, `edgesByDestination`;
+  - rattacher les `cityLinkedAttributes` aux villes dans un reseau de base lossless;
+  - documenter les diagnostics d'assemblage obtenus.
 
 ## M3: Extraction Du Domaine Metier
 
