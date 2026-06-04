@@ -15,7 +15,7 @@ const PRIMARY_SIGNATURES = [
 	},
 	{
 		kind: 'transportModes',
-		requiredColumns: ['code', 'terrestrial'],
+		requiredColumns: ['code', 'name', 'terrestrial'],
 		unique: true,
 	},
 	{
@@ -26,6 +26,10 @@ const PRIMARY_SIGNATURES = [
 ];
 
 const REQUIRED_PRIMARY_KINDS = ['cities', 'transportNetwork', 'transportModes', 'transportModeSpeeds'];
+
+function byOriginalName(fileA, fileB) {
+	return fileA.originalName.localeCompare(fileB.originalName);
+}
 
 function hasColumns(headers, requiredColumns) {
 	const headerSet = new Set(headers);
@@ -175,14 +179,14 @@ export function resolveDatasetManifest(inspectedFiles) {
 				severity: 'error',
 				code: 'multiple-primary-files',
 				kind,
-				files: matches.map((file) => file.originalName),
+				files: matches.map((file) => file.originalName).sort(),
 			});
 		} else {
 			primary[kind] = matches[0];
 		}
 	}
 
-	const unknown = inspectedFiles.filter((file) => file.kind === 'unknown');
+	const unknown = inspectedFiles.filter((file) => file.kind === 'unknown').sort(byOriginalName);
 	for (const file of unknown) {
 		diagnostics.push({
 			severity: 'warning',
@@ -194,8 +198,8 @@ export function resolveDatasetManifest(inspectedFiles) {
 
 	return {
 		primary,
-		cityLinkedAttributes: inspectedFiles.filter((file) => file.kind === 'cityLinkedAttributes'),
-		geojson: inspectedFiles.filter((file) => file.kind === 'geojson'),
+		cityLinkedAttributes: inspectedFiles.filter((file) => file.kind === 'cityLinkedAttributes').sort(byOriginalName),
+		geojson: inspectedFiles.filter((file) => file.kind === 'geojson').sort(byOriginalName),
 		unknown,
 		diagnostics,
 		valid: diagnostics.every((diagnostic) => diagnostic.severity !== 'error'),

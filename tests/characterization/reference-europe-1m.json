@@ -198,13 +198,12 @@
           "transportModes"
         ],
         "requiredHeadersFound": [
+          "name",
           "code",
           "terrestrial"
         ],
         "missingHeaders": [],
-        "extraHeaders": [
-          "name"
-        ],
+        "extraHeaders": [],
         "errors": []
       },
       {
@@ -243,6 +242,267 @@
       }
     ],
     "diagnostics": []
+  },
+  "assembly": {
+    "counts": {
+      "cities": 49,
+      "edges": 4389,
+      "transportModes": 5,
+      "sourceRecords": 6175,
+      "queryableFields": 65,
+      "cityByCode": 49,
+      "modeByCode": 5,
+      "speedByModeAndYear": 51,
+      "edgesByOrigin": 45,
+      "edgesByDestination": 45
+    },
+    "diagnosticsBySeverity": {
+      "warning": 8512
+    },
+    "diagnosticSample": [
+      {
+        "severity": "warning",
+        "code": "edge-missing-destination-city",
+        "edgeId": 0,
+        "cityCode": 23083
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-transport-mode",
+        "edgeId": 0,
+        "transportModeCode": 11
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-destination-city",
+        "edgeId": 1,
+        "cityCode": 23083
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-transport-mode",
+        "edgeId": 1,
+        "transportModeCode": 11
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-origin-city",
+        "edgeId": 2,
+        "cityCode": 206167
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-destination-city",
+        "edgeId": 2,
+        "cityCode": 21957
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-origin-city",
+        "edgeId": 3,
+        "cityCode": 22632
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-destination-city",
+        "edgeId": 3,
+        "cityCode": 22046
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-origin-city",
+        "edgeId": 4,
+        "cityCode": 22046
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-destination-city",
+        "edgeId": 4,
+        "cityCode": 22632
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-origin-city",
+        "edgeId": 5,
+        "cityCode": 23370
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-destination-city",
+        "edgeId": 5,
+        "cityCode": 22458
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-origin-city",
+        "edgeId": 6,
+        "cityCode": 22457
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-destination-city",
+        "edgeId": 6,
+        "cityCode": 21758
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-origin-city",
+        "edgeId": 7,
+        "cityCode": 22457
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-destination-city",
+        "edgeId": 7,
+        "cityCode": 22458
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-origin-city",
+        "edgeId": 8,
+        "cityCode": 21758
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-destination-city",
+        "edgeId": 8,
+        "cityCode": 22457
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-origin-city",
+        "edgeId": 9,
+        "cityCode": 21758
+      },
+      {
+        "severity": "warning",
+        "code": "edge-missing-destination-city",
+        "edgeId": 9,
+        "cityCode": 22458
+      }
+    ],
+    "fieldSample": [
+      {
+        "sourceKind": "cities",
+        "column": "cityCode",
+        "occurrences": 49,
+        "characteristic": true
+      },
+      {
+        "sourceKind": "cities",
+        "column": "cityName",
+        "occurrences": 49,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "countryCode",
+        "occurrences": 49,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "countryName",
+        "occurrences": 49,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "index",
+        "occurrences": 49,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "Index",
+        "occurrences": 49,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "latitude",
+        "occurrences": 49,
+        "characteristic": true
+      },
+      {
+        "sourceKind": "cities",
+        "column": "longitude",
+        "occurrences": 49,
+        "characteristic": true
+      },
+      {
+        "sourceKind": "cities",
+        "column": "nbDes",
+        "occurrences": 49,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "nbOri",
+        "occurrences": 49,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1950",
+        "occurrences": 49,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1955",
+        "occurrences": 49,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1960",
+        "occurrences": 49,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1965",
+        "occurrences": 49,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1970",
+        "occurrences": 49,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1975",
+        "occurrences": 49,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1980",
+        "occurrences": 49,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1985",
+        "occurrences": 49,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1990",
+        "occurrences": 49,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1995",
+        "occurrences": 49,
+        "characteristic": false
+      }
+    ]
   },
   "counts": {
     "cities": 49,

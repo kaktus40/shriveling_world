@@ -372,6 +372,13 @@ Avantages par rapport au `Merger` historique:
 - separation claire entre donnees brutes, reseau de base et precalcul;
 - compatibilite avec un futur moteur de requetes utilisateur.
 
+Implementation `M3.1`:
+
+- `scripts/dataset-inspection.mjs` inspecte et resout le manifest global;
+- `scripts/dataset-assembly.mjs` assemble un reseau de base lossless;
+- l'assembleur accepte directement une liste `{ name, text }[]` pour rester compatible avec un ordre d'arrivee non determine;
+- les scripts de fixtures et de caracterisation utilisent ce pipeline sans modifier le `Merger` applicatif.
+
 ### Mapping Semantique Pour Les Requetes
 
 Les requetes utilisateur peuvent porter sur des concepts comme:

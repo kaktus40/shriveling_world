@@ -213,13 +213,12 @@
           "transportModes"
         ],
         "requiredHeadersFound": [
+          "name",
           "code",
           "terrestrial"
         ],
         "missingHeaders": [],
-        "extraHeaders": [
-          "name"
-        ],
+        "extraHeaders": [],
         "errors": []
       },
       {
@@ -265,6 +264,144 @@
         "errors": [
           "json file is not GeoJSON"
         ]
+      }
+    ]
+  },
+  "assembly": {
+    "counts": {
+      "cities": 30,
+      "edges": 217,
+      "transportModes": 5,
+      "sourceRecords": 333,
+      "queryableFields": 65,
+      "cityByCode": 30,
+      "modeByCode": 5,
+      "speedByModeAndYear": 51,
+      "edgesByOrigin": 25,
+      "edgesByDestination": 25
+    },
+    "diagnosticsBySeverity": {},
+    "diagnosticSample": [],
+    "fieldSample": [
+      {
+        "sourceKind": "cities",
+        "column": "cityCode",
+        "occurrences": 30,
+        "characteristic": true
+      },
+      {
+        "sourceKind": "cities",
+        "column": "cityName",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "countryCode",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "countryName",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "index",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "Index",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "latitude",
+        "occurrences": 30,
+        "characteristic": true
+      },
+      {
+        "sourceKind": "cities",
+        "column": "longitude",
+        "occurrences": 30,
+        "characteristic": true
+      },
+      {
+        "sourceKind": "cities",
+        "column": "nbDes",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "nbOri",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1950",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1955",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1960",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1965",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1970",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1975",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1980",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1985",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1990",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1995",
+        "occurrences": 30,
+        "characteristic": false
       }
     ]
   },

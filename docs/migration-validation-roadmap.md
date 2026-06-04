@@ -65,7 +65,7 @@ Utiliser les statuts suivants:
 | M2 | validated | Migration SvelteKit/Vite minimale |
 | M2.1 | validated | Evaluation des hooks Rollup applicatifs |
 | M3 | todo | Extraction du domaine metier |
-| M3.1 | todo | Inspection dataset et assemblage lossless du reseau |
+| M3.1 | validated | Inspection dataset et assemblage lossless du reseau |
 | M4 | todo | Architecture explicite de precalcul |
 | M5 | todo | Rendu Babylon.js minimal |
 | M6 | todo | Framework WebGPU compute minimal |
@@ -442,7 +442,7 @@ Validation:
 
 ## M3.1: Inspection Dataset Et Assemblage Lossless Du Reseau
 
-Statut: `todo`
+Statut: `validated`
 
 Objectif:
 
@@ -474,6 +474,7 @@ transportNetwork:
 
 transportModes:
   code
+  name
   terrestrial
 
 transportModeSpeeds:
@@ -580,21 +581,26 @@ Critere d'acceptation:
 
 Validation:
 
-- Implementation initiale:
+- Implementation:
   - `scripts/dataset-inspection.mjs` ajoute l'inspection par schema et la resolution de manifest;
+  - `scripts/dataset-assembly.mjs` ajoute l'assemblage lossless du reseau de base;
   - `scripts/create-reduced-dataset-fixtures.mjs` ne depend plus des noms de fichiers;
   - `scripts/characterize-datasets.mjs` ne depend plus des noms de fichiers;
   - les CSV non primaires contenant `cityCode` sont traites comme `cityLinkedAttributes`;
-  - les rapports de caracterisation exposent les fichiers detectes, colonnes libres et diagnostics.
+  - les rapports de caracterisation exposent les fichiers detectes, colonnes libres, index et diagnostics d'assemblage;
+  - l'assembleur accepte une liste `{ name, text }[]`, donc il peut recevoir les fichiers dans un ordre non determine.
 - Validations executees:
   - `npm run characterize:datasets`;
-  - verification manuelle de manifest identique entre ordre naturel et ordre inverse des fichiers pour `datasets/World_1M`;
+  - verification de manifest identique entre ordre naturel et ordre inverse des fichiers pour `datasets/World_1M`;
+  - verification d'assemblage identique entre ordre naturel et ordre inverse des fichiers pour `datasets/World_1M`;
   - `npm run build`.
-- Reste a faire avant validation complete de M3.1:
-  - implementer `BaseNetworkAssembly`;
-  - produire les index `cityByCode`, `modeByCode`, `speedByModeAndYear`, `edgesByOrigin`, `edgesByDestination`;
-  - rattacher les `cityLinkedAttributes` aux villes dans un reseau de base lossless;
-  - documenter les diagnostics d'assemblage obtenus.
+- Diagnostics observes:
+  - les datasets complets contiennent des arcs references vers des villes absentes du sous-ensemble de villes charge;
+  - `population.csv` est correctement rattache comme `cityLinkedAttributes`, avec lignes orphelines conservees en diagnostics;
+  - `datasets/World_1M/transport_mode_speed_v05.csv` contient quelques lignes historiques mal formees ou commentees dans des champs numeriques; elles sont conservees en source et signalees par diagnostics.
+- Limite volontaire:
+  - le nouveau reseau de base n'est pas encore branche dans l'application interactive;
+  - `Merger` historique reste le chemin applicatif jusqu'au jalon d'extraction/portage suivant.
 
 ## M3: Extraction Du Domaine Metier
 

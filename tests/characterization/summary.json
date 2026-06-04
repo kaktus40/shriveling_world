@@ -14,6 +14,22 @@
         "transportModes": 7,
         "transportModeSpeeds": 58
       },
+      "assembly": {
+        "cities": 30,
+        "edges": 5,
+        "transportModes": 7,
+        "sourceRecords": 130,
+        "queryableFields": 64,
+        "cityByCode": 30,
+        "modeByCode": 7,
+        "speedByModeAndYear": 58,
+        "edgesByOrigin": 3,
+        "edgesByDestination": 3
+      },
+      "assemblyDiagnosticsBySeverity": {
+        "error": 5,
+        "warning": 1
+      },
       "bounds": {
         "latitude": {
           "min": -34.605083,
@@ -49,6 +65,19 @@
         "transportModes": 5,
         "transportModeSpeeds": 51
       },
+      "assembly": {
+        "cities": 30,
+        "edges": 217,
+        "transportModes": 5,
+        "sourceRecords": 333,
+        "queryableFields": 65,
+        "cityByCode": 30,
+        "modeByCode": 5,
+        "speedByModeAndYear": 51,
+        "edgesByOrigin": 25,
+        "edgesByDestination": 25
+      },
+      "assemblyDiagnosticsBySeverity": {},
       "bounds": {
         "latitude": {
           "min": 37.00167,
@@ -84,6 +113,22 @@
         "transportModes": 7,
         "transportModeSpeeds": 58
       },
+      "assembly": {
+        "cities": 498,
+        "edges": 4397,
+        "transportModes": 7,
+        "sourceRecords": 6641,
+        "queryableFields": 64,
+        "cityByCode": 498,
+        "modeByCode": 7,
+        "speedByModeAndYear": 58,
+        "edgesByOrigin": 263,
+        "edgesByDestination": 261
+      },
+      "assemblyDiagnosticsBySeverity": {
+        "error": 5,
+        "warning": 2756
+      },
       "bounds": {
         "latitude": {
           "min": -37.814,
@@ -118,6 +163,21 @@
         "transportNetworkInsideCities": 561,
         "transportModes": 5,
         "transportModeSpeeds": 51
+      },
+      "assembly": {
+        "cities": 49,
+        "edges": 4389,
+        "transportModes": 5,
+        "sourceRecords": 6175,
+        "queryableFields": 65,
+        "cityByCode": 49,
+        "modeByCode": 5,
+        "speedByModeAndYear": 51,
+        "edgesByOrigin": 45,
+        "edgesByDestination": 45
+      },
+      "assemblyDiagnosticsBySeverity": {
+        "warning": 8512
       },
       "bounds": {
         "latitude": {

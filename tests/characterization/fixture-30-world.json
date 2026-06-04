@@ -210,13 +210,12 @@
           "transportModes"
         ],
         "requiredHeadersFound": [
+          "name",
           "code",
           "terrestrial"
         ],
         "missingHeaders": [],
-        "extraHeaders": [
-          "name"
-        ],
+        "extraHeaders": [],
         "errors": []
       },
       {
@@ -262,6 +261,195 @@
         "errors": [
           "json file is not GeoJSON"
         ]
+      }
+    ]
+  },
+  "assembly": {
+    "counts": {
+      "cities": 30,
+      "edges": 5,
+      "transportModes": 7,
+      "sourceRecords": 130,
+      "queryableFields": 64,
+      "cityByCode": 30,
+      "modeByCode": 7,
+      "speedByModeAndYear": 58,
+      "edgesByOrigin": 3,
+      "edgesByDestination": 3
+    },
+    "diagnosticsBySeverity": {
+      "error": 5,
+      "warning": 1
+    },
+    "diagnosticSample": [
+      {
+        "severity": "error",
+        "code": "invalid-number-characteristic",
+        "column": "speedKPH",
+        "value": "100;airlines are introduced",
+        "sourceFileName": "transport_mode_speed_v05.csv",
+        "rowIndex": 0
+      },
+      {
+        "severity": "error",
+        "code": "invalid-number-characteristic",
+        "column": "speedKPH",
+        "value": "150;HST are introduced",
+        "sourceFileName": "transport_mode_speed_v05.csv",
+        "rowIndex": 24
+      },
+      {
+        "severity": "error",
+        "code": "invalid-number-characteristic",
+        "column": "transportModeCode",
+        "value": "",
+        "sourceFileName": "transport_mode_speed_v05.csv",
+        "rowIndex": 44
+      },
+      {
+        "severity": "error",
+        "code": "invalid-number-characteristic",
+        "column": "year",
+        "value": "1940;6;100;expressways are introduced",
+        "sourceFileName": "transport_mode_speed_v05.csv",
+        "rowIndex": 44
+      },
+      {
+        "severity": "error",
+        "code": "invalid-number-characteristic",
+        "column": "speedKPH",
+        "value": "",
+        "sourceFileName": "transport_mode_speed_v05.csv",
+        "rowIndex": 44
+      },
+      {
+        "severity": "warning",
+        "code": "speed-missing-transport-mode",
+        "transportModeCode": null,
+        "year": null,
+        "sourceRecordId": 86
+      }
+    ],
+    "fieldSample": [
+      {
+        "sourceKind": "cities",
+        "column": "cityCode",
+        "occurrences": 30,
+        "characteristic": true
+      },
+      {
+        "sourceKind": "cities",
+        "column": "cityName",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "countryCode",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "countryName",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "index",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "Index",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "latitude",
+        "occurrences": 30,
+        "characteristic": true
+      },
+      {
+        "sourceKind": "cities",
+        "column": "longitude",
+        "occurrences": 30,
+        "characteristic": true
+      },
+      {
+        "sourceKind": "cities",
+        "column": "nbDes",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "nbOri",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1950",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1955",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1960",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1965",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1970",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1975",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1980",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1985",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1990",
+        "occurrences": 30,
+        "characteristic": false
+      },
+      {
+        "sourceKind": "cities",
+        "column": "pop1995",
+        "occurrences": 30,
+        "characteristic": false
       }
     ]
   },

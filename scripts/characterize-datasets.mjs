@@ -10,6 +10,7 @@ import {
 	writeJson,
 } from './dataset-utils.mjs';
 import { requireValidDatasetManifest } from './dataset-inspection.mjs';
+import { assembleBaseNetwork } from './dataset-assembly.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -95,6 +96,11 @@ function characterizeDataset({ name, dir }) {
 	const latitudeValues = cities.records.map((record) => toNumber(record.latitude));
 	const longitudeValues = cities.records.map((record) => toNumber(record.longitude));
 	const cityLinkedAttributes = summarizeCityLinkedAttributes(dir, manifest.cityLinkedAttributes, cityCodes);
+	const baseNetwork = assembleBaseNetwork(dir);
+	const assemblyDiagnosticsBySeverity = baseNetwork.diagnostics.reduce((result, diagnostic) => {
+		result[diagnostic.severity] = (result[diagnostic.severity] ?? 0) + 1;
+		return result;
+	}, {});
 
 	return {
 		name,
@@ -110,6 +116,23 @@ function characterizeDataset({ name, dir }) {
 		inspection: {
 			files,
 			diagnostics: manifest.diagnostics,
+		},
+		assembly: {
+			counts: {
+				cities: baseNetwork.cities.length,
+				edges: baseNetwork.edges.length,
+				transportModes: baseNetwork.transportModes.length,
+				sourceRecords: baseNetwork.sourceRecords.length,
+				queryableFields: baseNetwork.fields.length,
+				cityByCode: Object.keys(baseNetwork.indexes.cityByCode).length,
+				modeByCode: Object.keys(baseNetwork.indexes.modeByCode).length,
+				speedByModeAndYear: Object.keys(baseNetwork.indexes.speedByModeAndYear).length,
+				edgesByOrigin: Object.keys(baseNetwork.indexes.edgesByOrigin).length,
+				edgesByDestination: Object.keys(baseNetwork.indexes.edgesByDestination).length,
+			},
+			diagnosticsBySeverity: assemblyDiagnosticsBySeverity,
+			diagnosticSample: baseNetwork.diagnostics.slice(0, 20),
+			fieldSample: baseNetwork.fields.slice(0, 20),
 		},
 		counts: {
 			cities: cities.records.length,
@@ -162,6 +185,8 @@ writeJson(path.join(rootDir, 'tests', 'characterization', 'summary.json'), {
 		name: report.name,
 		directory: report.directory,
 		counts: report.counts,
+		assembly: report.assembly.counts,
+		assemblyDiagnosticsBySeverity: report.assembly.diagnosticsBySeverity,
 		bounds: report.bounds,
 		years: report.years,
 	})),
