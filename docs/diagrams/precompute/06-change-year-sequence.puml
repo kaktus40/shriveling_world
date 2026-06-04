@@ -1,28 +1,29 @@
 @startuml
 title Sequence cible lors d'un changement d'annee
 
-actor User
-participant "Svelte UI" as UI
-participant "Compute Orchestrator TS" as TS
-participant "Precompute Cache CPU" as Cache
-participant "WebGPU Device" as GPU
-participant "Babylon Layers" as Babylon
+actor Utilisateur
+participant "Interface Svelte" as UI
+participant "Orchestrateur de calcul TS" as TS
+participant "Cache de precalcul CPU" as Cache
+participant "Peripherique WebGPU" as GPU
+participant "Couches Babylon" as Babylon
 
-User -> UI : changeYear(year)
-UI -> TS : computeVisualization(year, params)
-TS -> Cache : getDynamicTownPrecompute(year)
-Cache --> TS : cityLinks, citiesDict, roadAlpha, curveHeights
-TS -> GPU : queue.writeBuffer(dynamic buffers)
-TS -> GPU : dispatch RawConePass
-TS -> GPU : dispatch ConeConeIntersectionPass
-TS -> GPU : dispatch ConeBoundaryClipPass
-TS -> GPU : dispatch CurveGeometryPass
-GPU --> TS : command buffer completed
-TS -> Babylon : update cone and curve geometry buffers
-Babylon --> UI : frame rendered
+Utilisateur -> UI : changerAnnee(annee)
+UI -> TS : calculerVisualisation(annee, parametres)
+TS -> Cache : obtenirPrecalculDynamique(annee)
+Cache --> TS : cityLinks, citiesDict, roadAlpha, hauteursCourbes
+TS -> GPU : queue.writeBuffer(buffers dynamiques)
+TS -> GPU : dispatch Passe Cones Bruts
+TS -> GPU : dispatch Passe Intersections Cone/Cone
+TS -> GPU : dispatch Passe Decoupe Par Limites
+TS -> GPU : dispatch Passe Geometrie Courbes
+GPU --> TS : commandes terminees
+TS -> Babylon : mettre a jour les buffers cones et courbes
+Babylon --> UI : image rendue
 
 note over Cache
-  BaseNetwork, PreparedDataset and StaticTownPrecompute
-  are not recomputed during this sequence.
+  Le reseau lossless, le dataset prepare
+  et le precalcul statique des villes
+  ne sont pas recalcules pendant cette sequence.
 end note
 @enduml

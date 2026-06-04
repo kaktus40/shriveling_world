@@ -1,38 +1,38 @@
 @startuml
-title Detail prepareStaticTownPrecompute
+title Detail du precalcul statique des villes
 
-|CPU - PreparedDataset|
+|CPU - Dataset prepare|
 start
-:cities[] avec cityIndex, cityCode, lon, lat;
-:options: neighborSectors, neighborLimit;
+:villes[] avec cityIndex, cityCode, lon, lat;
+:options: secteursVoisins, limiteVoisins;
 
-|CPU - Referential|
-:buildCityMap();
-:buildLocalReferentials();
-:compute summitECEF + ned2ECEF rows;
+|CPU - Referentiels|
+:construireCityMap();
+:construireReferentielsLocaux();
+:calculer sommetsECEF + lignes ned2ECEF;
 
-|CPU or GPU candidate - Pair geometry|
-:for each ordered pair cityA/cityB;
-:compute azimuth A->B;
-:compute azimuth B->A;
-:compute angular distance theta;
-:compute midpoint;
-:compute pointP and pointQ;
-:compute local unit vector and elevation;
+|CPU ou GPU candidat - Geometrie des paires|
+:pour chaque paire ordonnee villeA/villeB;
+:calculer azimut A->B;
+:calculer azimut B->A;
+:calculer distance angulaire theta;
+:calculer midpoint;
+:calculer pointP et pointQ;
+:calculer vecteur unitaire local et elevation;
 
-|CPU - Neighbor selection|
-:partition candidates by angular sector;
-:sort candidates by distance inside each sector;
-:select bounded neighborLimit;
-:sort selected neighbors by azimuth;
+|CPU - Selection du voisinage|
+:repartir les candidats par secteur angulaire;
+:trier les candidats par distance dans chaque secteur;
+:selectionner au plus limiteVoisins;
+:trier les voisins retenus par azimut;
 
-|CPU - StaticTownPrecompute|
+|CPU - Precalcul statique des villes|
 :cityMap;
 :citiesGlslDatas;
 :azDistMid stride 4;
 :pointPPointQ stride 4;
 :vUnitAndElevation stride 4;
 :townOverlaps stride 3;
-:neighborLimit;
+:limiteVoisins;
 stop
 @enduml

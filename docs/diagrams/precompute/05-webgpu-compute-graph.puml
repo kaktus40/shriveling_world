@@ -1,17 +1,17 @@
 @startuml
-title Graphe compute WebGPU pour cones et courbes
+title Graphe de calcul WebGPU pour cones et courbes
 
 skinparam componentStyle rectangle
 
-database "Static GPU buffers\nsummitECEF\nned2ECEF\ntownOverlaps\nboundaries\ncurve controls" as staticBuffers
-database "Dynamic GPU buffers\ncityLinks[year]\ncitiesDict[year]\nroadAlpha[year]\ncurve heights[year]" as dynamicBuffers
+database "Buffers GPU statiques\nsommetsECEF\nned2ECEF\ntownOverlaps\nlimites\ncontroles courbes" as staticBuffers
+database "Buffers GPU dynamiques\ncityLinks[annee]\ncitiesDict[annee]\nroadAlpha[annee]\nhauteurs courbes[annee]" as dynamicBuffers
 
-component "RawConePass WGSL\nInput: static + dynamic\nOutput: RawConeBuffer" as raw
-component "ConeConeIntersectionPass WGSL\nInput: RawConeBuffer + townOverlaps\nOutput: CiseledConeBuffer" as ciseled
-component "ConeBoundaryClipPass WGSL\nInput: CiseledConeBuffer + boundaries\nOutput: FinalConeBuffer" as final
-component "CurveGeometryPass WGSL\nInput: controls + dynamic heights\nOutput: CurveVertexBuffer" as curve
-component "Babylon ConeLayer\nInput: FinalConeBuffer" as coneLayer
-component "Babylon CurveLayer\nInput: CurveVertexBuffer" as curveLayer
+component "Passe Cones Bruts WGSL\nEntree: statique + dynamique\nSortie: buffer cones bruts" as raw
+component "Passe Intersections Cone/Cone WGSL\nEntree: cones bruts + townOverlaps\nSortie: buffer cones decoupes" as ciseled
+component "Passe Decoupe Par Limites WGSL\nEntree: cones decoupes + limites\nSortie: buffer cones finaux" as final
+component "Passe Geometrie Courbes WGSL\nEntree: controles + hauteurs dynamiques\nSortie: buffer vertices courbes" as curve
+component "Couche Cones Babylon\nEntree: buffer cones finaux" as coneLayer
+component "Couche Courbes Babylon\nEntree: buffer vertices courbes" as curveLayer
 
 staticBuffers --> raw
 dynamicBuffers --> raw
@@ -26,7 +26,7 @@ curve --> curveLayer
 
 note bottom of raw
   Parallelisation naturelle:
-  work item = cityIndex x azimuthSample.
+  tache = cityIndex x echantillonAzimut.
 end note
 
 note bottom of ciseled

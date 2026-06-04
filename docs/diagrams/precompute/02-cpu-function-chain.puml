@@ -1,18 +1,18 @@
 @startuml
-title Chaine CPU depuis fichiers source jusqu'au precalcul
+title Chaine CPU depuis les fichiers source jusqu'au precalcul
 
 skinparam componentStyle rectangle
 
-component "readDatasetSourceFiles\nInput: file handles / dataset dir\nOutput: SourceFile[]" as read
-component "inspectDatasetFiles\nInput: SourceFile[]\nOutput: InspectedDatasetFile[]" as inspect
-component "resolveDatasetManifest\nInput: InspectedDatasetFile[]\nOutput: DatasetManifest" as manifest
-component "assembleBaseNetwork\nInput: SourceFile[] + DatasetManifest\nOutput: BaseNetwork" as assemble
-component "prepareDataset\nInput: BaseNetwork\nOutput: PreparedDataset" as prepare
-component "prepareSpeedTimeline\nInput: PreparedDataset\nOutput: SpeedTimelinePrecompute" as speeds
-component "prepareStaticTownPrecompute\nInput: PreparedDataset\nOutput: StaticTownPrecompute" as statics
-component "prepareDynamicTownPrecompute\nInput: PreparedDataset + SpeedTimeline + StaticTown\nOutput: DynamicTownPrecomputeByYear" as dynamic
-component "prepareCurvePrecompute\nInput: PreparedDataset + SpeedTimeline + StaticTown\nOutput: CurvePrecompute" as curves
-component "prepareBoundaryPrecompute\nInput: GeoJSON + StaticTown\nOutput: BoundaryPrecompute" as boundaries
+component "lireFichiersDataset\nEntree: fichiers ou dossier dataset\nSortie: fichiers sources" as read
+component "inspecterFichiersDataset\nEntree: fichiers sources\nSortie: fichiers inspectes" as inspect
+component "resoudreManifesteDataset\nEntree: fichiers inspectes\nSortie: manifeste dataset" as manifest
+component "assemblerReseauLossless\nEntree: fichiers sources + manifeste\nSortie: reseau lossless" as assemble
+component "preparerDataset\nEntree: reseau lossless\nSortie: dataset prepare" as prepare
+component "preparerChronologieVitesses\nEntree: dataset prepare\nSortie: chronologie des vitesses" as speeds
+component "preparerPrecalculStatiqueVilles\nEntree: dataset prepare\nSortie: precalcul statique des villes" as statics
+component "preparerPrecalculDynamiqueVilles\nEntree: dataset prepare + chronologie + villes statiques\nSortie: precalcul dynamique par annee" as dynamic
+component "preparerPrecalculCourbes\nEntree: dataset prepare + chronologie + villes statiques\nSortie: precalcul des courbes" as curves
+component "preparerPrecalculLimites\nEntree: GeoJSON + villes statiques\nSortie: precalcul des limites" as boundaries
 
 read --> inspect
 inspect --> manifest

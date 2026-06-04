@@ -1,41 +1,41 @@
 @startuml
-title Detail prepareDynamicTownPrecompute par annee
+title Detail du precalcul dynamique par annee
 
-|CPU - Inputs|
+|CPU - Entrees|
 start
-:PreparedDataset.connectedEdges;
-:StaticTownPrecompute.cityMap;
-:StaticTownPrecompute.azDistMid;
-:SpeedTimelinePrecompute.alphaByModeByYear;
-:SpeedTimelinePrecompute.roadAlphaByYear;
+:arcs connectes du dataset prepare;
+:cityMap du precalcul statique;
+:azDistMid du precalcul statique;
+:alphas par mode et par annee;
+:alpha route par annee;
 
-|CPU - Year loop|
-:for year in span.begin..span.end;
-:initialize roadAlpha = roadAlphaByYear[year];
+|CPU - Boucle annuelle|
+:pour annee dans span.begin..span.end;
+:initialiser roadAlpha = roadAlphaByYear[annee];
 
-|CPU - Edge filtering|
-:for each connected edge;
-if (edge active for year ?) then (yes)
-  if (mode terrestrial ?) then (yes)
-    :origin cityIndex;
-    :destination cityIndex;
-    :azimuth = azDistMid[pairIndex].azimuth;
-    :alpha = alphaByModeByYear[mode][year];
-    :append candidate link;
-  else (no)
-    :send to curve precompute path;
+|CPU - Filtrage des arcs|
+:pour chaque arc connecte;
+if (arc actif pour l'annee ?) then (oui)
+  if (mode terrestre ?) then (oui)
+    :index ville origine;
+    :index ville destination;
+    :azimut = azDistMid[indexPaire].azimut;
+    :alpha = alphaByModeByYear[mode][annee];
+    :ajouter un lien candidat;
+  else (non)
+    :envoyer vers le precalcul des courbes;
   endif
 endif
 
-|CPU - City compaction|
-:group links by origin city;
-:deduplicate same destination;
-:keep selected alpha policy;
-:sort links by azimuth;
-:write cityLinks triplets;
-:write citiesDict offsets;
+|CPU - Compactage par ville|
+:regrouper les liens par ville origine;
+:dedoublonner les memes destinations;
+:appliquer la politique de choix d'alpha;
+:trier les liens par azimut;
+:ecrire les triplets cityLinks;
+:ecrire les offsets citiesDict;
 
-|CPU - Output|
-:DynamicTownPrecomputeByYear[year];
+|CPU - Sortie|
+:precalcul dynamique par annee[annee];
 stop
 @enduml

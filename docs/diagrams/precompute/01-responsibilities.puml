@@ -1,37 +1,37 @@
 @startuml
-title Cheminement cible des donnees avec responsabilites CPU / GPU / Renderer
+title Cheminement cible des donnees avec responsabilites CPU / GPU / Rendu
 
-|CPU - Data domain|
+|CPU - Domaine donnees|
 start
-:readDatasetSourceFiles(files);
-:inspectDatasetFiles(sourceFiles);
-:resolveDatasetManifest(inspectedFiles);
-:assembleBaseNetwork({ files, manifest });
+:lireFichiersDataset(fichiers);
+:inspecterFichiersDataset(fichiersSources);
+:resoudreManifesteDataset(fichiersInspectes);
+:assemblerReseauLossless({ fichiers, manifeste });
 
-|CPU - Precompute domain|
-:prepareDataset(baseNetwork, options);
-:prepareSpeedTimeline(preparedDataset);
-:prepareStaticTownPrecompute(preparedDataset, options);
-:prepareDynamicTownPrecompute(preparedDataset, speedTimeline, staticTown);
-:prepareBoundaryPrecompute(geojson, staticTown);
+|CPU - Domaine precalcul|
+:preparerDataset(reseauBase, options);
+:preparerChronologieVitesses(datasetPrepare);
+:preparerPrecalculStatiqueVilles(datasetPrepare, options);
+:preparerPrecalculDynamiqueVilles(datasetPrepare, chronologieVitesses, villesStatiques);
+:preparerPrecalculLimites(geojson, villesStatiques);
 
-|CPU - WebGPU orchestration|
-:createGpuContext();
-:uploadStaticPrecompute(staticTown, boundaries);
-if (year changed ?) then (yes)
-  :uploadDynamicPrecompute(dynamicByYear[year]);
+|CPU - Orchestration WebGPU|
+:creerContexteGpu();
+:televerserPrecalculStatique(villesStatiques, limites);
+if (annee modifiee ?) then (oui)
+  :televerserPrecalculDynamique(dynamiqueParAnnee[annee]);
 endif
 
 |GPU - WebGPU compute|
-:RawConePass;
-:ConeConeIntersectionPass;
-:ConeBoundaryClipPass;
-:CurveGeometryPass;
+:Passe Cones Bruts;
+:Passe Intersections Cone/Cone;
+:Passe Decoupe Par Limites;
+:Passe Geometrie Courbes;
 
-|Renderer - Babylon.js|
-:updateConeLayer(finalConeBuffer);
-:updateCurveLayer(curveVertexBuffer);
-:render scene and handle picking;
+|Rendu - Babylon.js|
+:mettreAJourCoucheCones(bufferConesFinaux);
+:mettreAJourCoucheCourbes(bufferCourbes);
+:rendre la scene et gerer le picking;
 
 stop
 @enduml
