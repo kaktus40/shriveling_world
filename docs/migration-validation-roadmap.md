@@ -456,6 +456,7 @@ Contrat dataset:
 - le coeur applicatif ne doit presumer ni le nom, ni le type metier, ni l'unite des colonnes non caracteristiques;
 - toutes les colonnes sources doivent etre conservees dans le reseau resultat;
 - les colonnes libres sont exposees pour requetes utilisateur via un mapping semantique explicite.
+- un fichier CSV non reconnu comme type primaire mais contenant `cityCode` est une table d'enrichissement rattachee aux villes.
 
 Colonnes caracteristiques minimales a confirmer:
 
@@ -481,10 +482,15 @@ transportModeSpeeds:
   speedKPH
 ```
 
-Point a trancher avant implementation:
+Tables d'enrichissement rattachees aux villes:
 
-- definir les colonnes caracteristiques minimales du fichier de donnees associees aux villes, historiquement `population.csv`.
-- ce fichier ne doit pas forcement etre limite a la population; il peut porter des enrichissements utilisateur.
+- signature minimale: `cityCode`;
+- classification appliquee seulement si le fichier ne correspond pas deja a un type primaire plus specifique;
+- multiplicite: plusieurs fichiers d'enrichissement peuvent exister dans un meme dataset;
+- chaque ligne est associee a la ville de meme `cityCode`;
+- les lignes dont le `cityCode` ne correspond a aucune ville sont conservees dans les diagnostics;
+- ces fichiers ne sont pas obligatoires pour construire le reseau de transport de base;
+- le fichier historiquement appele `population.csv` est un cas particulier de cette famille, pas un contrat population global.
 
 Mecanisme propose:
 
@@ -492,6 +498,8 @@ Mecanisme propose:
    - lit chaque fichier brut;
    - extrait les en-tetes sans presumer du nom du fichier;
    - compare les en-tetes aux signatures de colonnes caracteristiques;
+   - applique les signatures du plus specifique au plus generique;
+   - classe en table d'enrichissement ville tout CSV restant qui possede `cityCode`;
    - produit un rapport de classification, d'ambiguite et d'erreurs.
 
 2. `DatasetParsing`
@@ -504,6 +512,7 @@ Mecanisme propose:
    - construit des index immuables par identifiants caracteristiques;
    - relie les fichiers par index, pas par mutation de tables;
    - conserve les relations sous forme d'adjacence et de references stables;
+   - rattache les tables d'enrichissement aux villes via `cityCode`;
    - produit un catalogue de champs requetables;
    - produit des diagnostics sur references manquantes, doublons, types invalides et arcs orphelins.
 
@@ -551,6 +560,7 @@ Critere d'acceptation:
 - les fixtures M1 sont regenerees par detection de schema;
 - les rapports de caracterisation indiquent les fichiers detectes par type et les colonnes libres;
 - aucune colonne source n'est perdue pendant l'assemblage;
+- les fichiers CSV contenant seulement `cityCode` comme colonne de liaison sont rattaches aux villes comme enrichissements;
 - l'assemblage produit un reseau de base avec index et diagnostics;
 - aucune logique metier ne reference une colonne non caracteristique par nom impose.
 

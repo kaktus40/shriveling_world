@@ -194,7 +194,7 @@ Sortie indicative:
 ```ts
 type DatasetFileKind =
   | 'cities'
-  | 'cityAttributes'
+  | 'cityLinkedAttributes'
   | 'transportNetwork'
   | 'transportModes'
   | 'transportModeSpeeds'
@@ -226,6 +226,19 @@ interface FileSignature {
 ```
 
 Les colonnes libres ne doivent jamais etre ajoutees a ces signatures pour des raisons de confort applicatif. Si une colonne est ajoutee a une signature, elle devient une contrainte de compatibilite dataset.
+
+Les signatures doivent etre appliquees du plus specifique au plus generique.
+
+Un CSV non reconnu comme type primaire mais contenant `cityCode` est classe comme `cityLinkedAttributes`.
+
+Cette famille couvre le fichier historiquement appele `population.csv`, mais ne se limite pas a la population:
+
+- la seule colonne caracteristique est `cityCode`;
+- toutes les autres colonnes sont libres;
+- plusieurs fichiers `cityLinkedAttributes` peuvent coexister;
+- chaque ligne est rattachee a la ville de meme `cityCode`;
+- les lignes sans ville correspondante sont conservees dans les diagnostics;
+- ces fichiers ne doivent pas etre obligatoires pour construire le reseau de transport de base.
 
 ### Conservation Lossless
 
@@ -262,7 +275,7 @@ Le mecanisme cible est une aggregation par index et references stables:
    - `speedByModeAndYear`;
    - `edgesByOrigin`;
    - `edgesByDestination`;
-   - index des records libres rattaches aux villes;
+   - index des records libres rattaches aux villes par `cityCode`;
 4. creation d'entites reseau qui referencent les records sources;
 5. production de diagnostics avant tout calcul intensif.
 
