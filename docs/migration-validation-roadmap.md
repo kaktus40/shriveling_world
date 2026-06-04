@@ -65,6 +65,7 @@ Utiliser les statuts suivants:
 | M2 | validated | Migration SvelteKit/Vite minimale |
 | M2.1 | validated | Evaluation des hooks Rollup applicatifs |
 | M3 | todo | Extraction du domaine metier |
+| M3.1 | todo | Inspection dataset et assemblage lossless du reseau |
 | M4 | todo | Architecture explicite de precalcul |
 | M5 | todo | Rendu Babylon.js minimal |
 | M6 | todo | Framework WebGPU compute minimal |
@@ -438,6 +439,124 @@ Validation:
 - `glslify` est conserve uniquement comme compatibilite temporaire si les GLSL historiques restent actifs.
 - La compression datasets est conservee comme script applicatif separe a court terme.
 - Le lint auto-fix dans le build est marque comme a supprimer.
+
+## M3.1: Inspection Dataset Et Assemblage Lossless Du Reseau
+
+Statut: `todo`
+
+Objectif:
+
+Remplacer la detection fragile des fichiers par nom et preparer une aggregation de donnees robuste, lossless et requetable.
+
+Contrat dataset:
+
+- le type d'un fichier est determine uniquement par la presence de colonnes caracteristiques;
+- les fichiers peuvent contenir des colonnes supplementaires libres;
+- les colonnes supplementaires ne sont pas contractualisees;
+- le coeur applicatif ne doit presumer ni le nom, ni le type metier, ni l'unite des colonnes non caracteristiques;
+- toutes les colonnes sources doivent etre conservees dans le reseau resultat;
+- les colonnes libres sont exposees pour requetes utilisateur via un mapping semantique explicite.
+
+Colonnes caracteristiques minimales a confirmer:
+
+```text
+cities:
+  cityCode
+  latitude
+  longitude
+  radius
+
+transportNetwork:
+  cityCodeOri
+  cityCodeDes
+  transportModeCode
+
+transportModes:
+  code
+  terrestrial
+
+transportModeSpeeds:
+  transportModeCode
+  year
+  speedKPH
+```
+
+Point a trancher avant implementation:
+
+- definir les colonnes caracteristiques minimales du fichier de donnees associees aux villes, historiquement `population.csv`.
+- ce fichier ne doit pas forcement etre limite a la population; il peut porter des enrichissements utilisateur.
+
+Mecanisme propose:
+
+1. `DatasetInspection`
+   - lit chaque fichier brut;
+   - extrait les en-tetes sans presumer du nom du fichier;
+   - compare les en-tetes aux signatures de colonnes caracteristiques;
+   - produit un rapport de classification, d'ambiguite et d'erreurs.
+
+2. `DatasetParsing`
+   - parse chaque fichier classifie;
+   - conserve chaque ligne source complete dans `raw`;
+   - extrait les champs caracteristiques dans une vue typee minimale;
+   - conserve les champs libres dans `extra` sans interpretation metier.
+
+3. `BaseNetworkAssembly`
+   - construit des index immuables par identifiants caracteristiques;
+   - relie les fichiers par index, pas par mutation de tables;
+   - conserve les relations sous forme d'adjacence et de references stables;
+   - produit un catalogue de champs requetables;
+   - produit des diagnostics sur references manquantes, doublons, types invalides et arcs orphelins.
+
+Forme cible indicative:
+
+```ts
+interface BaseNetwork {
+  cities: BaseCity[];
+  edges: BaseEdge[];
+  transportModes: BaseTransportMode[];
+  indexes: BaseNetworkIndexes;
+  fields: QueryableFieldCatalog;
+  diagnostics: DatasetAssemblyDiagnostics;
+}
+
+interface BaseCity {
+  id: number;
+  characteristic: {
+    cityCode: number;
+    latitude: number;
+    longitude: number;
+    radius: number;
+  };
+  raw: Record<string, unknown>;
+  linkedRecords: Record<string, SourceRecord[]>;
+  inEdgeIds: number[];
+  outEdgeIds: number[];
+}
+```
+
+Requetes utilisateur:
+
+Les requetes de type "trouve les villes qui ont plus de X habitants en 1950 et une surface superieure a 10 km2" ne doivent pas dependre de noms imposes dans le coeur.
+
+Le flux cible est:
+
+- le systeme decouvre les champs disponibles;
+- l'utilisateur ou un profil associe un champ source libre a un sens applicatif;
+- la requete utilise ce mapping semantique;
+- le moteur filtre le reseau enrichi sans supposer le nom original de la colonne.
+
+Critere d'acceptation:
+
+- les scripts ne dependent plus de `cities*.csv`, `population*.csv` ou `transport_network*.csv`;
+- les fixtures M1 sont regenerees par detection de schema;
+- les rapports de caracterisation indiquent les fichiers detectes par type et les colonnes libres;
+- aucune colonne source n'est perdue pendant l'assemblage;
+- l'assemblage produit un reseau de base avec index et diagnostics;
+- aucune logique metier ne reference une colonne non caracteristique par nom impose.
+
+Validation:
+
+- A renseigner apres implementation.
 
 ## M3: Extraction Du Domaine Metier
 

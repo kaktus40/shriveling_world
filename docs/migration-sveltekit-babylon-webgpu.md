@@ -156,6 +156,202 @@ L'architecture cible doit separer clairement cinq couches:
 
 Le point majeur est la distinction entre precalcul et calcul interactif.
 
+## Contrat Dataset Et Aggregation Des Donnees
+
+Le contrat dataset est structurel.
+
+Un fichier est identifie par la presence de colonnes caracteristiques, jamais par son nom. Les noms de fichiers restent utiles pour les diagnostics, mais ne doivent pas piloter le chargement.
+
+Les fichiers peuvent contenir des colonnes supplementaires. Ces colonnes sont des enrichissements utilisateur:
+
+- elles doivent etre conservees;
+- elles ne sont pas contractualisees;
+- leur nom n'est pas presume;
+- leur type metier n'est pas presume;
+- leur unite n'est pas presumee;
+- le coeur de calcul ne doit pas les interpreter directement.
+
+La migration doit donc separer:
+
+1. colonnes caracteristiques, utilisees pour reconnaitre, typer et relier les fichiers;
+2. colonnes libres, conservees sans perte pour requetes, filtres, coloration, extrusion ou enrichissements futurs.
+
+### Inspection Des Fichiers
+
+La premiere etape du pipeline data devient `DatasetInspection`.
+
+Entree:
+
+```ts
+interface SourceFile {
+  name: string;
+  text: string;
+}
+```
+
+Sortie indicative:
+
+```ts
+type DatasetFileKind =
+  | 'cities'
+  | 'cityAttributes'
+  | 'transportNetwork'
+  | 'transportModes'
+  | 'transportModeSpeeds'
+  | 'geojson'
+  | 'unknown';
+
+interface InspectedDatasetFile {
+  originalName: string;
+  kind: DatasetFileKind;
+  confidence: number;
+  headers: string[];
+  requiredHeadersFound: string[];
+  missingHeaders: string[];
+  extraHeaders: string[];
+  errors: string[];
+}
+```
+
+Les signatures minimales des fichiers sont declarees explicitement et doivent etre validees avant implementation.
+
+Exemple indicatif:
+
+```ts
+interface FileSignature {
+  kind: DatasetFileKind;
+  requiredColumns: string[];
+  unique?: boolean;
+}
+```
+
+Les colonnes libres ne doivent jamais etre ajoutees a ces signatures pour des raisons de confort applicatif. Si une colonne est ajoutee a une signature, elle devient une contrainte de compatibilite dataset.
+
+### Conservation Lossless
+
+Chaque ligne parse doit conserver la ligne source complete.
+
+Forme cible:
+
+```ts
+interface SourceRecord {
+  sourceFileName: string;
+  sourceKind: DatasetFileKind;
+  rowIndex: number;
+  characteristic: Record<string, unknown>;
+  extra: Record<string, unknown>;
+  raw: Record<string, unknown>;
+}
+```
+
+Les calculs utilisent `characteristic`.
+
+Les requetes utilisateur et enrichissements utilisent `raw` ou `extra` via un mapping explicite.
+
+### Mecanisme D'Aggregation Propose
+
+L'aggregation historique dans `Merger` enrichit des objets par mutations successives. Ce fonctionnement est difficile a tester, difficile a diagnostiquer et favorise les dependances implicites entre donnees, rendu et calcul.
+
+Le mecanisme cible est une aggregation par index et references stables:
+
+1. parse lossless des fichiers classifies;
+2. normalisation technique des colonnes caracteristiques;
+3. creation d'index:
+   - `cityByCode`;
+   - `modeByCode`;
+   - `speedByModeAndYear`;
+   - `edgesByOrigin`;
+   - `edgesByDestination`;
+   - index des records libres rattaches aux villes;
+4. creation d'entites reseau qui referencent les records sources;
+5. production de diagnostics avant tout calcul intensif.
+
+Forme cible indicative:
+
+```ts
+interface BaseNetwork {
+  cities: BaseCity[];
+  edges: BaseEdge[];
+  transportModes: BaseTransportMode[];
+  indexes: BaseNetworkIndexes;
+  fields: QueryableFieldCatalog;
+  diagnostics: DatasetAssemblyDiagnostics;
+}
+
+interface BaseCity {
+  id: number;
+  characteristic: {
+    cityCode: number;
+    latitude: number;
+    longitude: number;
+    radius: number;
+  };
+  source: SourceRecord;
+  linkedRecords: Record<string, SourceRecord[]>;
+  inEdgeIds: number[];
+  outEdgeIds: number[];
+}
+
+interface BaseEdge {
+  id: number;
+  characteristic: {
+    cityCodeOri: number;
+    cityCodeDes: number;
+    transportModeCode: number;
+  };
+  source: SourceRecord;
+  originCityId?: number;
+  destinationCityId?: number;
+  transportModeId?: number;
+  derived: {
+    distCrowKM?: number;
+  };
+}
+```
+
+Avantages par rapport au `Merger` historique:
+
+- pas de perte des colonnes source;
+- diagnostics plus precis;
+- assemblage testable sans renderer;
+- references stables vers les lignes sources;
+- separation claire entre donnees brutes, reseau de base et precalcul;
+- compatibilite avec un futur moteur de requetes utilisateur.
+
+### Mapping Semantique Pour Les Requetes
+
+Les requetes utilisateur peuvent porter sur des concepts comme:
+
+- population a une annee donnee;
+- surface;
+- categorie administrative;
+- tout autre enrichissement ajoute par un utilisateur.
+
+Le coeur ne doit pas connaitre les noms de colonnes associes a ces concepts.
+
+Le flux cible est:
+
+1. le systeme decouvre les champs disponibles;
+2. l'utilisateur ou un profil dataset associe un champ source a un concept;
+3. le moteur de requete utilise ce mapping;
+4. le reseau enrichi est filtre sans supposer le nom original de la colonne.
+
+Exemple conceptuel:
+
+```ts
+interface UserFieldMapping {
+  id: string;
+  label: string;
+  entity: 'city' | 'edge' | 'transportMode' | 'linkedRecord';
+  sourceKind: DatasetFileKind;
+  sourceColumn: string;
+  type: 'number' | 'string' | 'boolean' | 'date' | 'unknown';
+  unit?: string;
+}
+```
+
+La requete "villes avec plus de X habitants en 1950 et une surface superieure a 10 km2" devient une requete sur deux mappings choisis, pas sur deux noms de colonnes imposes par le code.
+
 ## Strategie Web Et Client Lourd
 
 Decision d'architecture validee:
