@@ -1,0 +1,41 @@
+@startuml
+title Detail prepareDynamicTownPrecompute par annee
+
+|CPU - Inputs|
+start
+:PreparedDataset.connectedEdges;
+:StaticTownPrecompute.cityMap;
+:StaticTownPrecompute.azDistMid;
+:SpeedTimelinePrecompute.alphaByModeByYear;
+:SpeedTimelinePrecompute.roadAlphaByYear;
+
+|CPU - Year loop|
+:for year in span.begin..span.end;
+:initialize roadAlpha = roadAlphaByYear[year];
+
+|CPU - Edge filtering|
+:for each connected edge;
+if (edge active for year ?) then (yes)
+  if (mode terrestrial ?) then (yes)
+    :origin cityIndex;
+    :destination cityIndex;
+    :azimuth = azDistMid[pairIndex].azimuth;
+    :alpha = alphaByModeByYear[mode][year];
+    :append candidate link;
+  else (no)
+    :send to curve precompute path;
+  endif
+endif
+
+|CPU - City compaction|
+:group links by origin city;
+:deduplicate same destination;
+:keep selected alpha policy;
+:sort links by azimuth;
+:write cityLinks triplets;
+:write citiesDict offsets;
+
+|CPU - Output|
+:DynamicTownPrecomputeByYear[year];
+stop
+@enduml

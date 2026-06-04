@@ -1,0 +1,37 @@
+@startuml
+title Cheminement cible des donnees avec responsabilites CPU / GPU / Renderer
+
+|CPU - Data domain|
+start
+:readDatasetSourceFiles(files);
+:inspectDatasetFiles(sourceFiles);
+:resolveDatasetManifest(inspectedFiles);
+:assembleBaseNetwork({ files, manifest });
+
+|CPU - Precompute domain|
+:prepareDataset(baseNetwork, options);
+:prepareSpeedTimeline(preparedDataset);
+:prepareStaticTownPrecompute(preparedDataset, options);
+:prepareDynamicTownPrecompute(preparedDataset, speedTimeline, staticTown);
+:prepareBoundaryPrecompute(geojson, staticTown);
+
+|CPU - WebGPU orchestration|
+:createGpuContext();
+:uploadStaticPrecompute(staticTown, boundaries);
+if (year changed ?) then (yes)
+  :uploadDynamicPrecompute(dynamicByYear[year]);
+endif
+
+|GPU - WebGPU compute|
+:RawConePass;
+:ConeConeIntersectionPass;
+:ConeBoundaryClipPass;
+:CurveGeometryPass;
+
+|Renderer - Babylon.js|
+:updateConeLayer(finalConeBuffer);
+:updateCurveLayer(curveVertexBuffer);
+:render scene and handle picking;
+
+stop
+@enduml

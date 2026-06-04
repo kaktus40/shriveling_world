@@ -65,6 +65,334 @@ stop
 
 Dans cette architecture, un changement de dataset relance tout le pipeline. Un changement d'annee ne relance pas la lecture CSV ni l'assemblage lossless. Il selectionne seulement le paquet dynamique de l'annee et relance les passes GPU necessaires.
 
+Schemas PNG:
+
+- ![Responsabilites CPU GPU Renderer](diagrams/precompute/01-responsibilities.png)
+- ![Chaine CPU fonctionnelle](diagrams/precompute/02-cpu-function-chain.png)
+- ![Precalcul statique villes](diagrams/precompute/03-static-town-precompute.png)
+- ![Precalcul dynamique annuel](diagrams/precompute/04-dynamic-town-precompute.png)
+- ![Graphe compute WebGPU](diagrams/precompute/05-webgpu-compute-graph.png)
+- ![Sequence changement annee](diagrams/precompute/06-change-year-sequence.png)
+
+Sources PlantUML:
+
+- `docs/diagrams/precompute/01-responsibilities.puml`
+- `docs/diagrams/precompute/02-cpu-function-chain.puml`
+- `docs/diagrams/precompute/03-static-town-precompute.puml`
+- `docs/diagrams/precompute/04-dynamic-town-precompute.puml`
+- `docs/diagrams/precompute/05-webgpu-compute-graph.puml`
+- `docs/diagrams/precompute/06-change-year-sequence.puml`
+
+## Enchainement Detaille Des Fonctions
+
+Cette section decrit la chaine fonctionnelle cible. Les noms proposes sont des noms de migration; ils doivent rester proches des responsabilites historiques de `Merger`, `speedHelper`, `townHelper` et `mesher`, mais avec des contrats explicites et testables.
+
+### 1. Lecture Et Inspection
+
+Fonction: `readDatasetSourceFiles(input)`
+
+- Acteur: CPU.
+- Entree: dossier dataset, liste de fichiers selectionnes par l'utilisateur, archive dataset deployee, ou API Tauri plus tard.
+- Transformation: lit chaque fichier texte supporte et conserve son nom original.
+- Sortie: `SourceFile[]`, avec `{ name, text }`.
+- Contrainte: l'ordre de sortie peut etre stable pour les rapports, mais aucune fonction metier ne doit en dependre.
+
+Fonction: `inspectDatasetFiles(sourceFiles)`
+
+- Acteur: CPU.
+- Entree: `SourceFile[]`.
+- Transformation: parse uniquement les headers CSV ou le type JSON; detecte le type par colonnes caracteristiques.
+- Sortie: `InspectedDatasetFile[]`.
+- Diagnostics: fichier inconnu, extension non supportee, JSON invalide, signature ambigue.
+- Contrainte: les colonnes non caracteristiques ne sont pas interpretees.
+
+Fonction: `resolveDatasetManifest(inspectedFiles)`
+
+- Acteur: CPU.
+- Entree: `InspectedDatasetFile[]`.
+- Transformation: regroupe les fichiers primaires, les enrichissements `cityCode`, les GeoJSON et les inconnus.
+- Sortie: `DatasetManifest`.
+- Diagnostics bloquants: table primaire manquante, table primaire multiple.
+- Diagnostics non bloquants: fichier inconnu conserve pour rapport.
+
+### 2. Assemblage Lossless
+
+Fonction: `assembleBaseNetwork({ files, manifest })`
+
+- Acteur: CPU.
+- Entree: `SourceFile[]` et `DatasetManifest` valide.
+- Transformation:
+  - parse les fichiers primaires avec PapaParse;
+  - cree un `SourceRecord` pour chaque ligne;
+  - extrait les colonnes caracteristiques;
+  - conserve toutes les autres colonnes dans `extra` et `raw`;
+  - cree les villes de base;
+  - cree les arcs de base;
+  - cree les modes de transport de base;
+  - indexe `cityCode`, modes, vitesses et arcs incidents;
+  - rattache les fichiers d'enrichissement aux villes via `cityCode`.
+- Sortie: `BaseNetwork`.
+- Diagnostics: cityCode duplique, mode duplique, references manquantes, nombres caracteristiques invalides.
+- Invariant: aucune colonne source n'est perdue.
+
+Sortie attendue:
+
+```ts
+interface BaseNetwork {
+  cities: BaseCity[];
+  edges: BaseEdge[];
+  transportModes: BaseTransportMode[];
+  sourceRecords: SourceRecord[];
+  indexes: BaseNetworkIndexes;
+  fields: QueryableField[];
+  diagnostics: DatasetDiagnostic[];
+}
+```
+
+### 3. Preparation Metier Compacte
+
+Fonction cible: `prepareDataset(baseNetwork, options)`
+
+- Acteur: CPU.
+- Entree: `BaseNetwork`.
+- Transformation:
+  - cree `cityMap: Map<cityCode, cityIndex>`;
+  - transforme les ids internes en indexes denses utilisables en tableaux;
+  - filtre ou marque les arcs dont l'origine ou la destination est absente;
+  - rattache les arcs incidents a chaque ville;
+  - identifie le mode `Road`;
+  - calcule ou verifie `distCrowKM`;
+  - calcule le diametre geodesique du dataset si necessaire au ratio de hauteur;
+  - conserve les references vers `sourceRecordId` pour requetes et picking.
+- Sortie: `PreparedDataset`.
+- Diagnostics: `Road` manquant, arc non connectable, vitesse absente pour un mode utilise.
+- Point de vigilance: `PreparedDataset` n'est pas lossless; il reference le lossless.
+
+Sortie attendue:
+
+```ts
+interface PreparedDataset {
+  baseNetwork: BaseNetwork;
+  cityMap: Map<number, number>;
+  cities: PreparedCity[];
+  connectedEdges: PreparedEdge[];
+  transportModes: PreparedTransportMode[];
+  roadModeCode: number;
+  span?: YearSpan;
+  diagnostics: DatasetDiagnostic[];
+}
+```
+
+### 4. Span Temporel Et Vitesses
+
+Fonction cible: `prepareSpeedTimeline(preparedDataset)`
+
+- Acteur: CPU.
+- Entree: `PreparedDataset` avec modes, vitesses source et arcs connectes.
+- Transformation:
+  - calcule `minSYear` et `maxSYear` depuis les vitesses connues;
+  - calcule `minEYear` et `maxEYear` depuis les dates des arcs;
+  - calcule `yearBegin` et `yearEnd` par mode;
+  - calcule le span global du modele;
+  - interpole `speedKPH` pour chaque mode et chaque annee;
+  - calcule `maxSpeedPerYear`;
+  - calcule `alpha` par mode et annee avec la formule historique;
+  - separe modes terrestres et non terrestres.
+- Sortie: `SpeedTimelinePrecompute`.
+- Diagnostics: interpolation impossible, speed invalide, span incoherent.
+
+Sortie attendue:
+
+```ts
+interface SpeedTimelinePrecompute {
+  span: { begin: number; end: number };
+  transportTypes: {
+    cones: string[];
+    curves: string[];
+  };
+  speedPerModeByYear: Record<string, Record<string, { speed: number; alpha?: number }>>;
+  maxSpeedPerYear: Record<string, number>;
+  roadAlphaByYear: Record<string, number>;
+  terrestrialMinAlphaPerYear: Record<string, number>;
+}
+```
+
+### 5. Precalcul Statique Des Villes
+
+Fonction cible: `prepareStaticTownPrecompute(preparedDataset, options)`
+
+- Acteur: CPU pour le premier portage; GPU possible ensuite pour la matrice de paires.
+- Entree: `PreparedDataset`, rayon terrestre, nombre de secteurs, limite de voisins.
+- Transformation:
+  - cree un referentiel local NED pour chaque ville;
+  - produit les sommets ECEF et les matrices NED/ECEF;
+  - calcule toutes les paires ordonnees ville A vers ville B;
+  - calcule azimut, distance angulaire, midpoint, points P/Q et vecteur unitaire;
+  - repartit les voisins par secteur angulaire;
+  - selectionne un nombre borne de voisins par ville pour les intersections.
+- Sortie: `StaticTownPrecompute`.
+- Diagnostics: cityCode duplique, ville invalide, voisinage incomplet.
+- Invalidation: dataset different, modele geodesique different, resolution/strategie de voisinage differente.
+
+Sortie attendue:
+
+```ts
+interface StaticTownPrecompute {
+  cityMap: Map<number, number>;
+  neighborLimit: number;
+  townOverlaps: Float32Array;
+  azDistMid: Float32Array;
+  pointPPointQ: Float32Array;
+  vUnitAndElevation: Float32Array;
+  citiesGlslDatas: CityReferentialGpuData[];
+}
+```
+
+Strides a formaliser:
+
+- `townOverlaps`: stride 3, `[neighborCityIndex, azimuthFromCity, azimuthFromNeighbor]`.
+- `azDistMid`: stride 4, `[azimuth, angularDistance, midpointLongitude, midpointLatitude]`.
+- `pointPPointQ`: stride 4, `[pointPLongitude, pointPLatitude, pointQLongitude, pointQLatitude]`.
+- `vUnitAndElevation`: stride 4, `[unitX, unitY, unitZ, elevation]`.
+
+### 6. Precalcul Dynamique Par Annee
+
+Fonction cible: `prepareDynamicTownPrecompute(preparedDataset, speedTimeline, staticTown)`
+
+- Acteur: CPU.
+- Entree: `PreparedDataset`, `SpeedTimelinePrecompute`, `StaticTownPrecompute`.
+- Transformation:
+  - parcourt chaque annee du span;
+  - selectionne les arcs actifs pour l'annee;
+  - ignore les arcs non terrestres dans la construction des cones;
+  - transforme origin/destination en indexes denses;
+  - recupere l'azimut A vers B dans `azDistMid`;
+  - recupere l'alpha du mode pour l'annee;
+  - regroupe par ville origine;
+  - dedoublonne les liens vers une meme ville destination;
+  - trie chaque liste par azimut;
+  - compacte les liens dans un tableau plat;
+  - cree un dictionnaire d'offsets par ville.
+- Sortie: `DynamicTownPrecomputeByYear`.
+- Diagnostics: arc actif sans alpha, mode absent, offsets incoherents.
+- Invalidation: dataset, span, modele de vitesse ou strategie de cone.
+
+Sortie attendue:
+
+```ts
+interface DynamicTownPrecompute {
+  cityLinks: Float32Array;
+  citiesDict: Int32Array;
+  roadAlpha: number;
+}
+
+type DynamicTownPrecomputeByYear = Record<string, DynamicTownPrecompute>;
+```
+
+Strides a formaliser:
+
+- `cityLinks`: stride 3, `[destinationCityIndex, azimuth, alpha]`.
+- `citiesDict`: stride 2, `[beginOffset, endOffset]`.
+- valeur sentinelle sans lien: `[-1, -1]`.
+
+### 7. Precalcul Des Courbes
+
+Fonction cible: `prepareCurvePrecompute(preparedDataset, speedTimeline, staticTown)`
+
+- Acteur: CPU.
+- Entree: arcs connectes, modes non terrestres et eventuellement modes terrestres affichables comme courbes, points P/Q, theta, vitesses.
+- Transformation:
+  - dedoublonne les courbes par origine/destination/mode;
+  - recupere les points de controle dans `pointPPointQ`;
+  - conserve `theta`;
+  - calcule la vitesse modelisee par annee avec `getModelledSpeed`;
+  - conserve `maxSpeedPerYear` pour calculer la hauteur de courbe.
+- Sortie: `CurvePrecompute`.
+- Diagnostics: point de controle absent, vitesse annuelle absente, theta invalide.
+
+Sortie attendue:
+
+```ts
+interface CurvePrecompute {
+  curves: PreparedCurve[];
+  controls: Float32Array;
+  speedRatioByCurveByYear: Record<string, Float32Array>;
+}
+```
+
+### 8. Precalcul Des Limites
+
+Fonction cible: `prepareBoundaryPrecompute(geojson, preparedDataset, staticTown, options)`
+
+- Acteur: CPU.
+- Entree: GeoJSON, villes, referentiels locaux, options de resolution.
+- Transformation:
+  - identifie les limites pertinentes par ville;
+  - transforme les limites dans le referentiel attendu;
+  - echantillonne ou triangule les limites;
+  - construit un buffer de limites indexe par ville et azimut.
+- Sortie: `BoundaryPrecompute`.
+- Diagnostics: GeoJSON invalide, ville sans limite, limite trop peu echantillonnee.
+
+### 9. Preparation GPU
+
+Fonction cible: `createGpuPreparedResources(device, staticTown, dynamicYear, curves, boundaries)`
+
+- Acteur: TypeScript orchestration CPU + memoire GPU.
+- Entree: precalculs CPU et `GPUDevice`.
+- Transformation:
+  - cree les `GPUBuffer` statiques;
+  - cree les `GPUBuffer` dynamiques;
+  - cree les buffers temporaires;
+  - cree les bind groups;
+  - compile ou recupere les pipelines WGSL.
+- Sortie: `GpuPreparedResources`.
+- Invalidation: buffers statiques si dataset change; buffers dynamiques si annee change.
+
+### 10. Compute GPU
+
+Fonction cible: `computeVisualizationFrame(resources, input)`
+
+- Acteur: GPU, orchestre par TypeScript.
+- Entree: ressources GPU, annee, parametres de representation et de resolution.
+- Transformation:
+  - dispatch `RawConePass`;
+  - dispatch `ConeConeIntersectionPass`;
+  - dispatch `ConeBoundaryClipPass`;
+  - dispatch `CurveGeometryPass`;
+  - synchronise les buffers finaux.
+- Sortie: `ComputedFrame`.
+
+Sortie attendue:
+
+```ts
+interface ComputedFrame {
+  finalConeBuffer: GPUBuffer;
+  curveVertexBuffer: GPUBuffer;
+  coneIndexBuffer: GPUBuffer;
+  metadata: {
+    cityCount: number;
+    coneVertexCount: number;
+    curveCount: number;
+  };
+}
+```
+
+### 11. Affichage
+
+Fonction cible: `updateVisualizationLayers(scene, computedFrame, metadata)`
+
+- Acteur: Babylon.js.
+- Entree: `ComputedFrame`, metadata de picking et materiaux.
+- Transformation:
+  - cree ou met a jour les vertex buffers;
+  - cree ou met a jour les index buffers;
+  - applique les materiaux;
+  - met a jour les ids de picking;
+  - expose les interactions.
+- Sortie: meshes visibles et interactifs.
+- Contrainte: aucun calcul d'intersection ne doit etre fait dans Babylon.
+
 ## Etape 1: Agregation Lossless Du Reseau
 
 Responsable principal: CPU.

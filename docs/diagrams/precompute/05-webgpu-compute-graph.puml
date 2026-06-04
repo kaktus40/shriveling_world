@@ -1,0 +1,37 @@
+@startuml
+title Graphe compute WebGPU pour cones et courbes
+
+skinparam componentStyle rectangle
+
+database "Static GPU buffers\nsummitECEF\nned2ECEF\ntownOverlaps\nboundaries\ncurve controls" as staticBuffers
+database "Dynamic GPU buffers\ncityLinks[year]\ncitiesDict[year]\nroadAlpha[year]\ncurve heights[year]" as dynamicBuffers
+
+component "RawConePass WGSL\nInput: static + dynamic\nOutput: RawConeBuffer" as raw
+component "ConeConeIntersectionPass WGSL\nInput: RawConeBuffer + townOverlaps\nOutput: CiseledConeBuffer" as ciseled
+component "ConeBoundaryClipPass WGSL\nInput: CiseledConeBuffer + boundaries\nOutput: FinalConeBuffer" as final
+component "CurveGeometryPass WGSL\nInput: controls + dynamic heights\nOutput: CurveVertexBuffer" as curve
+component "Babylon ConeLayer\nInput: FinalConeBuffer" as coneLayer
+component "Babylon CurveLayer\nInput: CurveVertexBuffer" as curveLayer
+
+staticBuffers --> raw
+dynamicBuffers --> raw
+raw --> ciseled
+staticBuffers --> ciseled
+ciseled --> final
+staticBuffers --> final
+staticBuffers --> curve
+dynamicBuffers --> curve
+final --> coneLayer
+curve --> curveLayer
+
+note bottom of raw
+  Parallelisation naturelle:
+  work item = cityIndex x azimuthSample.
+end note
+
+note bottom of ciseled
+  Passe critique:
+  intersections cone/cone
+  bornees par townOverlaps.
+end note
+@enduml

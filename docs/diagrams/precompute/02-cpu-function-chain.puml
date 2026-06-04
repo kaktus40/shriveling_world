@@ -1,0 +1,41 @@
+@startuml
+title Chaine CPU depuis fichiers source jusqu'au precalcul
+
+skinparam componentStyle rectangle
+
+component "readDatasetSourceFiles\nInput: file handles / dataset dir\nOutput: SourceFile[]" as read
+component "inspectDatasetFiles\nInput: SourceFile[]\nOutput: InspectedDatasetFile[]" as inspect
+component "resolveDatasetManifest\nInput: InspectedDatasetFile[]\nOutput: DatasetManifest" as manifest
+component "assembleBaseNetwork\nInput: SourceFile[] + DatasetManifest\nOutput: BaseNetwork" as assemble
+component "prepareDataset\nInput: BaseNetwork\nOutput: PreparedDataset" as prepare
+component "prepareSpeedTimeline\nInput: PreparedDataset\nOutput: SpeedTimelinePrecompute" as speeds
+component "prepareStaticTownPrecompute\nInput: PreparedDataset\nOutput: StaticTownPrecompute" as statics
+component "prepareDynamicTownPrecompute\nInput: PreparedDataset + SpeedTimeline + StaticTown\nOutput: DynamicTownPrecomputeByYear" as dynamic
+component "prepareCurvePrecompute\nInput: PreparedDataset + SpeedTimeline + StaticTown\nOutput: CurvePrecompute" as curves
+component "prepareBoundaryPrecompute\nInput: GeoJSON + StaticTown\nOutput: BoundaryPrecompute" as boundaries
+
+read --> inspect
+inspect --> manifest
+manifest --> assemble
+read --> assemble
+assemble --> prepare
+prepare --> speeds
+prepare --> statics
+speeds --> dynamic
+statics --> dynamic
+prepare --> curves
+speeds --> curves
+statics --> curves
+statics --> boundaries
+
+note bottom of assemble
+  Dernier niveau lossless.
+  Toutes les colonnes libres
+  restent queryables via SourceRecord.
+end note
+
+note bottom of dynamic
+  Niveau dynamique cache par annee.
+  Selectionne lors d'un changement d'annee.
+end note
+@enduml

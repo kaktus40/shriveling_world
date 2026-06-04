@@ -1,0 +1,28 @@
+@startuml
+title Sequence cible lors d'un changement d'annee
+
+actor User
+participant "Svelte UI" as UI
+participant "Compute Orchestrator TS" as TS
+participant "Precompute Cache CPU" as Cache
+participant "WebGPU Device" as GPU
+participant "Babylon Layers" as Babylon
+
+User -> UI : changeYear(year)
+UI -> TS : computeVisualization(year, params)
+TS -> Cache : getDynamicTownPrecompute(year)
+Cache --> TS : cityLinks, citiesDict, roadAlpha, curveHeights
+TS -> GPU : queue.writeBuffer(dynamic buffers)
+TS -> GPU : dispatch RawConePass
+TS -> GPU : dispatch ConeConeIntersectionPass
+TS -> GPU : dispatch ConeBoundaryClipPass
+TS -> GPU : dispatch CurveGeometryPass
+GPU --> TS : command buffer completed
+TS -> Babylon : update cone and curve geometry buffers
+Babylon --> UI : frame rendered
+
+note over Cache
+  BaseNetwork, PreparedDataset and StaticTownPrecompute
+  are not recomputed during this sequence.
+end note
+@enduml
