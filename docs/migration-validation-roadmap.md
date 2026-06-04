@@ -861,3 +861,7 @@ YYYY-MM-DD - Mx - validated - commit <hash> - resume court
 Entrees:
 
 - 2026-06-03 - M0 - validated - commit `99957ab` - branche durable et roadmap initiale creees.
+- 2026-06-03 - M1 - validated - commit `904e174` - fixtures reduites et caracterisation datasets ajoutees.
+- 2026-06-03 - M2.1 - validated - commit `23d2ff0` - audit des hooks Rollup et decisions de migration documentes.
+- 2026-06-03 - M2.1 - validated - commit `360638c` - strategie de validation WGSL documentee.
+- 2026-06-04 - M2 - validated - commit `ddeab9c` - shell SvelteKit/Vite, import WGSL et build datasets portes.
