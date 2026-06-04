@@ -97,23 +97,35 @@ Validation:
 - le worktree principal reste sur `toBabylon`;
 - le worktree de migration est propre et en avance d'un commit sur `origin/master`.
 
-## M1: Baseline De Regression Et Fixtures
+## M1: Caracterisation Initiale Et Fixtures
 
 Statut: `todo`
 
 Objectif:
 
-Securiser le modele existant avant toute migration technique. Cette etape doit produire des donnees de reference permettant de verifier que les transformations futures ne cassent pas le modele sans le signaler.
+Preparer un socle de travail reproductible sans figer prematurement les resultats attendus du futur pipeline.
+
+Le traitement et le rendu final vont changer. Il ne faut donc pas creer de tests d'attendus qui imposeraient a la migration de reproduire exactement l'ancien comportement. Les attentes fonctionnelles et scientifiques seront definies point par point pendant les jalons suivants.
+
+Ce jalon sert a:
+
+- rendre les datasets de test reproductibles;
+- documenter les formats d'entree;
+- observer le comportement historique;
+- fournir des outils de caracterisation;
+- eviter les regressions accidentelles sur le chargement de base;
+- preparer les futurs tests, sans les rendre bloquants trop tot.
 
 Travail attendu:
 
 - choisir un dataset minimal et un dataset realiste de reference;
 - creer une structure de fixtures dediee;
-- ajouter un test runner adapte a l'etat initial du projet;
-- tester la lecture des CSV;
-- tester la reconnaissance des fichiers par en-tetes;
-- tester le `Merger`;
-- produire des snapshots JSON lisibles pour les sorties de reference.
+- ajouter des scripts de caracterisation adaptes a l'etat initial du projet;
+- verifier que les CSV et GeoJSON sont lisibles;
+- verifier que les fichiers attendus sont presents;
+- verifier que les fixtures reduites peuvent etre generees;
+- documenter les sorties observees du pipeline historique;
+- eviter les golden files d'attendus tant que les attentes cible ne sont pas validees.
 
 Datasets de reference retenus:
 
@@ -138,7 +150,7 @@ Datasets de test proposes pour M1:
 - `reference-world-1m`: utilise `datasets/World_1M` tel quel pour un test plus large;
 - `reference-europe-1m`: utilise `datasets/Europe_1M` tel quel pour un test europeen rapide.
 
-Sorties a figer:
+Sorties a observer, sans les figer comme attendus definitifs:
 
 - nombre de villes;
 - nombre de populations;
@@ -153,6 +165,8 @@ Sorties a figer:
 - nombre de cones attendus;
 - quelques positions/refentiels calcules avec tolerance numerique.
 
+Ces sorties peuvent etre enregistrees dans des rapports de caracterisation. Elles ne doivent pas devenir des tests bloquants tant que la nouvelle semantique attendue n'a pas ete precisee.
+
 Fichiers attendus:
 
 ```text
@@ -162,12 +176,11 @@ tests/
     fixture-30-europe/
     reference-world-1m/
     reference-europe-1m/
-  golden/
-    merger-fixture-30-world.json
-    merger-fixture-30-europe.json
-    merger-reference-world-1m.json
-    merger-reference-europe-1m.json
-  merger.test.ts
+  characterization/
+    fixture-30-world.json
+    fixture-30-europe.json
+    reference-world-1m.json
+    reference-europe-1m.json
 ```
 
 Script de generation attendu:
@@ -189,18 +202,16 @@ Comportement attendu du script:
 Commandes de validation attendues:
 
 ```bash
-pnpm test
-pnpm build
+pnpm characterize:datasets
 ```
 
 Critere d'acceptation:
 
-- les tests passent sur le code historique;
-- les snapshots sont versionnes;
-- les tolerances numeriques sont explicites;
 - aucune migration SvelteKit/Babylon/WebGPU n'est incluse dans ce jalon.
 - les fixtures 30 villes sont generees de maniere reproductible;
 - `World_1M` et `Europe_1M` sont documentes comme datasets de reference.
+- les rapports de caracterisation sont lisibles et versionnes;
+- aucun attendu scientifique futur n'est fige sans validation explicite.
 
 Validation:
 

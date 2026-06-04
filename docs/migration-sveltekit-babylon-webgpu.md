@@ -353,17 +353,19 @@ Critere de validation:
 - l'etat historique est compris;
 - aucun changement applicatif n'a encore ete introduit.
 
-## Phase 1: Tests Et Sorties De Reference
+## Phase 1: Caracterisation Initiale Et Fixtures
 
-Objectif: securiser la migration avant de changer le socle.
+Objectif: preparer un socle reproductible avant de changer le traitement et le rendu.
+
+Le nouveau pipeline de traitement et le rendu final vont evoluer. Cette phase ne doit donc pas figer les sorties historiques comme des attendus definitifs. Elle doit produire des fixtures et des rapports d'observation pour faciliter les decisions futures.
 
 Actions:
 
 - Creer des datasets reduits fictifs ou derives pour tests rapides.
 - Selectionner des datasets realistes de reference.
-- Ajouter des tests sur la lecture CSV/GeoJSON.
-- Ajouter des tests sur le `Merger`.
-- Verifier:
+- Ajouter des scripts de caracterisation sur la lecture CSV/GeoJSON.
+- Observer le comportement historique du `Merger`.
+- Relever, sans les transformer en golden tests bloquants:
   - nombre de villes;
   - nombre de modes;
   - nombre d'arcs;
@@ -371,15 +373,14 @@ Actions:
   - span temporel;
   - vitesses interpolees;
   - alphas par annee;
-  - nombre de cones et courbes attendus.
-- Produire des snapshots numeriques tolerants pour quelques sorties geometriques.
+  - nombre de cones et courbes produits par l'ancien pipeline.
+- Reporter les observations dans des fichiers lisibles.
 
 Livrables:
 
 - fixtures de test;
-- tests unitaires du pipeline data;
-- snapshots de reference;
-- commandes de test reproductibles.
+- rapports de caracterisation;
+- commandes de caracterisation reproductibles.
 
 Strategie de datasets retenue:
 
@@ -392,8 +393,9 @@ Strategie de datasets retenue:
 
 Critere de validation:
 
-- les tests passent sur l'ancien pipeline;
-- les futures migrations peuvent etre comparees a une base connue.
+- les fixtures sont reproductibles;
+- les observations historiques sont disponibles;
+- aucun attendu scientifique cible n'est fige avant validation explicite.
 
 ## Phase 2: Migration SvelteKit Et Vite
 
