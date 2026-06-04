@@ -635,12 +635,21 @@ Points critiques:
 - `src/application/common/configuration.ts` importe aujourd'hui des types Three.js;
 - `src/application/bigBoard/merger.ts` melange donnees, calculs et effets secondaires;
 - les types dans `src/application/definitions/project.ts` doivent etre conserves mais reorganises.
+- les interfaces de `toBabylon` dans `/home/abdou/workspace/shriveling_world/src/application/merger/index.d.ts` doivent servir de reference pour les types de domaine.
+
+Reference `toBabylon` a conserver:
+
+- `ICity`, `IEdge`, `ITranspMode`, `ITransportModeSpeed` pour les entites sources typables;
+- `IStaticTownHelper` et `IDynamicTownPreGeometry` pour la separation statique/dynamique du precalcul;
+- `ILookupCurvesAndCityGraph` pour comparer le comportement historique pendant le portage;
+- `IMergerData` comme inspiration du conteneur prepare, pas comme sortie directe de `BaseNetworkAssembly`.
 
 Critere d'acceptation:
 
 - `domain` ne depend pas de Three.js;
 - `domain` ne depend pas de Babylon.js;
 - `domain` ne depend pas de SvelteKit;
+- les nouveaux types documentent explicitement leur correspondance avec les interfaces `toBabylon`;
 - les tests M1 passent apres extraction.
 
 Validation:
@@ -665,6 +674,7 @@ Sortie cible:
 
 ```ts
 interface PreparedDataset {
+  baseNetwork: BaseNetwork;
   cities: PreparedCities;
   network: PreparedNetwork;
   speedTimeline: PreparedSpeedTimeline;
@@ -678,6 +688,9 @@ interface PreparedDataset {
 Travail attendu:
 
 - definir les structures `Prepared*`;
+- s'inspirer de `IMergerData` sans melanger donnees sources lossless et donnees preparees;
+- positionner `IStaticTownHelper` comme reference pour les donnees statiques;
+- positionner `IDynamicTownPreGeometry` comme reference pour les donnees dynamiques par annee;
 - separer donnees stables et parametres interactifs;
 - documenter quels changements invalident le precalcul;
 - creer des tests sur `prepareDataset`;

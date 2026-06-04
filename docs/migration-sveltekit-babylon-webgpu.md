@@ -379,6 +379,53 @@ Implementation `M3.1`:
 - l'assembleur accepte directement une liste `{ name, text }[]` pour rester compatible avec un ordre d'arrivee non determine;
 - les scripts de fixtures et de caracterisation utilisent ce pipeline sans modifier le `Merger` applicatif.
 
+### Alignement Avec Les Interfaces `toBabylon`
+
+La branche `toBabylon` contient une formalisation importante dans:
+
+```text
+/home/abdou/workspace/shriveling_world/src/application/merger/index.d.ts
+```
+
+Ces interfaces doivent servir de reference pour la migration, en particulier:
+
+- `ICity`;
+- `IEdge`;
+- `ITranspMode`;
+- `ITransportModeSpeed`;
+- `ILookupCurvesAndCityGraph`;
+- `IStaticTownHelper`;
+- `IDynamicTownPreGeometry`;
+- `IMergerData`.
+
+La migration ne doit pas ignorer ces types. Elle doit les repositionner dans un pipeline plus separe:
+
+```text
+Source files
+  -> DatasetInspection
+  -> BaseNetworkAssembly
+  -> DatasetPreparation
+  -> Compute/Render
+```
+
+Correspondance cible:
+
+| Interfaces `toBabylon` | Niveau migration | Role |
+| --- | --- | --- |
+| `ICity`, `IEdge`, `ITranspMode`, `ITransportModeSpeed` | `BaseNetwork` / `SourceRecord` | Donnees sources assemblees, conservees sans perte. |
+| `ItransportDict`, `ISpeedPerTranspModePerYear`, `IMaxSpeedPerYear`, `ITerrestrialMinAlphaPerYear` | `PreparedNetwork` / `PreparedSpeedTimeline` | Structures derivees du reseau pour une preparation stable. |
+| `IStaticTownHelper` | `PreparedStaticNetwork` | Donnees statiques de voisinage, referentiels et buffers derivables du dataset. |
+| `IDynamicTownPreGeometry` | `PreparedDynamicNetworkByYear` | Donnees dependantes de l'annee ou d'une selection dynamique. |
+| `ILookupCurvesAndCityGraph` | sortie de preparation ou compatibilite temporaire | Forme historique utile pour comparer le portage. |
+| `IMergerData` | `PreparedDataset` ou `PreparedMergerData` | Conteneur de sortie de preparation, pas sortie directe de l'assemblage lossless. |
+
+Decision:
+
+- `BaseNetwork` reste le niveau lossless et requetable.
+- `IMergerData` inspire le niveau prepare, mais ne doit pas absorber les donnees sources libres.
+- Le portage TypeScript devra definir des types de domaine compatibles avec les intentions de `toBabylon`, plutot que repartir de noms de structures sans rapport.
+- Les noms finaux peuvent evoluer, mais la separation entre source lossless, preparation statique et preparation dynamique doit rester explicite.
+
 ### Mapping Semantique Pour Les Requetes
 
 Les requetes utilisateur peuvent porter sur des concepts comme:
