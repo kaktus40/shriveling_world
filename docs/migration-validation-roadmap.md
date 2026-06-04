@@ -307,11 +307,15 @@ Mise a jour npm:
 
 - Les dependances npm ont ete montees vers leurs versions courantes resolues par `npm install`.
 - `rollup-plugin-terser` a ete remplace par `@rollup/plugin-terser`, car l'ancien paquet ne supporte pas Rollup 4.
+- `node-gles` a ete supprime: la validation WebGL legacy ne fait plus partie du chemin SvelteKit/Vite.
+- `showdown` a ete supprime: le routage Markdown Sapper legacy devra etre porte avec un choix de parseur separe.
+- `@sveltejs/kit` et `@sveltejs/adapter-static` ont ete restaures sur la ligne SvelteKit 2 apres resolution npm.
 - Validations apres mise a jour:
   - compilation TypeScript ciblee de `src/lib/domain/data/*.ts`;
   - `npm run characterize:datasets`;
   - `npm run build`.
-- `npm install` signale encore des vulnerabilites et un script `node-gles` non approuve. Aucun `npm audit fix --force` n'a ete applique, car il pourrait introduire des changements cassants.
+- L'audit npm restant signale uniquement une vulnerabilite basse via `cookie@0.6.0`, dependance transitive de SvelteKit 2. La correction automatique propose une retrogradation incorrecte vers SvelteKit `0.0.30`; elle est donc refusee.
+- L'audit est stoppe a ce stade pour poursuivre la migration fonctionnelle.
 
 ## M2.1: Evaluation Des Hooks Rollup Applicatifs
 
