@@ -743,6 +743,8 @@ Travail attendu:
 - s'inspirer de `IMergerData` sans melanger donnees sources lossless et donnees preparees;
 - positionner `IStaticTownHelper` comme reference pour les donnees statiques;
 - positionner `IDynamicTownPreGeometry` comme reference pour les donnees dynamiques par annee;
+- positionner `geojson2preVertex.ts` comme reference pour la preparation des pays et des limites de cones;
+- conserver le maillage interne des pays pour le rendu 3D;
 - separer donnees stables et parametres interactifs;
 - documenter quels changements invalident le precalcul;
 - creer des tests sur `prepareDataset`;

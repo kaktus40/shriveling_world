@@ -331,6 +331,12 @@ Fonction cible: `prepareBoundaryPrecompute(geojson, preparedDataset, staticTown,
 - Transformation:
   - reprend le role de `fromGeojson` pour initialiser les polygones pays;
   - reprend le role de `generateVertices` pour produire la geometrie de rendu des pays;
+  - conserve uniquement les frontieres de premier niveau;
+  - ignore volontairement les trous et limites internes, par exemple les lacs;
+  - conserve la densification du contour;
+  - conserve la generation de points interieurs par lattice de Fibonacci;
+  - conserve une triangulation de l'ensemble contour densifie + points interieurs;
+  - filtre les triangles dont le point representatif sort du contour;
   - conserve les polygones Turf utilises par les tests point-dans-polygone;
   - construit le tableau `u_countries` contenant les contours de pays compactes;
   - conserve `boundariesSize` pour connaitre la taille reelle de chaque contour dans le tableau compacte;
@@ -340,6 +346,17 @@ Fonction cible: `prepareBoundaryPrecompute(geojson, preparedDataset, staticTown,
   - construit un buffer de limites indexe par ville et azimut.
 - Sortie: `BoundaryPrecompute`.
 - Diagnostics: GeoJSON invalide, ville sans limite, limite trop peu echantillonnee.
+
+Decisions validees:
+
+- Les trous des polygones ne sont pas traites. L'application a besoin de la frontiere externe d'un pays ou d'un continent, pas des limites internes.
+- Pour les `MultiPolygon`, chaque contour externe de premier niveau doit devenir un contour exploitable. Il ne faut pas se limiter au premier polygone si plusieurs morceaux representent une meme entite.
+- Le maillage interne est obligatoire pour une representation 3D correcte sur sphere. Une triangulation limitee au seul contour produirait des grands triangles qui representent mal la courbure.
+- `Earcut` seul n'est donc pas retenu comme remplacement principal: il triangule les points fournis, mais ne genere pas les points internes necessaires au rendu 3D.
+- L'approche de `toBabylon` reste la base: contour densifie + points interieurs par Fibonacci + triangulation + filtrage des triangles hors contour.
+- `Delaunator` reste coherent avec cette approche car il triangule efficacement un nuage de points 2D. La correction geometrique vient ensuite du filtrage par appartenance au contour.
+- Un test point-dans-polygone reste necessaire pour filtrer les triangles et associer les villes aux contours. Turf est acceptable pour ce role, sauf remplacement ulterieur par une bibliotheque plus performante et equivalente.
+- Le parametre historique `subdivision` sera remplace par un parametre explicite `azimuthSampleCount`.
 
 Fonctions historiques concernees:
 
@@ -358,6 +375,7 @@ interface CountryRenderPreGeometry {
   indexes: Uint16Array;
   extruded: { begin: number; end: number };
   sourceFeatureId: number;
+  sourceContourId: number;
 }
 
 interface BoundaryPrecompute {
@@ -368,7 +386,18 @@ interface BoundaryPrecompute {
   townCountryIndexes: Int32Array;
   townBoundaryCartographic: Float32Array;
   townBoundaryEcef: Float32Array;
-  subdivision: number;
+  azimuthSampleCount: number;
+}
+```
+
+Options cible:
+
+```ts
+interface BoundaryPrecomputeOptions {
+  contourMaxSegmentDegrees: number;
+  interiorPointSpacingDegrees: number;
+  azimuthSampleCount: number;
+  countryExtrusionHeightMeters: number;
 }
 ```
 
@@ -385,6 +414,12 @@ Le traitement GeoJSON a deux sorties distinctes et il ne faut pas les confondre:
 
 - une sortie de rendu pays, equivalente a `IPreGeometry`, consommee par la couche pays;
 - une sortie de limites de villes, consommee par la decoupe des cones.
+
+Portage prevu:
+
+1. Porter la preparation CPU pure du mesh pays et de l'association ville -> contour.
+2. Ajouter une generation CPU de reference des limites par azimut pour les datasets de test restreints.
+3. Porter ensuite l'algorithme de `boundaryAlgebre.frag` en WGSL pour produire directement `townBoundaryEcef` cote WebGPU.
 
 ### 9. Preparation GPU
 
@@ -983,7 +1018,8 @@ Entrees CPU:
 
 - `BoundaryPrecompute`;
 - `townBoundaryEcef`;
-- association ville -> pays calculee par `townLimits`.
+- association ville -> pays ou continent calculee pendant `prepareBoundaryPrecompute`.
+- `azimuthSampleCount`, qui definit explicitement le nombre d'echantillons angulaires par ville.
 
 Entrees GPU:
 
