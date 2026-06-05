@@ -95,8 +95,14 @@ export interface BoundaryPrecompute {
 	countryGeometries: CountryRenderPreGeometry[];
 	/** Compact contour buffer, stride 2: `[longitudeRadians, latitudeRadians]`. */
 	countryContourBuffer: Float32Array;
+	/** Compact contour buffer converted to n-vectors, stride 4: `[x, y, z, padding]`. */
+	countryContourNVectorBuffer: Float32Array;
+	/** Start point offset per contour inside `countryContourBuffer` and `countryContourNVectorBuffer`. */
+	countryContourOffsets: Int32Array;
 	/** Number of contour points per retained contour. */
 	countryContourSizes: Int32Array;
+	/** Per-city contour association, indexed by dense city index. */
+	cityContourIndexes: Int32Array;
 	/** Per-city contour association, indexed by dense `cityId`. */
 	townCountryIndexes: Int32Array;
 	/** Detailed city association records. */
@@ -104,5 +110,43 @@ export interface BoundaryPrecompute {
 	/** Azimuth sample count reserved for CPU reference and future WebGPU boundary generation. */
 	azimuthSampleCount: number;
 	/** Diagnostics collected during extraction, meshing, and association. */
+	diagnostics: BoundaryDiagnostic[];
+}
+
+/** Continuous azimuth interval expressed in radians. */
+export interface AzimuthInterval {
+	/** Inclusive lower bound in radians. May be negative to avoid modular discontinuities. */
+	minRadians: number;
+	/** Inclusive upper bound in radians. May be greater than `2 * PI`. */
+	maxRadians: number;
+}
+
+/** Inputs consumed by the CPU reference implementation of boundary clipping. */
+export interface BoundaryRaycastInput {
+	/** NED-to-ECEF matrices in city order, column-major, stride 16. */
+	cityNed2EcefMatrices: Float32Array;
+	/** Associated contour index for each city, in the same order as `cityNed2EcefMatrices`. */
+	cityContourIndexes: Int32Array;
+	/** Country contour points converted to n-vectors, stride 4: `[x, y, z, padding]`. */
+	countryContourNVectorBuffer: Float32Array;
+	/** Start point offset per contour inside `countryContourNVectorBuffer`. */
+	countryContourOffsets: Int32Array;
+	/** Number of points per contour. */
+	countryContourSizes: Int32Array;
+	/** Packed azimuth intervals, stride 2: `[minRadians, maxRadians]`. */
+	azimuthIntervals: Float32Array;
+	/** Earth radius used for ECEF outputs, in meters. */
+	earthRadiusMeters: number;
+}
+
+/** CPU reference result for city boundary limits. */
+export interface BoundaryRaycastResult {
+	/** Per city and azimuth interval, stride 4: `[longitudeRadians, latitudeRadians, angularDistanceRadians, validIntersection]`. */
+	townBoundaryAngular: Float32Array;
+	/** Per city and azimuth interval, stride 4: `[xMeters, yMeters, zMeters, validIntersection]`. */
+	townBoundaryEcef: Float32Array;
+	/** Number of azimuth intervals used per city. */
+	azimuthIntervalCount: number;
+	/** Diagnostics emitted while raycasting. */
 	diagnostics: BoundaryDiagnostic[];
 }

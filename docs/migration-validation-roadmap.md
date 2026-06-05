@@ -776,13 +776,19 @@ Critere d'acceptation:
 Validation:
 
 - Premier jalon GeoJSON:
+  - `src/lib/shared/constants.ts`;
+  - `src/lib/shared/vector3.ts`;
+  - `src/lib/shared/spherical.ts`;
   - `src/lib/domain/geojson/types.ts`;
   - `src/lib/domain/geojson/geometry.ts`;
   - `src/lib/domain/geojson/precompute.ts`;
+  - `src/lib/domain/geojson/boundary-raycast.ts`;
   - `src/lib/domain/geojson/index.ts`.
 - Validations executees:
-  - `./node_modules/.bin/tsc --noEmit --ignoreConfig --strict --moduleResolution bundler --module esnext --target es2022 src/lib/domain/geojson/*.ts`;
-  - caracterisation en memoire sur un GeoJSON carre avec une ville dedans et une ville dehors.
+  - `./node_modules/.bin/tsc --noEmit --ignoreConfig --strict --moduleResolution bundler --module esnext --target es2022 src/lib/shared/*.ts src/lib/domain/data/*.ts src/lib/domain/geojson/*.ts`;
+  - caracterisation en memoire sur un GeoJSON carre avec une ville dedans et une ville dehors;
+  - caracterisation en memoire du raycast CPU sur un GeoJSON carre avec une ville interne et quatre intervalles d'azimut valides;
+  - caracterisation de `cityContourIndexes` avec un `cityId` different de l'ordre de ville pour verifier que les matrices `NED2ECEF` et les index de contours partagent le meme ordre.
 - Decisions validees pour le remplacement de `boundaryAlgebre.frag`:
   - toutes les coordonnees angulaires internes sont en radians;
   - les distances internes sont en metres;
@@ -799,9 +805,8 @@ Validation:
   - la convention du projet utilise une latitude terrestre en radians, donc `sPhi` doit etre `sin(latitude)`;
   - la migration doit partir du contrat corrige et ne pas recopier cette anomalie.
 - Reste a faire:
-  - produire la bibliotheque de fonctions mathematiques partagees TypeScript/WGSL;
+  - produire l'equivalent WGSL de la bibliotheque de fonctions mathematiques partagees;
   - produire le buffer `cityNed2EcefMatrices` dans la phase de calcul WebGPU dediee;
-  - generation CPU de reference des limites par azimut;
   - portage WebGPU/WGSL de `boundaryAlgebre.frag`;
   - integration avec `PreparedDataset` quand la phase de precalcul reseau sera portee.
 

@@ -1,5 +1,6 @@
 import Delaunator from 'delaunator';
 import type GeoJSON from 'geojson';
+import { lonLatToNVector } from '../../shared';
 import {
 	degreesToRadians,
 	densifyRing,
@@ -158,21 +159,53 @@ export function generateCountryGeometry(
 	};
 }
 
-function buildContourBuffer(contours: CountryContour[]): { buffer: Float32Array; sizes: Int32Array } {
+function buildContourBuffers(contours: CountryContour[]): {
+	buffer: Float32Array;
+	nVectorBuffer: Float32Array;
+	offsets: Int32Array;
+	sizes: Int32Array;
+} {
 	const totalPointCount = contours.reduce((sum, contour) => sum + contour.ring.length, 0);
 	const buffer = new Float32Array(totalPointCount * 2);
+	const nVectorBuffer = new Float32Array(totalPointCount * 4);
+	const offsets = new Int32Array(contours.length);
 	const sizes = new Int32Array(contours.length);
-	let offset = 0;
+	let pointOffset = 0;
+	let coordinateOffset = 0;
 
 	contours.forEach((contour, contourIndex) => {
+		offsets[contourIndex] = pointOffset;
 		sizes[contourIndex] = contour.ring.length;
 		contour.ring.forEach(([longitude, latitude]) => {
-			buffer[offset++] = longitude;
-			buffer[offset++] = latitude;
+			const [x, y, z] = lonLatToNVector([longitude, latitude]);
+			buffer[coordinateOffset++] = longitude;
+			buffer[coordinateOffset++] = latitude;
+			nVectorBuffer[pointOffset * 4] = x;
+			nVectorBuffer[pointOffset * 4 + 1] = y;
+			nVectorBuffer[pointOffset * 4 + 2] = z;
+			nVectorBuffer[pointOffset * 4 + 3] = 0;
+			pointOffset++;
 		});
 	});
 
-	return { buffer, sizes };
+	return { buffer, nVectorBuffer, offsets, sizes };
+}
+
+function buildDensifiedContourBuffers(
+	contours: CountryContour[],
+	options: BoundaryPrecomputeOptions
+): {
+	buffer: Float32Array;
+	nVectorBuffer: Float32Array;
+	offsets: Int32Array;
+	sizes: Int32Array;
+} {
+	return buildContourBuffers(
+		contours.map((contour) => ({
+			...contour,
+			ring: densifyRing(contour.ring, options.contourMaxSegmentRadians),
+		}))
+	);
 }
 
 /** Associates each prepared town with the first retained country contour containing it. */
@@ -180,13 +213,15 @@ export function associateTownsToContours(
 	towns: TownBoundaryInput[],
 	contours: CountryContour[],
 	diagnostics: BoundaryDiagnostic[] = []
-): { indexes: Int32Array; associations: TownCountryAssociation[] } {
+): { indexes: Int32Array; cityIndexes: Int32Array; associations: TownCountryAssociation[] } {
 	const maxCityId = towns.reduce((max, town) => Math.max(max, town.cityId), -1);
 	const indexes = new Int32Array(maxCityId + 1);
+	const cityIndexes = new Int32Array(towns.length);
 	indexes.fill(-1);
+	cityIndexes.fill(-1);
 	const associations: TownCountryAssociation[] = [];
 
-	towns.forEach((town) => {
+	towns.forEach((town, cityIndex) => {
 		const point: LonLatRadians = [town.longitudeRadians, town.latitudeRadians];
 		const contourIndex = contours.findIndex((contour) => pointInRing(point, contour.ring));
 		if (contourIndex === -1) {
@@ -201,6 +236,7 @@ export function associateTownsToContours(
 			});
 		}
 		indexes[town.cityId] = contourIndex;
+		cityIndexes[cityIndex] = contourIndex;
 		associations.push({
 			cityId: town.cityId,
 			cityCode: town.cityCode,
@@ -208,7 +244,7 @@ export function associateTownsToContours(
 		});
 	});
 
-	return { indexes, associations };
+	return { indexes, cityIndexes, associations };
 }
 
 /** Prepares GeoJSON country meshes and town-to-contour associations. */
@@ -221,8 +257,17 @@ export function prepareBoundaryPrecompute(
 	const diagnostics: BoundaryDiagnostic[] = [];
 	const contours = extractCountryContours(geojson, diagnostics);
 	const countryGeometries = contours.map((contour) => generateCountryGeometry(contour, normalizedOptions, diagnostics));
-	const { buffer: countryContourBuffer, sizes: countryContourSizes } = buildContourBuffer(contours);
-	const { indexes: townCountryIndexes, associations: townCountryAssociations } = associateTownsToContours(
+	const {
+		buffer: countryContourBuffer,
+		nVectorBuffer: countryContourNVectorBuffer,
+		offsets: countryContourOffsets,
+		sizes: countryContourSizes,
+	} = buildDensifiedContourBuffers(contours, normalizedOptions);
+	const {
+		indexes: townCountryIndexes,
+		cityIndexes: cityContourIndexes,
+		associations: townCountryAssociations,
+	} = associateTownsToContours(
 		towns,
 		contours,
 		diagnostics
@@ -232,7 +277,10 @@ export function prepareBoundaryPrecompute(
 		contours,
 		countryGeometries,
 		countryContourBuffer,
+		countryContourNVectorBuffer,
+		countryContourOffsets,
 		countryContourSizes,
+		cityContourIndexes,
 		townCountryIndexes,
 		townCountryAssociations,
 		azimuthSampleCount: normalizedOptions.azimuthSampleCount,

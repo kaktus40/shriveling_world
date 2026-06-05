@@ -475,14 +475,28 @@ La migration ne doit pas recopier l'anomalie historique. Le contrat cible est la
 
 Etat d'implementation:
 
+- `src/lib/shared` contient les constantes et fonctions mathematiques generiques TypeScript:
+  - constantes `PI`, `TWO_PI`, `HALF_PI`, `EARTH_RADIUS_METERS`;
+  - operations vectorielles 3D;
+  - conversions longitude/latitude radians vers n-vector;
+  - construction de matrices `NED2ECEF`;
+  - calculs de grands cercles, distances angulaires et azimuts.
 - `src/lib/domain/geojson/types.ts` definit les contrats TypeDoc du precalcul GeoJSON.
 - `src/lib/domain/geojson/geometry.ts` porte les fonctions pures: ouverture de ring, bounding box, point-dans-polygone, densification et points internes Fibonacci.
 - `src/lib/domain/geojson/precompute.ts` porte le premier jalon CPU:
   - extraction des contours externes `Polygon` et `MultiPolygon`;
   - generation du mesh pays avec contour densifie, points internes, Delaunator, filtrage et extrusion;
-  - compactage des contours;
+  - compactage des contours densifies en radians;
+  - generation du buffer des contours en n-vectors;
+  - generation des offsets et tailles de contours pour les boucles CPU/WGSL;
   - association ville -> contour.
-- La generation des matrices `NED2ECEF`, la generation CPU des limites par azimut et le portage WGSL de `boundaryAlgebre.frag` restent a faire.
+- `src/lib/domain/geojson/boundary-raycast.ts` porte la reference CPU du remplacement de `boundaryAlgebre.frag`:
+  - construction des intervalles d'azimut continus;
+  - packing des intervalles en stride 2;
+  - helper CPU de reference pour construire `cityNed2EcefMatrices` depuis les villes en radians;
+  - calcul des intersections frontiere par couple `(ville, intervalle d'azimut)`;
+  - sorties `townBoundaryAngular` et `townBoundaryEcef`.
+- La generation WebGPU des matrices `NED2ECEF`, la bibliotheque WGSL partagee et le portage WGSL de `boundaryAlgebre.frag` restent a faire.
 
 ### 9. Preparation GPU
 
