@@ -67,9 +67,9 @@ Utiliser les statuts suivants:
 | M2 | validated | Migration SvelteKit/Vite minimale |
 | M2.1 | validated | Evaluation des hooks Rollup applicatifs |
 | M3 | todo | Extraction du domaine metier |
-| M3.1 | validated | Inspection dataset et assemblage lossless du reseau |
+| M3.1 | in_progress | Inspection dataset et assemblage lossless du reseau |
 | M4 | todo | Architecture explicite de precalcul |
-| M4.1 | todo | Socle de tests CPU et contrats de buffers |
+| M4.1 | validated | Socle de tests CPU et contrats de buffers |
 | M5 | todo | Rendu Babylon.js minimal |
 | M6 | todo | Framework WebGPU compute minimal |
 | M7 | todo | Portage WGSL des passes existantes |
@@ -465,6 +465,13 @@ Objectif:
 
 Remplacer la detection fragile des fichiers par nom et preparer une aggregation de donnees robuste, lossless et requetable.
 
+Note de cadrage:
+
+- ce jalon n'est pas valide dans son ensemble pour le traitement CSV complet;
+- des briques d'inspection et d'assemblage ont ete initiees et caracterisees;
+- le travail GeoJSON a ete priorise ensuite car le perimetre etait plus simple et plus stable;
+- la validation finale du pipeline CSV reste a reprendre explicitement avec des tests automatises dedies.
+
 Contrat dataset:
 
 - le type d'un fichier est determine uniquement par la presence de colonnes caracteristiques;
@@ -852,7 +859,26 @@ Critere d'acceptation:
 
 Validation:
 
-- a renseigner au moment de l'implementation.
+- Implementation:
+  - `package.json` ajoute `npm test`;
+  - `tests/unit/shared/spherical.test.ts` couvre conversions spheriques et matrice `NED2ECEF`;
+  - `tests/unit/geojson/precompute.test.ts` couvre ingestion GeoJSON, radians, buffers et index de contours;
+  - `tests/unit/geojson/boundary-raycast.test.ts` couvre la reference CPU des limites par ville.
+- Cas couverts:
+  - carre avec ville au centre;
+  - carre avec ville excentree;
+  - polygone non carre;
+  - polygone concave simple;
+  - ville hors contour;
+  - `cityId` different de l'ordre ville;
+  - intervalle d'azimut continu avec borne negative.
+- Validations executees:
+  - `npm test`;
+  - `npm run build`.
+- Limites restantes:
+  - les tests WebGPU ne sont pas encore actifs car le kernel WGSL de raycast n'existe pas;
+  - la conformite CPU/GPU sera ajoutee dans `tests/conformance/cpu-gpu`;
+  - le jalon M3/M3.1 CSV reste a reprendre: les tests ajoutes ici ne valident que `src/lib/shared` et `src/lib/domain/geojson`.
 
 ## M5: Rendu Babylon.js Minimal
 
