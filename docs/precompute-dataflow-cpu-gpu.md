@@ -73,6 +73,7 @@ Schemas PNG:
 - ![Precalcul dynamique annuel](diagrams/precompute/04-dynamic-town-precompute.png)
 - ![Graphe compute WebGPU](diagrams/precompute/05-webgpu-compute-graph.png)
 - ![Sequence changement annee](diagrams/precompute/06-change-year-sequence.png)
+- ![Traitement GeoJSON et limites](diagrams/precompute/07-geojson-boundaries.png)
 
 Sources PlantUML:
 
@@ -82,6 +83,7 @@ Sources PlantUML:
 - `docs/diagrams/precompute/04-dynamic-town-precompute.puml`
 - `docs/diagrams/precompute/05-webgpu-compute-graph.puml`
 - `docs/diagrams/precompute/06-change-year-sequence.puml`
+- `docs/diagrams/precompute/07-geojson-boundaries.puml`
 
 ## Enchainement Detaille Des Fonctions
 
@@ -327,12 +329,62 @@ Fonction cible: `prepareBoundaryPrecompute(geojson, preparedDataset, staticTown,
 - Acteur: CPU.
 - Entree: GeoJSON, villes, referentiels locaux, options de resolution.
 - Transformation:
-  - identifie les limites pertinentes par ville;
-  - transforme les limites dans le referentiel attendu;
-  - echantillonne ou triangule les limites;
+  - reprend le role de `fromGeojson` pour initialiser les polygones pays;
+  - reprend le role de `generateVertices` pour produire la geometrie de rendu des pays;
+  - conserve les polygones Turf utilises par les tests point-dans-polygone;
+  - construit le tableau `u_countries` contenant les contours de pays compactes;
+  - conserve `boundariesSize` pour connaitre la taille reelle de chaque contour dans le tableau compacte;
+  - associe chaque ville a un polygone de pays avec la logique de `townLimits`;
+  - produit `u_towns`, avec longitude, latitude et index du pays associe;
+  - prepare les entrees de la future passe WebGPU equivalente a `boundaryAlgebre.frag`;
   - construit un buffer de limites indexe par ville et azimut.
 - Sortie: `BoundaryPrecompute`.
 - Diagnostics: GeoJSON invalide, ville sans limite, limite trop peu echantillonnee.
+
+Fonctions historiques concernees:
+
+- `src/application/country/geojson2preVertex.ts` dans `toBabylon`;
+- `fromGeojson(geoJson, discriminant)`;
+- `generateVertices(feature, discriminant)`;
+- `townLimits(towns, subdivision)`;
+- `boundaryAlgebre.frag`.
+
+Sortie attendue:
+
+```ts
+interface CountryRenderPreGeometry {
+  vertices: Float32Array;
+  uvs: Float32Array;
+  indexes: Uint16Array;
+  extruded: { begin: number; end: number };
+  sourceFeatureId: number;
+}
+
+interface BoundaryPrecompute {
+  countryGeometries: CountryRenderPreGeometry[];
+  countryPolygons: GeoJSON.Feature<GeoJSON.Polygon>[];
+  countryContourBuffer: Float32Array;
+  countryContourSizes: Int32Array;
+  townCountryIndexes: Int32Array;
+  townBoundaryCartographic: Float32Array;
+  townBoundaryEcef: Float32Array;
+  subdivision: number;
+}
+```
+
+Strides a formaliser:
+
+- `countryContourBuffer`: stride 2, `[longitudeDeg, latitudeDeg]`.
+- `u_towns` historique: stride 3, `[longitudeDeg, latitudeDeg, countryIndex]`.
+- `townBoundaryCartographic`: sortie par ville et azimut, issue de `boundLimits`.
+- `townBoundaryEcef`: sortie par ville et azimut, issue de `ECEFBoundLimits`.
+
+Point important:
+
+Le traitement GeoJSON a deux sorties distinctes et il ne faut pas les confondre:
+
+- une sortie de rendu pays, equivalente a `IPreGeometry`, consommee par la couche pays;
+- une sortie de limites de villes, consommee par la decoupe des cones.
 
 ### 9. Preparation GPU
 
@@ -924,16 +976,19 @@ Reference historique:
 
 - `toBabylon/src/application/cone/shaders/finalCones.frag`;
 - logique de limites dans `main/src/application/cone/coneMeshShader.ts`.
+- generation de limites par ville dans `toBabylon/src/application/country/geojson2preVertex.ts`;
+- shader historique `toBabylon/src/application/country/shaders/boundaryAlgebre.frag`.
 
 Entrees CPU:
 
-- GeoJSON ou limites preparees;
-- association ville -> limites pertinentes.
+- `BoundaryPrecompute`;
+- `townBoundaryEcef`;
+- association ville -> pays calculee par `townLimits`.
 
 Entrees GPU:
 
 - `CiseledConeBuffer`;
-- `TownBoundaryBuffer`;
+- `TownBoundaryBuffer`, issu de `ECEFBoundLimits`;
 - `AcceptLimitsBuffer`.
 
 Traitement:

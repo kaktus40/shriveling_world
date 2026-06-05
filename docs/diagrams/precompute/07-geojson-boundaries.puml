@@ -1,0 +1,50 @@
+@startuml
+title Traitement GeoJSON, pays, limites et decoupe des cones
+
+|CPU - Source GeoJSON|
+start
+:lire FeatureCollection;
+:fromGeojson(geoJson, discriminant);
+
+|CPU - Maillage pays|
+:generateVertices(feature, discriminant);
+:extraire Polygon ou premier MultiPolygon;
+:interpoler le contour;
+:generer des points interieurs par lattice de Fibonacci;
+:trianguler avec Delaunator;
+:filtrer les triangles hors polygone;
+:creer surface basse, surface haute et faces laterales;
+:produire vertices, uvs, indexes, extruded, json;
+
+|CPU - Index limites|
+:stocker boundariesTurf;
+:stocker boundariesSize;
+:calculer biggestSize;
+:populateCountries();
+:produire u_countries;
+
+|CPU - Association ville/pays|
+:townLimits(villes, subdivision);
+:pour chaque ville, chercher le polygone contenant la ville;
+:produire u_towns = lon, lat, indexPays;
+
+|GPU - boundaryAlgebre|
+:lire u_towns;
+:lire u_countries;
+:lire u_countryLimits;
+:pour chaque ville et azimut;
+:intersecter le grand cercle de l'azimut avec le contour du pays;
+:retenir l'intersection la plus proche;
+:produire boundLimits cartographiques;
+:produire ECEFBoundLimits;
+
+|GPU - Decoupe cones|
+:ConeBoundaryClipPass;
+:lire ECEFBoundLimits;
+:limiter les vertices des cones;
+
+|Rendu - Babylon.js|
+:afficher pays;
+:afficher cones decoupes;
+stop
+@enduml
