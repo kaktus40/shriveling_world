@@ -1,0 +1,347 @@
+# Strategie De Tests De Migration
+
+Ce document definit la strategie de tests cible pour la migration SvelteKit, Babylon.js et WebGPU.
+
+Il ne fige pas encore tous les attendus metier definitifs. Il precise les niveaux de verification necessaires pour accompagner la migration et comparer progressivement les implementations CPU et GPU.
+
+## Objectifs Haut Niveau
+
+La strategie de tests doit garantir:
+
+- la non-regression des invariants deja compris dans le projet historique;
+- la tracabilite des decisions de migration;
+- la comparaison future entre reference CPU et implementation WebGPU;
+- la verification stricte des unites internes en systeme international;
+- la validation des contrats de buffers consommes par les shaders;
+- la capacite a tester des datasets reduits et reproductibles;
+- la distinction entre caracterisation de l'existant et validation d'un comportement attendu.
+
+## Principes
+
+### Reference CPU Avant GPU
+
+Toute passe de calcul WebGPU doit avoir une implementation CPU de reference lorsque c'est raisonnable.
+
+La CPU n'est pas la cible de performance. Elle sert a:
+
+- exprimer l'algorithme de maniere lisible;
+- produire des resultats deterministes;
+- tester les cas limites;
+- comparer les buffers produits par WebGPU avec tolerance numerique;
+- diagnostiquer les erreurs sans dependance au runtime GPU.
+
+### Tests De Contrat Avant Tests De Rendu
+
+Les tests doivent d'abord verifier les contrats de donnees:
+
+- structure des tables inspectees;
+- ordre des villes;
+- index denses;
+- strides de buffers;
+- unites internes;
+- tailles de buffers;
+- diagnostics attendus.
+
+Les tests visuels ou de rendu viennent ensuite. Ils ne doivent pas etre la premiere ligne de defense.
+
+### Caracterisation Et Validation Sont Separees
+
+La caracterisation enregistre ce que le code ou les datasets produisent actuellement.
+
+La validation verifie ce que le projet decide comme comportement attendu.
+
+Exemple:
+
+- un rapport de caracterisation peut dire qu'un fichier contient certaines colonnes;
+- un test de validation doit dire quelles colonnes caracteristiques sont obligatoires pour reconnaitre un type de table.
+
+### Unites SI Par Defaut
+
+Les tests doivent refuser les ambiguïtés d'unites:
+
+- longitude et latitude internes en radians;
+- distances internes en metres;
+- angles d'azimut en radians;
+- ECEF en metres;
+- conversions degres -> radians uniquement aux frontieres d'import ou d'interface humaine.
+
+## Niveaux De Tests
+
+### Niveau 0: Validations Techniques
+
+But: verifier que le socle technique compile et se construit.
+
+Commandes actuelles:
+
+```sh
+npm run build
+npm run validate
+```
+
+Etat actuel:
+
+- `npm run build` est la validation bloquante principale;
+- `npm run validate` reste affecte par le code legacy non encore porte et ne peut pas encore etre bloquant globalement.
+
+Evolution cible:
+
+- rendre `npm run validate` bloquant lorsque le legacy aura ete isole ou porte;
+- ajouter une commande `npm test` pour les tests automatises CPU;
+- ajouter une commande separee pour les tests WebGPU lorsque l'environnement le permettra.
+
+### Niveau 1: Caracterisation Dataset
+
+But: conserver une photographie des datasets et des fixtures reduites.
+
+Actuel:
+
+```sh
+npm run characterize:datasets
+```
+
+Ce niveau doit verifier:
+
+- detection des fichiers independamment de leur nom;
+- classification par colonnes caracteristiques;
+- presence des fichiers primaires attendus;
+- conservation des fichiers d'enrichissement;
+- diagnostics sur les fichiers inconnus ou ambigus.
+
+Ce niveau ne doit pas presumer les colonnes metier libres ajoutees par les utilisateurs.
+
+### Niveau 2: Tests Unitaires CPU Purs
+
+But: tester les fonctions pures sans DOM, SvelteKit, Babylon.js, WebGL ou WebGPU.
+
+Modules concernes actuellement:
+
+- `src/lib/domain/data`;
+- `src/lib/domain/geojson`;
+- `src/lib/shared`.
+
+Exemples de tests:
+
+- conversion degres -> radians a la frontiere GeoJSON;
+- ouverture de rings GeoJSON;
+- densification de contour;
+- point dans polygone;
+- generation des points internes Fibonacci;
+- conversion lon/lat radians vers n-vector;
+- construction de `NED2ECEF`;
+- calcul de grand cercle;
+- test d'azimut dans un intervalle continu.
+
+Runner recommande:
+
+- `node:test` pour demarrer sans nouvelle dependance;
+- bascule possible vers Vitest plus tard si les besoins SvelteKit ou snapshots deviennent plus importants.
+
+Raison du choix initial:
+
+- pas de dependance supplementaire;
+- execution rapide;
+- compatible avec TypeScript via `tsx`;
+- suffisant pour les fonctions CPU pures.
+
+### Niveau 3: Tests De Contrat De Buffers
+
+But: verifier que les buffers produits ont le format attendu par les calculs CPU puis WGSL.
+
+Contrats a verifier:
+
+- `countryContourBuffer`: stride 2, `[longitudeRadians, latitudeRadians]`;
+- `countryContourNVectorBuffer`: stride 4, `[x, y, z, padding]`;
+- `countryContourOffsets`: offset par contour;
+- `countryContourSizes`: taille par contour;
+- `cityContourIndexes`: index par ordre de ville;
+- `townCountryIndexes`: index par `cityId` lorsque necessaire;
+- `cityNed2EcefMatrices`: stride 16, column-major;
+- `azimuthIntervals`: stride 2, `[minRadians, maxRadians]`;
+- `townBoundaryAngular`: stride 4;
+- `townBoundaryEcef`: stride 4.
+
+Ces tests doivent rester indépendants du rendu.
+
+### Niveau 4: Tests De Reference CPU Des Limites
+
+But: figer des cas geometriques simples pour la fonction CPU qui remplacera `boundaryAlgebre.frag`.
+
+Cas minimaux a couvrir:
+
+- carre avec ville au centre;
+- carre avec ville excentree;
+- polygone non carre;
+- polygone concave simple;
+- ville proche d'une frontiere;
+- ville hors contour;
+- plusieurs villes dans le meme contour;
+- plusieurs contours;
+- `cityId` different de l'ordre ville;
+- intervalles d'azimut continus avec bornes negatives, par exemple `[-1 deg, 1 deg]` converti en radians.
+
+Invariants a verifier:
+
+- `validIntersection = 1` quand une intersection est attendue;
+- `validIntersection = 0` quand aucune intersection exploitable n'existe;
+- distance angulaire positive pour une ville strictement a l'interieur;
+- coordonnees de sortie en radians;
+- ECEF en metres;
+- intersection sur ou tres proche du contour attendu;
+- diagnostics presents pour les villes sans contour.
+
+Ces tests ne doivent pas chercher une exactitude geodesique parfaite pour des polygones artificiels. Ils doivent verifier les invariants robustes et la coherence CPU/GPU future.
+
+### Niveau 5: Tests De Conformite CPU/GPU
+
+But: comparer les sorties WebGPU avec la reference CPU.
+
+Principe:
+
+1. Construire les memes entrees compactes pour CPU et GPU.
+2. Executer la reference CPU.
+3. Executer la passe WebGPU.
+4. Comparer les buffers avec tolerance.
+
+Comparaisons:
+
+- `townBoundaryAngular`;
+- `townBoundaryEcef`;
+- futurs buffers de cones bruts;
+- intersections cone/cone;
+- clipping par frontiere;
+- courbes finales.
+
+Tolerance initiale proposee:
+
+- angles: `1e-5` radians pour les premiers tests;
+- ECEF: tolerance relative ou absolue a definir selon l'echelle;
+- flags et index: egalite stricte.
+
+La tolerance devra etre resserree ou justifiee apres caracterisation des kernels WGSL.
+
+### Niveau 6: Tests D'Integration Pipeline
+
+But: verifier l'enchainement complet sur fixtures reduites.
+
+Scenarios:
+
+- charger fixture Europe reduite;
+- charger fixture Monde reduite;
+- assembler `BaseNetwork`;
+- produire `PreparedDataset`;
+- produire les buffers statiques;
+- changer d'annee sans relancer l'ingestion;
+- changer de representation sans relancer les precalculs invariants;
+- verifier que les diagnostics sont explicites.
+
+Ces tests doivent s'appuyer sur les datasets reduits deja crees dans `tests/fixtures`.
+
+### Niveau 7: Tests Rendu Et E2E
+
+But: verifier que l'application integre correctement les resultats.
+
+Ces tests seront utiles apres stabilisation Babylon.js/WebGPU.
+
+Exemples:
+
+- chargement de l'application;
+- affichage de la scene;
+- selection d'un dataset reduit;
+- changement d'annee;
+- changement de representation;
+- presence des couches pays, villes, cones et courbes.
+
+Runner possible:
+
+- Playwright plus tard, pas maintenant.
+
+Raison:
+
+- les contrats de calcul ne sont pas encore stabilises;
+- les tests de rendu seraient couteux et fragiles au stade actuel.
+
+## Strategie CPU/GPU Pour Les Limites GeoJSON
+
+La fonction CPU `computeTownBoundaryLimitsCpu` devient la reference initiale.
+
+Le futur kernel WGSL devra consommer les memes entrees:
+
+- `cityNed2EcefMatrices`;
+- `cityContourIndexes`;
+- `countryContourNVectorBuffer`;
+- `countryContourOffsets`;
+- `countryContourSizes`;
+- `azimuthIntervals`;
+- constantes globales partagees.
+
+Le test de conformite devra verifier que:
+
+- le nombre de sorties est identique;
+- les flags de validite sont identiques;
+- les distances angulaires sont proches;
+- les positions cartographiques sont proches modulo les discontinuites de longitude;
+- les positions ECEF sont proches en metres.
+
+## Organisation Proposee Des Tests
+
+Structure cible:
+
+```txt
+tests/
+  unit/
+    shared/
+    data/
+    geojson/
+  characterization/
+  fixtures/
+  conformance/
+    cpu-gpu/
+  integration/
+```
+
+Commandes cible:
+
+```json
+{
+  "test": "tsx --test tests/unit/**/*.test.ts",
+  "test:characterize": "npm run characterize:datasets",
+  "test:conformance": "tsx --test tests/conformance/**/*.test.ts",
+  "test:integration": "tsx --test tests/integration/**/*.test.ts"
+}
+```
+
+Les commandes exactes seront introduites progressivement pour eviter de rendre bloquants des pans legacy non portes.
+
+## Priorites De Mise En Place
+
+Priorite 1:
+
+- tests unitaires `src/lib/shared`;
+- tests unitaires `src/lib/domain/geojson`;
+- tests de contrat des buffers GeoJSON;
+- tests CPU des limites sur polygones simples.
+
+Priorite 2:
+
+- tests `src/lib/domain/data` sur detection de tables et assemblage lossless;
+- tests d'integration sur fixtures reduites.
+
+Priorite 3:
+
+- tests de conformite CPU/GPU pour le raycast de frontiere;
+- tests de conformite CPU/GPU pour les cones.
+
+Priorite 4:
+
+- tests E2E rendu Babylon.js.
+
+## Definition De Done Pour Un Jalon De Migration
+
+Un jalon est validable lorsque:
+
+- les contrats modifies sont documentes;
+- les tests unitaires ou caracterisations correspondants existent;
+- les validations applicables passent;
+- les limites connues sont documentees;
+- le commit contient code, documentation et tests du jalon.
+

@@ -51,6 +51,8 @@ Utiliser les statuts suivants:
 - Les readbacks CPU WebGPU sont reserves aux tests, exports ou debug.
 - Les changements scientifiques intentionnels sont documentes.
 - Les tests de regression sont mis a jour avant les migrations risquées.
+- La strategie de tests est documentee dans `docs/migration-test-strategy.md` et guide les validations de jalons.
+- Toute passe WebGPU critique doit avoir une reference CPU ou une justification documentee.
 - L'interface utilisateur commune reste SvelteKit.
 - Les kernels GPU intensifs sont ecrits en WGSL portable.
 - Le client lourd cible Tauri, sans reecriture initiale complete en Rust.
@@ -67,6 +69,7 @@ Utiliser les statuts suivants:
 | M3 | todo | Extraction du domaine metier |
 | M3.1 | validated | Inspection dataset et assemblage lossless du reseau |
 | M4 | todo | Architecture explicite de precalcul |
+| M4.1 | todo | Socle de tests CPU et contrats de buffers |
 | M5 | todo | Rendu Babylon.js minimal |
 | M6 | todo | Framework WebGPU compute minimal |
 | M7 | todo | Portage WGSL des passes existantes |
@@ -809,6 +812,47 @@ Validation:
   - produire le buffer `cityNed2EcefMatrices` dans la phase de calcul WebGPU dediee;
   - portage WebGPU/WGSL de `boundaryAlgebre.frag`;
   - integration avec `PreparedDataset` quand la phase de precalcul reseau sera portee.
+
+## M4.1: Socle De Tests CPU Et Contrats De Buffers
+
+Statut: `todo`
+
+Objectif:
+
+Mettre en place les premiers tests automatises qui serviront de reference pour le portage GPU et pour les prochains jalons de migration.
+
+Document de reference:
+
+- `docs/migration-test-strategy.md`.
+
+Travail attendu:
+
+- ajouter une commande `npm test` ou equivalente pour les tests CPU rapides;
+- choisir un runner minimal, prioritairement `node:test` execute via `tsx`;
+- creer les tests unitaires de `src/lib/shared`;
+- creer les tests de contrats de buffers GeoJSON;
+- creer les tests CPU de `computeTownBoundaryLimitsCpu`;
+- couvrir au minimum:
+  - carre avec ville au centre;
+  - carre avec ville excentree;
+  - polygone non carre;
+  - polygone concave simple;
+  - ville hors contour;
+  - `cityId` different de l'ordre ville;
+  - intervalle d'azimut continu avec borne negative;
+- preparer la structure `tests/conformance/cpu-gpu` sans rendre les tests WebGPU bloquants tant que le kernel WGSL n'existe pas.
+
+Critere d'acceptation:
+
+- les tests CPU passent localement;
+- les invariants d'unites radians/metres sont testes;
+- les strides de buffers sont testes;
+- les tests distinguent clairement reference CPU et future implementation GPU;
+- la documentation liste les limitations restantes.
+
+Validation:
+
+- a renseigner au moment de l'implementation.
 
 ## M5: Rendu Babylon.js Minimal
 
