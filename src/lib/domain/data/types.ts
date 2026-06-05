@@ -251,3 +251,86 @@ export interface BaseNetwork {
 	diagnostics: DatasetDiagnostic[];
 }
 
+/** Options controlling preparation of speed timelines from a lossless base network. */
+export interface PrepareSpeedTimelineOptions {
+	/**
+	 * Reference road mode name used by the historical differential model.
+	 *
+	 * Matching is case-insensitive and trimmed. The default value follows the
+	 * dataset contract documented by the original project.
+	 */
+	roadModeName?: string;
+}
+
+/** Unique reference to the road mode that defines the cone surface. */
+export interface RoadModeReference {
+	/** Dense mode id inside `BaseNetwork.transportModes`. */
+	roadModeId: number;
+	/** Source mode code found in the transport modes table. */
+	roadModeCode: number;
+}
+
+/** Time validity bounds computed for one transport mode. */
+export interface PreparedTransportModeTimeline {
+	/** Dense mode id inside `BaseNetwork.transportModes`. */
+	modeId: number;
+	/** Source mode code. */
+	modeCode: number;
+	/** Source mode name. */
+	name: string;
+	/** True when the mode contributes to cone slopes rather than curves. */
+	terrestrial: boolean;
+	/** First year found in the speed table. */
+	speedYearBegin: number | null;
+	/** Last year found in the speed table. */
+	speedYearEnd: number | null;
+	/** First edge opening year, or `null` when edge dates do not constrain the mode. */
+	edgeYearBegin: number | null;
+	/** Last edge closing year, or `null` when edge dates do not constrain the mode. */
+	edgeYearEnd: number | null;
+	/** First year where both speed and edge availability make the mode valid. */
+	yearBegin: number | null;
+	/** Last year where both speed and edge availability make the mode valid. */
+	yearEnd: number | null;
+}
+
+/** Inclusive historical time span where the differential model is computable. */
+export interface HistoricalTimeSpan {
+	beginYear: number;
+	endYear: number;
+}
+
+/** Prepared speed and cone angle for one mode and one year. */
+export interface PreparedSpeedYear {
+	/** Interpolated speed in meters per second. */
+	speedMetersPerSecond: number;
+	/** Cone slope angle in radians, derived from the speed ratio with the yearly maximum speed. */
+	alphaRadians: number;
+}
+
+/** Prepared speed timeline used by later city, cone, curve, and GPU precomputes. */
+export interface PreparedSpeedTimeline {
+	/** Dense mode id for the reference road mode. */
+	roadModeId: number;
+	/** Source mode code for the reference road mode. */
+	roadModeCode: number;
+	/** Historical span where the differential model is computable. */
+	span: HistoricalTimeSpan;
+	/** Per-mode validity bounds. */
+	modes: PreparedTransportModeTimeline[];
+	/** Mode ids split by graphical role. */
+	transportTypes: {
+		/** Terrestrial modes affecting cone slopes. */
+		cones: number[];
+		/** Non-terrestrial modes represented as curves. */
+		curves: number[];
+	};
+	/** Per-mode, per-year interpolated speed and alpha values. */
+	speedByModeByYear: Record<string, Record<string, PreparedSpeedYear>>;
+	/** Maximum available speed per year, in meters per second. */
+	maxSpeedMetersPerSecondByYear: Record<string, number>;
+	/** Minimum terrestrial alpha per year, in radians. */
+	terrestrialMinAlphaRadiansByYear: Record<string, number>;
+	/** Diagnostics emitted during preparation. */
+	diagnostics: DatasetDiagnostic[];
+}

@@ -459,7 +459,7 @@ Validation:
 
 ## M3.1: Inspection Dataset Et Assemblage Lossless Du Reseau
 
-Statut: `validated`
+Statut: `in_progress`
 
 Objectif:
 
@@ -629,6 +629,45 @@ Validation:
 - Limite volontaire:
   - le nouveau reseau de base n'est pas encore branche dans l'application interactive;
   - `Merger` historique reste le chemin applicatif jusqu'au jalon d'extraction/portage suivant.
+
+### Sous-ensemble Valide: Preparation Des Vitesses
+
+Objectif:
+
+Porter les fonctions historiques suivantes sans muter `BaseNetwork`:
+
+- `identifyingRoadMode`;
+- `historicalTimeSpan`;
+- `setSpeedDatas`.
+
+Implementation:
+
+- `src/lib/domain/data/preparation.ts`;
+- `src/lib/domain/data/types.ts`;
+- `tests/unit/data/preparation.test.ts`.
+
+Regles validees:
+
+- le mode `Road` est obligatoire et unique;
+- la recherche de `Road` est insensible a la casse et aux espaces;
+- l'absence ou la multiplicite de `Road` emet un diagnostic bloquant;
+- `Road` doit etre terrestre;
+- les vitesses source `speedKPH` sont conservees dans `SourceRecord`;
+- les vitesses preparees sont converties en metres par seconde;
+- les angles `alpha` sont exprimes en radians;
+- la periode historique suit la logique differentielle: les modes non-road definissent la periode, puis `Road` la contraint;
+- `BaseNetwork` reste lossless et n'est pas mute.
+
+Validations executees:
+
+- `npm test`;
+- `./node_modules/.bin/tsc --noEmit --ignoreConfig --strict --moduleResolution bundler --module esnext --target es2022 src/lib/domain/data/*.ts src/lib/shared/*.ts`.
+
+Limites restantes:
+
+- le pipeline CSV complet reste a valider avec des tests d'integration sur fixtures;
+- `PreparedDataset` complet reste a construire;
+- les invariants ville et paires de villes ne sont pas encore produits depuis `BaseNetwork`.
 
 ## M3: Extraction Du Domaine Metier
 

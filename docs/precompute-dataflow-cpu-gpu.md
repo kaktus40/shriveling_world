@@ -187,35 +187,132 @@ interface PreparedDataset {
 
 ### 4. Span Temporel Et Vitesses
 
-Fonction cible: `prepareSpeedTimeline(preparedDataset)`
+Fonction cible: `prepareSpeedTimeline(baseNetwork, options)`
 
 - Acteur: CPU.
-- Entree: `PreparedDataset` avec modes, vitesses source et arcs connectes.
+- Entree: `BaseNetwork` lossless.
+- Equivalent historique:
+  - `identifyingRoadMode(transportModes)`;
+  - `historicalTimeSpan(result)`;
+  - `setSpeedDatas(result)`.
+- Principe de migration:
+  - ne pas muter `BaseNetwork`;
+  - conserver les valeurs source dans `SourceRecord`;
+  - produire une structure preparee dediee, orientee calcul;
+  - appliquer les unites SI dans les sorties preparees.
+
+Fonction: `identifyRoadMode(baseNetwork, options)`
+
+- Source:
+  - `transportModes.characteristic.name`;
+  - `transportModes.characteristic.code`;
+  - `transportModes.characteristic.terrestrial`.
 - Transformation:
-  - calcule `minSYear` et `maxSYear` depuis les vitesses connues;
-  - calcule `minEYear` et `maxEYear` depuis les dates des arcs;
-  - calcule `yearBegin` et `yearEnd` par mode;
-  - calcule le span global du modele;
-  - interpole `speedKPH` pour chaque mode et chaque annee;
-  - calcule `maxSpeedPerYear`;
-  - calcule `alpha` par mode et annee avec la formule historique;
-  - separe modes terrestres et non terrestres.
-- Sortie: `SpeedTimelinePrecompute`.
-- Diagnostics: interpolation impossible, speed invalide, span incoherent.
+  - normalise le nom par `trim().toLowerCase()`;
+  - cherche exactement un mode nomme `road`;
+  - verifie que ce mode est terrestre.
+- Sortie:
+  - `roadModeId`;
+  - `roadModeCode`.
+- Diagnostics:
+  - `road-mode-missing` si aucun mode `Road` n'existe;
+  - `road-mode-ambiguous` si plusieurs modes `Road` existent;
+  - `road-mode-not-terrestrial` si `Road` n'est pas terrestre.
+- Divergence volontaire:
+  - `toBabylon` utilise `modeName === 'Road'` et ne signale pas les erreurs;
+  - la migration rend la regle robuste et explicite.
+
+Fonction: `computeTransportModeTimeBounds(baseNetwork, roadReference)`
+
+- Source:
+  - annees `year` des records `transportModeSpeeds`;
+  - annees optionnelles `eYearBegin` et `eYearEnd` des records `transportNetwork`;
+  - liens edge -> mode deja etablis dans `BaseNetwork`.
+- Transformation:
+  - calcule `speedYearBegin` et `speedYearEnd` depuis les vitesses connues;
+  - calcule `edgeYearBegin` et `edgeYearEnd` depuis les arcs;
+  - si au moins un arc d'un mode n'a pas `eYearBegin`, alors `edgeYearBegin = null`;
+  - si au moins un arc d'un mode n'a pas `eYearEnd`, alors `edgeYearEnd = null`;
+  - calcule `yearBegin = max(speedYearBegin, edgeYearBegin ou -Infinity)`;
+  - calcule `yearEnd = min(speedYearEnd, edgeYearEnd ou Infinity)`.
+- Sortie:
+  - timeline par mode;
+  - periodes valides par mode.
+- Diagnostics:
+  - mode sans vitesse;
+  - vitesse invalide ou negative;
+  - periode de mode vide;
+  - mode non-road sans edge.
+- Point de coherence:
+  - `Road` peut ne pas etre present dans le reseau d'arcs; c'est l'exception documentee, car il porte la surface des cones.
+
+Fonction: `computeHistoricalTimeSpan(timelines, roadReference)`
+
+- Source:
+  - timelines des modes;
+  - reference `Road`.
+- Transformation:
+  - calcule d'abord l'etendue des modes non-road;
+  - restreint cette etendue par la disponibilite de `Road`;
+  - exige une periode non vide.
+- Sortie:
+  - `{ beginYear, endYear }`.
+- Diagnostics:
+  - aucun mode non-road exploitable;
+  - span global vide;
+  - road indisponible sur la periode differentielle.
+- Point a documenter:
+  - la documentation utilisateur indique qu'un `yearEndRoad` vide peut etre peuple avec l'annee courante;
+  - le code historique borne en pratique par les annees de vitesses;
+  - le premier portage suit le code historique et signale cette decision.
+
+Fonction: `prepareSpeedTimeline(baseNetwork, options)`
+
+- Source:
+  - `transportModes`;
+  - `transportModeSpeeds`;
+  - `transportNetwork`.
+- Transformation:
+  - identifie `Road`;
+  - calcule les bornes temporelles des modes;
+  - calcule le span historique global;
+  - trie les vitesses par mode et par annee;
+  - convertit `speedKPH` source en `speedMetersPerSecond`;
+  - interpole lineairement les vitesses par annee entiere;
+  - calcule `maxSpeedMetersPerSecondByYear`;
+  - calcule `alphaRadians = atan(sqrt((maxSpeed / speed) ^ 2 - 1))`;
+  - calcule `terrestrialMinAlphaRadiansByYear`;
+  - separe les modes en `cones` et `curves`.
+- Sortie: `PreparedSpeedTimeline`.
+- Diagnostics:
+  - `road-mode-*`;
+  - `transport-mode-without-speed`;
+  - `transport-mode-invalid-speed`;
+  - `transport-mode-empty-period`;
+  - `non-road-mode-without-edge`;
+  - `historical-span-empty`;
+  - `speed-interpolation-impossible`;
+  - `speed-alpha-not-finite`.
 
 Sortie attendue:
 
 ```ts
-interface SpeedTimelinePrecompute {
-  span: { begin: number; end: number };
+interface PreparedSpeedTimeline {
+  roadModeId: number;
+  roadModeCode: number;
+  span: { beginYear: number; endYear: number };
+  modes: PreparedTransportModeTimeline[];
   transportTypes: {
-    cones: string[];
-    curves: string[];
+    cones: number[];
+    curves: number[];
   };
-  speedPerModeByYear: Record<string, Record<string, { speed: number; alpha?: number }>>;
-  maxSpeedPerYear: Record<string, number>;
-  roadAlphaByYear: Record<string, number>;
-  terrestrialMinAlphaPerYear: Record<string, number>;
+  speedByModeByYear: Record<string, Record<string, {
+    speedMetersPerSecond: number;
+    alphaRadians: number;
+  }>>;
+  maxSpeedMetersPerSecondByYear: Record<string, number>;
+  terrestrialMinAlphaRadiansByYear: Record<string, number>;
+  diagnostics: DatasetDiagnostic[];
 }
 ```
 
