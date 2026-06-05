@@ -775,7 +775,18 @@ Critere d'acceptation:
 
 Validation:
 
-- A renseigner apres implementation.
+- Premier jalon GeoJSON:
+  - `src/lib/domain/geojson/types.ts`;
+  - `src/lib/domain/geojson/geometry.ts`;
+  - `src/lib/domain/geojson/precompute.ts`;
+  - `src/lib/domain/geojson/index.ts`.
+- Validations executees:
+  - `./node_modules/.bin/tsc --noEmit --ignoreConfig --strict --moduleResolution bundler --module esnext --target es2022 src/lib/domain/geojson/*.ts`;
+  - caracterisation en memoire sur un GeoJSON carre avec une ville dedans et une ville dehors.
+- Reste a faire:
+  - generation CPU de reference des limites par azimut;
+  - portage WebGPU/WGSL de `boundaryAlgebre.frag`;
+  - integration avec `PreparedDataset` quand la phase de precalcul reseau sera portee.
 
 ## M5: Rendu Babylon.js Minimal
 

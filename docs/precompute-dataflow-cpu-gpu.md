@@ -337,7 +337,7 @@ Fonction cible: `prepareBoundaryPrecompute(geojson, preparedDataset, staticTown,
   - conserve la generation de points interieurs par lattice de Fibonacci;
   - conserve une triangulation de l'ensemble contour densifie + points interieurs;
   - filtre les triangles dont le point representatif sort du contour;
-  - conserve les polygones Turf utilises par les tests point-dans-polygone;
+  - conserve les contours utilises par les tests point-dans-polygone;
   - construit le tableau `u_countries` contenant les contours de pays compactes;
   - conserve `boundariesSize` pour connaitre la taille reelle de chaque contour dans le tableau compacte;
   - associe chaque ville a un polygone de pays avec la logique de `townLimits`;
@@ -355,7 +355,7 @@ Decisions validees:
 - `Earcut` seul n'est donc pas retenu comme remplacement principal: il triangule les points fournis, mais ne genere pas les points internes necessaires au rendu 3D.
 - L'approche de `toBabylon` reste la base: contour densifie + points interieurs par Fibonacci + triangulation + filtrage des triangles hors contour.
 - `Delaunator` reste coherent avec cette approche car il triangule efficacement un nuage de points 2D. La correction geometrique vient ensuite du filtrage par appartenance au contour.
-- Un test point-dans-polygone reste necessaire pour filtrer les triangles et associer les villes aux contours. Turf est acceptable pour ce role, sauf remplacement ulterieur par une bibliotheque plus performante et equivalente.
+- Un test point-dans-polygone reste necessaire pour filtrer les triangles et associer les villes aux contours. Le premier portage utilise une implementation interne par crossing-number; Turf reste acceptable si l'on veut le reintegrer plus tard.
 - Le parametre historique `subdivision` sera remplace par un parametre explicite `azimuthSampleCount`.
 
 Fonctions historiques concernees:
@@ -420,6 +420,17 @@ Portage prevu:
 1. Porter la preparation CPU pure du mesh pays et de l'association ville -> contour.
 2. Ajouter une generation CPU de reference des limites par azimut pour les datasets de test restreints.
 3. Porter ensuite l'algorithme de `boundaryAlgebre.frag` en WGSL pour produire directement `townBoundaryEcef` cote WebGPU.
+
+Etat d'implementation:
+
+- `src/lib/domain/geojson/types.ts` definit les contrats TypeDoc du precalcul GeoJSON.
+- `src/lib/domain/geojson/geometry.ts` porte les fonctions pures: ouverture de ring, bounding box, point-dans-polygone, densification et points internes Fibonacci.
+- `src/lib/domain/geojson/precompute.ts` porte le premier jalon CPU:
+  - extraction des contours externes `Polygon` et `MultiPolygon`;
+  - generation du mesh pays avec contour densifie, points internes, Delaunator, filtrage et extrusion;
+  - compactage des contours;
+  - association ville -> contour.
+- La generation CPU des limites par azimut et le portage WGSL de `boundaryAlgebre.frag` restent a faire.
 
 ### 9. Preparation GPU
 
