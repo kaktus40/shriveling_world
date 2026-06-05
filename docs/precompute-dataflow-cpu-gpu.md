@@ -338,10 +338,11 @@ Fonction cible: `prepareBoundaryPrecompute(geojson, preparedDataset, staticTown,
   - conserve une triangulation de l'ensemble contour densifie + points interieurs;
   - filtre les triangles dont le point representatif sort du contour;
   - conserve les contours utilises par les tests point-dans-polygone;
-  - construit le tableau `u_countries` contenant les contours de pays compactes;
+  - construit `countryContourBuffer` en radians et `countryContourNVectors` pour les calculs intensifs;
   - conserve `boundariesSize` pour connaitre la taille reelle de chaque contour dans le tableau compacte;
   - associe chaque ville a un polygone de pays avec la logique de `townLimits`;
-  - produit `u_towns`, avec longitude, latitude et index du pays associe;
+  - produit `cityContourIndexes`, dans le meme ordre que les villes issues de l'ingestion CSV;
+  - consomme plus tard `cityNed2EcefMatrices` a la place de l'ancien `u_towns`;
   - prepare les entrees de la future passe WebGPU equivalente a `boundaryAlgebre.frag`;
   - construit un buffer de limites indexe par ville et azimut.
 - Sortie: `BoundaryPrecompute`.
@@ -380,13 +381,12 @@ interface CountryRenderPreGeometry {
 
 interface BoundaryPrecompute {
   countryGeometries: CountryRenderPreGeometry[];
-  countryPolygons: GeoJSON.Feature<GeoJSON.Polygon>[];
+  contours: CountryContour[];
   countryContourBuffer: Float32Array;
   countryContourSizes: Int32Array;
   townCountryIndexes: Int32Array;
-  townBoundaryCartographic: Float32Array;
-  townBoundaryEcef: Float32Array;
   azimuthSampleCount: number;
+  diagnostics: BoundaryDiagnostic[];
 }
 ```
 
@@ -394,8 +394,8 @@ Options cible:
 
 ```ts
 interface BoundaryPrecomputeOptions {
-  contourMaxSegmentDegrees: number;
-  interiorPointSpacingDegrees: number;
+  contourMaxSegmentRadians: number;
+  interiorPointSpacingRadians: number;
   azimuthSampleCount: number;
   countryExtrusionHeightMeters: number;
 }
@@ -403,10 +403,22 @@ interface BoundaryPrecomputeOptions {
 
 Strides a formaliser:
 
-- `countryContourBuffer`: stride 2, `[longitudeDeg, latitudeDeg]`.
-- `u_towns` historique: stride 3, `[longitudeDeg, latitudeDeg, countryIndex]`.
-- `townBoundaryCartographic`: sortie par ville et azimut, issue de `boundLimits`.
-- `townBoundaryEcef`: sortie par ville et azimut, issue de `ECEFBoundLimits`.
+- `countryContourBuffer`: stride 2, `[longitudeRadians, latitudeRadians]`.
+- `countryContourNVectors`: stride 4, `[x, y, z, padding]`, derive de `countryContourBuffer` pour eviter de refaire `ToNVector` dans les shaders.
+- `cityNed2EcefMatrices`: stride 16, matrice `NED2ECEF` par ville, dans l'ordre stable produit par l'ingestion CSV.
+- `cityContourIndexes`: stride 1, index du contour associe a chaque ville, dans le meme ordre que `cityNed2EcefMatrices`.
+- `azimuthIntervals`: stride 2, `[minRadians, maxRadians]`; les intervalles sont continus et peuvent sortir de `[0, 2PI]`, par exemple `[-1 deg, 1 deg]` converti en radians.
+- `townBoundaryAngular`: sortie par ville et intervalle d'azimut, stride 4, `[longitudeRadians, latitudeRadians, angularDistanceRadians, validIntersection]`.
+- `townBoundaryEcef`: sortie par ville et intervalle d'azimut, stride 4, `[xMeters, yMeters, zMeters, validIntersection]`.
+
+Regle d'unites:
+
+- les donnees internes sont exprimees en systeme international;
+- les angles internes sont exprimes en radians;
+- les distances internes sont exprimees en metres;
+- les coordonnees GeoJSON en degres sont converties en radians a la frontiere d'import;
+- aucune conversion degres/radians ne doit rester dans le coeur de calcul ni dans les shaders WGSL;
+- les degres ne sont utilises que pour l'entree humaine, l'affichage humain ou la lecture de formats externes.
 
 Point important:
 
@@ -418,8 +430,48 @@ Le traitement GeoJSON a deux sorties distinctes et il ne faut pas les confondre:
 Portage prevu:
 
 1. Porter la preparation CPU pure du mesh pays et de l'association ville -> contour.
-2. Ajouter une generation CPU de reference des limites par azimut pour les datasets de test restreints.
-3. Porter ensuite l'algorithme de `boundaryAlgebre.frag` en WGSL pour produire directement `townBoundaryEcef` cote WebGPU.
+2. Produire les buffers invariants pour les calculs intensifs: contours en radians, contours en n-vectors, associations ville -> contour, matrices `NED2ECEF` par ville et intervalles d'azimut.
+3. Ajouter une generation CPU de reference des limites par azimut pour les datasets de test restreints.
+4. Porter ensuite l'algorithme de `boundaryAlgebre.frag` en WGSL pour produire directement `townBoundaryAngular` et `townBoundaryEcef` cote WebGPU.
+
+Remplacement de `boundaryAlgebre.frag`:
+
+- l'ancien `u_towns` `[longitudeDeg, latitudeDeg, countryIndex]` est remplace par deux entrees:
+  - `cityNed2EcefMatrices`, qui porte la position ECEF et les axes `north`, `east`, `down` de chaque ville;
+  - `cityContourIndexes`, qui porte l'association ville -> contour;
+- l'ancien `u_countries` en degres est remplace par:
+  - `countryContourBuffer` en radians pour la representation lossless/precalcul;
+  - `countryContourNVectors` pour les calculs intensifs;
+- `PI`, `TWO_PI`, `HALF_PI` et `EARTH_RADIUS_METERS` sont des constantes partagees par tous les processus de calcul;
+- le centre d'un intervalle d'azimut n'est pas stocke: il est calcule par `(minRadians + maxRadians) / 2` parce que les intervalles fournis sont continus;
+- le shader WebGPU utilise `global_invocation_id.x = cityIndex` et `global_invocation_id.y = azimuthIntervalIndex`;
+- chaque invocation calcule une sortie pour un couple `(ville, intervalle d'azimut)`;
+- `validIntersection` indique si une intersection exploitable a ete trouvee pour ce couple. La valeur evite de s'appuyer sur `NaN` ou sur une distance sentinelle fragile dans les buffers GPU.
+
+Contrat `NED2ECEF`:
+
+La matrice `NED2ECEF` est stockee en column-major, comme GLSL/WGSL:
+
+```txt
+colonne 0: north.xyz, 0
+colonne 1: east.xyz, 0
+colonne 2: down.xyz, 0
+colonne 3: translation ECEF en metres, 1
+```
+
+La fonction historique `MatNED2ECEF` de `toBabylon` contenait une erreur validee pendant la migration:
+
+```glsl
+float sPhi = cos(coordLonLat.y);
+```
+
+Avec la convention utilisee par `ToNVector`, `coordLonLat.y` est une latitude terrestre, dont le zero est le plan equatorial. La valeur correcte est donc:
+
+```glsl
+float sPhi = sin(coordLonLat.y);
+```
+
+La migration ne doit pas recopier l'anomalie historique. Le contrat cible est la latitude terrestre en radians, pas la colatitude mathematique.
 
 Etat d'implementation:
 
@@ -430,7 +482,7 @@ Etat d'implementation:
   - generation du mesh pays avec contour densifie, points internes, Delaunator, filtrage et extrusion;
   - compactage des contours;
   - association ville -> contour.
-- La generation CPU des limites par azimut et le portage WGSL de `boundaryAlgebre.frag` restent a faire.
+- La generation des matrices `NED2ECEF`, la generation CPU des limites par azimut et le portage WGSL de `boundaryAlgebre.frag` restent a faire.
 
 ### 9. Preparation GPU
 

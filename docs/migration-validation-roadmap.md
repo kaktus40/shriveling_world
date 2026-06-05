@@ -561,9 +561,9 @@ interface BaseCity {
   id: number;
   characteristic: {
     cityCode: number;
-    latitude: number;
-    longitude: number;
-    radius: number;
+    latitudeRadians: number;
+    longitudeRadians: number;
+    radiusMeters: number;
   };
   raw: Record<string, unknown>;
   linkedRecords: Record<string, SourceRecord[]>;
@@ -783,7 +783,24 @@ Validation:
 - Validations executees:
   - `./node_modules/.bin/tsc --noEmit --ignoreConfig --strict --moduleResolution bundler --module esnext --target es2022 src/lib/domain/geojson/*.ts`;
   - caracterisation en memoire sur un GeoJSON carre avec une ville dedans et une ville dehors.
+- Decisions validees pour le remplacement de `boundaryAlgebre.frag`:
+  - toutes les coordonnees angulaires internes sont en radians;
+  - les distances internes sont en metres;
+  - `u_towns` ne sera pas reconduit comme buffer `[longitude, latitude, countryIndex]`;
+  - la position et le repere local de chaque ville seront portes par un buffer `cityNed2EcefMatrices` calcule par WebGPU et ordonne selon la sortie de l'ingestion CSV;
+  - l'association ville -> contour sera portee par un buffer separe `cityContourIndexes`, dans le meme ordre que `cityNed2EcefMatrices`;
+  - les contours pays seront disponibles en radians et en n-vectors pour eviter les conversions repetees dans les shaders;
+  - les intervalles d'azimut seront injectes sous forme continue `[minRadians, maxRadians]`, sans stockage de `centerRadians`;
+  - le centre d'un intervalle est calcule par `(minRadians + maxRadians) / 2`;
+  - `PI`, `TWO_PI`, `HALF_PI` et `EARTH_RADIUS_METERS` sont des constantes globales partagees par les processus TypeScript et WGSL;
+  - le mapping WebGPU cible est `global_invocation_id.x = cityIndex` et `global_invocation_id.y = azimuthIntervalIndex`.
+- Correction historique constatee:
+  - `MatNED2ECEF` dans `toBabylon/src/application/common/shaders/sphericalCalculus.glsl` utilisait `cos(latitude)` pour `sPhi`;
+  - la convention du projet utilise une latitude terrestre en radians, donc `sPhi` doit etre `sin(latitude)`;
+  - la migration doit partir du contrat corrige et ne pas recopier cette anomalie.
 - Reste a faire:
+  - produire la bibliotheque de fonctions mathematiques partagees TypeScript/WGSL;
+  - produire le buffer `cityNed2EcefMatrices` dans la phase de calcul WebGPU dediee;
   - generation CPU de reference des limites par azimut;
   - portage WebGPU/WGSL de `boundaryAlgebre.frag`;
   - integration avec `PreparedDataset` quand la phase de precalcul reseau sera portee.

@@ -1,14 +1,14 @@
-import type { LonLatDegrees } from './types';
+import type { LonLatRadians } from './types';
 
 const GOLDEN_RATIO = (1 + Math.sqrt(5)) / 2;
 
-/** Converts degrees to radians. */
+/** Converts external degrees to internal radians. */
 export function degreesToRadians(value: number): number {
 	return (value * Math.PI) / 180;
 }
 
 /** Returns a copy of a ring without a duplicated closing point. */
-export function openRing(ring: LonLatDegrees[]): LonLatDegrees[] {
+export function openRing(ring: LonLatRadians[]): LonLatRadians[] {
 	if (ring.length < 2) {
 		return [...ring];
 	}
@@ -20,8 +20,8 @@ export function openRing(ring: LonLatDegrees[]): LonLatDegrees[] {
 	return [...ring];
 }
 
-/** Computes a planar bounding box `[lonMin, lonMax, latMin, latMax]` for degree coordinates. */
-export function boundingBox(points: LonLatDegrees[]): [number, number, number, number] {
+/** Computes a planar bounding box `[lonMin, lonMax, latMin, latMax]` for radian coordinates. */
+export function boundingBox(points: LonLatRadians[]): [number, number, number, number] {
 	let lonMin = Infinity;
 	let lonMax = -Infinity;
 	let latMin = Infinity;
@@ -38,7 +38,7 @@ export function boundingBox(points: LonLatDegrees[]): [number, number, number, n
 }
 
 /** Returns true when a point belongs to a polygon ring using the crossing-number rule. */
-export function pointInRing(point: LonLatDegrees, ring: LonLatDegrees[]): boolean {
+export function pointInRing(point: LonLatRadians, ring: LonLatRadians[]): boolean {
 	let inside = false;
 	const [pointLon, pointLat] = point;
 	const openedRing = openRing(ring);
@@ -59,14 +59,14 @@ export function pointInRing(point: LonLatDegrees, ring: LonLatDegrees[]): boolea
 	return inside;
 }
 
-/** Interpolates one contour so no segment exceeds the requested planar degree length. */
-export function densifyRing(ring: LonLatDegrees[], maxSegmentDegrees: number): LonLatDegrees[] {
+/** Interpolates one contour so no segment exceeds the requested planar angular length. */
+export function densifyRing(ring: LonLatRadians[], maxSegmentRadians: number): LonLatRadians[] {
 	const openedRing = openRing(ring);
-	if (openedRing.length < 2 || maxSegmentDegrees <= 0) {
+	if (openedRing.length < 2 || maxSegmentRadians <= 0) {
 		return openedRing;
 	}
 
-	const result: LonLatDegrees[] = [];
+	const result: LonLatRadians[] = [];
 	for (let index = 0; index < openedRing.length; index++) {
 		const current = openedRing[index];
 		const next = openedRing[(index + 1) % openedRing.length];
@@ -75,7 +75,7 @@ export function densifyRing(ring: LonLatDegrees[], maxSegmentDegrees: number): L
 		const deltaLon = next[0] - current[0];
 		const deltaLat = next[1] - current[1];
 		const distance = Math.sqrt(deltaLon * deltaLon + deltaLat * deltaLat);
-		const insertedCount = Math.max(0, Math.ceil(distance / maxSegmentDegrees) - 1);
+		const insertedCount = Math.max(0, Math.ceil(distance / maxSegmentRadians) - 1);
 		for (let inserted = 1; inserted <= insertedCount; inserted++) {
 			const ratio = inserted / (insertedCount + 1);
 			result.push([current[0] + deltaLon * ratio, current[1] + deltaLat * ratio]);
@@ -87,21 +87,21 @@ export function densifyRing(ring: LonLatDegrees[], maxSegmentDegrees: number): L
 
 /** Generates candidate interior points using the Fibonacci-lattice strategy from the historical code. */
 export function fibonacciLattice(
-	spacingDegrees: number,
+	spacingRadians: number,
 	[lonMin, lonMax, latMin, latMax]: [number, number, number, number]
-): LonLatDegrees[] {
-	if (spacingDegrees <= 0) {
+): LonLatRadians[] {
+	if (spacingRadians <= 0) {
 		return [];
 	}
 
-	const pointCount = Math.max(1, Math.round((360 / spacingDegrees) ** 2 / Math.PI));
-	const longitudeAt = (index: number) => (((index / GOLDEN_RATIO) * 360) % 360) - 180;
-	const latitudeAt = (index: number) => Math.acos((2 * index) / pointCount - 1) * (180 / Math.PI) - 90;
-	const indexAtLatitude = (latitude: number) => (pointCount * (Math.cos((latitude + 90) * (Math.PI / 180)) + 1)) / 2;
+	const pointCount = Math.max(1, Math.round(((2 * Math.PI) / spacingRadians) ** 2 / Math.PI));
+	const longitudeAt = (index: number) => (((index / GOLDEN_RATIO) * 2 * Math.PI) % (2 * Math.PI)) - Math.PI;
+	const latitudeAt = (index: number) => Math.acos((2 * index) / pointCount - 1) - Math.PI / 2;
+	const indexAtLatitude = (latitude: number) => (pointCount * (Math.cos(latitude + Math.PI / 2) + 1)) / 2;
 
 	const firstIndex = Math.max(0, Math.ceil(indexAtLatitude(latMax)));
 	const lastIndex = Math.min(pointCount - 1, Math.floor(indexAtLatitude(latMin)));
-	const points: LonLatDegrees[] = [];
+	const points: LonLatRadians[] = [];
 
 	for (let index = firstIndex; index <= lastIndex; index++) {
 		const longitude = longitudeAt(index);
@@ -114,16 +114,15 @@ export function fibonacciLattice(
 }
 
 /** Generates interior points that belong to the provided ring. */
-export function generateInteriorPoints(ring: LonLatDegrees[], spacingDegrees: number): LonLatDegrees[] {
+export function generateInteriorPoints(ring: LonLatRadians[], spacingRadians: number): LonLatRadians[] {
 	const box = boundingBox(ring);
-	return fibonacciLattice(spacingDegrees, box).filter((point) => pointInRing(point, ring));
+	return fibonacciLattice(spacingRadians, box).filter((point) => pointInRing(point, ring));
 }
 
 /** Returns the centroid of one triangle represented by three point indexes. */
-export function triangleCentroid(points: LonLatDegrees[], indexA: number, indexB: number, indexC: number): LonLatDegrees {
+export function triangleCentroid(points: LonLatRadians[], indexA: number, indexB: number, indexC: number): LonLatRadians {
 	const pointA = points[indexA];
 	const pointB = points[indexB];
 	const pointC = points[indexC];
 	return [(pointA[0] + pointB[0] + pointC[0]) / 3, (pointA[1] + pointB[1] + pointC[1]) / 3];
 }
-

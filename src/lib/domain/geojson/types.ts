@@ -1,7 +1,7 @@
 import type GeoJSON from 'geojson';
 
-/** A longitude/latitude pair expressed in degrees. */
-export type LonLatDegrees = readonly [longitude: number, latitude: number];
+/** A longitude/latitude pair expressed in radians, the internal angular unit. */
+export type LonLatRadians = readonly [longitude: number, latitude: number];
 
 /** Inclusive/exclusive range inside a flat vertex array. */
 export interface MarkedRange {
@@ -13,10 +13,10 @@ export interface MarkedRange {
 
 /** Options controlling country mesh and boundary precomputation. */
 export interface BoundaryPrecomputeOptions {
-	/** Maximum contour segment length before inserting intermediate contour points, in degrees. */
-	contourMaxSegmentDegrees: number;
-	/** Approximate spacing used to generate interior Fibonacci points, in degrees. */
-	interiorPointSpacingDegrees: number;
+	/** Maximum contour segment angular length before inserting intermediate contour points, in radians. */
+	contourMaxSegmentRadians: number;
+	/** Approximate angular spacing used to generate interior Fibonacci points, in radians. */
+	interiorPointSpacingRadians: number;
 	/** Number of azimuth samples around each town for future boundary clipping buffers. */
 	azimuthSampleCount: number;
 	/** Height used for the duplicated extruded country surface, in meters. */
@@ -31,8 +31,8 @@ export interface CountryContour {
 	contourIndex: number;
 	/** Source feature properties preserved for picking and queries. */
 	properties: GeoJSON.GeoJsonProperties;
-	/** External contour coordinates in degrees. Holes are deliberately excluded. */
-	ring: LonLatDegrees[];
+	/** External contour coordinates in radians. Holes are deliberately excluded. */
+	ring: LonLatRadians[];
 }
 
 /** Renderable pre-geometry for one country or country part. */
@@ -59,10 +59,10 @@ export interface TownBoundaryInput {
 	cityId: number;
 	/** Source city code. */
 	cityCode: number;
-	/** Longitude in degrees. */
-	longitude: number;
-	/** Latitude in degrees. */
-	latitude: number;
+	/** Longitude in radians. */
+	longitudeRadians: number;
+	/** Latitude in radians. */
+	latitudeRadians: number;
 	/** Optional city name, used only for diagnostics. */
 	cityName?: string;
 }
@@ -93,7 +93,7 @@ export interface BoundaryPrecompute {
 	contours: CountryContour[];
 	/** Country render meshes generated from contours and interior points. */
 	countryGeometries: CountryRenderPreGeometry[];
-	/** Compact contour buffer, stride 2: `[longitudeDeg, latitudeDeg]`. */
+	/** Compact contour buffer, stride 2: `[longitudeRadians, latitudeRadians]`. */
 	countryContourBuffer: Float32Array;
 	/** Number of contour points per retained contour. */
 	countryContourSizes: Int32Array;
@@ -106,4 +106,3 @@ export interface BoundaryPrecompute {
 	/** Diagnostics collected during extraction, meshing, and association. */
 	diagnostics: BoundaryDiagnostic[];
 }
-

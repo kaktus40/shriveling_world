@@ -14,14 +14,14 @@ import type {
 	BoundaryPrecomputeOptions,
 	CountryContour,
 	CountryRenderPreGeometry,
-	LonLatDegrees,
+	LonLatRadians,
 	TownBoundaryInput,
 	TownCountryAssociation,
 } from './types';
 
 const DEFAULT_OPTIONS: BoundaryPrecomputeOptions = {
-	contourMaxSegmentDegrees: 5,
-	interiorPointSpacingDegrees: 5,
+	contourMaxSegmentRadians: degreesToRadians(5),
+	interiorPointSpacingRadians: degreesToRadians(5),
 	azimuthSampleCount: 360,
 	countryExtrusionHeightMeters: 0,
 };
@@ -33,10 +33,10 @@ function normalizeOptions(options: Partial<BoundaryPrecomputeOptions> = {}): Bou
 	};
 }
 
-function toLonLatRing(positions: GeoJSON.Position[]): LonLatDegrees[] {
+function toLonLatRing(positions: GeoJSON.Position[]): LonLatRadians[] {
 	return positions
 		.filter((position) => Number.isFinite(position[0]) && Number.isFinite(position[1]))
-		.map((position) => [position[0], position[1]]);
+		.map((position) => [degreesToRadians(position[0]), degreesToRadians(position[1])]);
 }
 
 function extractFeatureContours(feature: GeoJSON.Feature, featureIndex: number, diagnostics: BoundaryDiagnostic[]): CountryContour[] {
@@ -90,8 +90,8 @@ export function generateCountryGeometry(
 	options: BoundaryPrecomputeOptions,
 	diagnostics: BoundaryDiagnostic[] = []
 ): CountryRenderPreGeometry {
-	const densifiedContour = densifyRing(contour.ring, options.contourMaxSegmentDegrees);
-	const interiorPoints = generateInteriorPoints(densifiedContour, options.interiorPointSpacingDegrees);
+	const densifiedContour = densifyRing(contour.ring, options.contourMaxSegmentRadians);
+	const interiorPoints = generateInteriorPoints(densifiedContour, options.interiorPointSpacingRadians);
 	const triangulationPoints = [...densifiedContour, ...interiorPoints];
 	const coords = Float64Array.from(triangulationPoints.flat());
 	const triangles = new Delaunator(coords).triangles;
@@ -121,13 +121,13 @@ export function generateCountryGeometry(
 	const uvs: number[] = [];
 
 	for (const [longitude, latitude] of triangulationPoints) {
-		vertices.push(degreesToRadians(longitude), degreesToRadians(latitude), 0);
-		uvs.push(degreesToRadians(longitude) / (2 * Math.PI) + 0.5, degreesToRadians(latitude) / Math.PI + 0.5);
+		vertices.push(longitude, latitude, 0);
+		uvs.push(longitude / (2 * Math.PI) + 0.5, latitude / Math.PI + 0.5);
 	}
 
 	for (const [longitude, latitude] of triangulationPoints) {
-		vertices.push(degreesToRadians(longitude), degreesToRadians(latitude), options.countryExtrusionHeightMeters);
-		uvs.push(degreesToRadians(longitude) / (2 * Math.PI) + 0.5, degreesToRadians(latitude) / Math.PI + 0.5);
+		vertices.push(longitude, latitude, options.countryExtrusionHeightMeters);
+		uvs.push(longitude / (2 * Math.PI) + 0.5, latitude / Math.PI + 0.5);
 	}
 
 	const bottomTriangleIndexCount = indexes.length;
@@ -187,7 +187,7 @@ export function associateTownsToContours(
 	const associations: TownCountryAssociation[] = [];
 
 	towns.forEach((town) => {
-		const point: LonLatDegrees = [town.longitude, town.latitude];
+		const point: LonLatRadians = [town.longitudeRadians, town.latitudeRadians];
 		const contourIndex = contours.findIndex((contour) => pointInRing(point, contour.ring));
 		if (contourIndex === -1) {
 			diagnostics.push({
@@ -196,8 +196,8 @@ export function associateTownsToContours(
 				cityId: town.cityId,
 				cityCode: town.cityCode,
 				cityName: town.cityName,
-				longitude: town.longitude,
-				latitude: town.latitude,
+				longitudeRadians: town.longitudeRadians,
+				latitudeRadians: town.latitudeRadians,
 			});
 		}
 		indexes[town.cityId] = contourIndex;
