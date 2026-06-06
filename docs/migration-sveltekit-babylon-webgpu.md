@@ -830,6 +830,12 @@ Critere de validation:
 
 ## Phase 4: Rendu Babylon.js
 
+> Decision mise a jour: Babylon.js reste un candidat, mais n'est plus considere
+> comme le renderer definitivement selectionne. Cette phase est differee et sera
+> remplacee par un prototype comparatif Babylon.js / luma.gl lorsque les buffers
+> finaux seront suffisamment stables. Voir `docs/renderer-evaluation.md` et le
+> jalon M5 de `docs/migration-validation-roadmap.md`.
+
 Objectif: remplacer Three.js par Babylon.js pour l'affichage, sans changer encore les algorithmes intensifs.
 
 Actions:
@@ -1026,6 +1032,11 @@ Critere de validation:
 - performances compatibles avec l'interaction.
 
 ## Phase 8: Integration Babylon.js Et WebGPU
+
+> Decision mise a jour: le renderer cite dans cette phase sera celui retenu
+> apres le prototype comparatif documente dans `docs/renderer-evaluation.md`.
+> Le contrat reste identique: le renderer consomme les buffers finaux sans
+> participer aux calculs amont.
 
 Objectif: connecter les buffers produits par WebGPU au rendu Babylon.js.
 

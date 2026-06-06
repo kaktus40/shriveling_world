@@ -70,7 +70,7 @@ Utiliser les statuts suivants:
 | M3.1 | in_progress | Inspection dataset et assemblage lossless du reseau |
 | M4 | todo | Architecture explicite de precalcul |
 | M4.1 | validated | Socle de tests CPU et contrats de buffers |
-| M5 | todo | Rendu Babylon.js minimal |
+| M5 | deferred | Prototype comparatif de rendu Babylon.js / luma.gl |
 | M6 | todo | Framework WebGPU compute minimal |
 | M7 | todo | Portage WGSL des passes existantes |
 | M8 | todo | Nouveau pipeline d'intersections |
@@ -954,45 +954,58 @@ Validation:
   - la conformite CPU/GPU sera ajoutee dans `tests/conformance/cpu-gpu`;
   - le jalon M3/M3.1 CSV reste a reprendre: les tests ajoutes ici ne valident que `src/lib/shared` et `src/lib/domain/geojson`.
 
-## M5: Rendu Babylon.js Minimal
+## M5: Prototype Comparatif Du Renderer
 
-Statut: `todo`
+Statut: `deferred`
 
 Objectif:
 
-Introduire Babylon.js comme renderer principal sans migrer encore tout le compute vers WebGPU.
+Selectionner le moteur de rendu uniquement lorsque les buffers finaux sont
+suffisamment matures pour comparer Babylon.js et luma.gl sur des entrees
+strictement identiques.
+
+Decision differee:
+
+- Babylon.js reste un candidat, pas un choix definitif;
+- luma.gl est le principal candidat alternatif;
+- le renderer consomme uniquement les buffers finaux et ne participe a aucun
+  calcul amont;
+- les conditions de declenchement et criteres sont detailles dans
+  `docs/renderer-evaluation.md`.
 
 Travail attendu:
 
-- creer une scene Babylon;
+- definir une interface `RenderBackend` independante;
+- creer un prototype Babylon.js;
+- creer un prototype luma.gl;
 - afficher les pays ou frontieres;
 - afficher les villes;
-- afficher un cone simple ou une geometrie issue du pipeline existant;
+- afficher un volume representatif de cones et courbes;
 - fournir une camera et une interaction minimale;
-- isoler Babylon dans `render/babylon`.
+- comparer performances, qualite, picking et cout d'ingenierie.
 
 Architecture cible:
 
 ```text
-src/lib/render/babylon/
-  BabylonScene.ts
-  CountryLayer.ts
-  CityLayer.ts
-  ConeLayer.ts
-  CurveLayer.ts
-  materials.ts
+src/lib/render/
+  contract/
+  babylon/
+  luma/
 ```
 
 Critere d'acceptation:
 
-- Babylon affiche un dataset de reference;
-- le domaine ne depend pas de Babylon;
+- les deux prototypes consomment les memes buffers finaux;
+- les mesures de rendu sont separees des mesures compute;
+- une decision argumentee est enregistree dans `docs/renderer-evaluation.md`;
+- le domaine et le framework compute ne dependent d'aucun renderer;
 - les tests M1 a M4 passent;
-- Three.js est soit encore present temporairement, soit retire uniquement des zones migrees.
+- le renderer retenu affiche un dataset de reference.
 
 Validation:
 
-- A renseigner apres implementation.
+- Jalon volontairement differe jusqu'a stabilisation des buffers finaux pays,
+  villes, cones et courbes.
 
 ## M6: Framework WebGPU Compute Minimal
 
