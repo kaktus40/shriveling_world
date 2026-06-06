@@ -1,0 +1,41 @@
+@startuml
+title Reference CPU - Generation des cones bruts
+
+|Entrees invariantes|
+start
+:cityNed2EcefMatrices\nposition et repere NED par ville;
+:azimuthSampleCount\nconeLengthMeters;
+
+|Entrees annuelles|
+:roadAlphaRadians;
+:cityFastestTerrestrialAlphaRadians;
+:liens directionnels\nazimut + alpha;
+
+|Selection de l'alpha|
+if (forme Road ?) then (oui)
+  :alpha = roadAlpha;
+elseif (forme reguliere rapide ?) then (oui)
+  :alpha = minimum terrestre connecte;
+else (cone complexe)
+  :chercher le lien inferieur circulaire;
+  :chercher le lien superieur circulaire;
+  :remplacer un cote trop eloigne\npar roadAlpha a attenuationRadians;
+  :interpoler avec smoothstep;
+endif
+:ecrire coneAlphaRadians\n[ville, echantillon azimut];
+
+|Geometrie locale NED|
+:azimut = index * 2 PI / azimuthSampleCount;
+:Nord = longueur * cos(alpha) * cos(azimut);
+:Est = longueur * cos(alpha) * sin(azimut);
+:Bas = longueur * sin(alpha);
+
+|Transformation ECEF|
+:appliquer cityNed2EcefMatrices;
+:ecrire rawConeRimEcef\nvec4 en metres;
+
+|Sorties|
+:ConeAlphaSampleBuffers;
+:RawConePrecompute;
+stop
+@enduml

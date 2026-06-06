@@ -1158,6 +1158,27 @@ Sortie:
 
 - `RawConeBuffer`.
 
+Reference CPU implementee:
+
+```ts
+interface RawConePrecompute {
+  cityCount: number;
+  azimuthSampleCount: number;
+  shape: 'road' | 'fastest-terrestrial' | 'complex';
+  coneLengthMeters: number;
+  coneAlphaRadians: Float32Array;
+  rawConeRimEcef: Float32Array;
+}
+```
+
+- `coneAlphaRadians` est dense par `[ville, azimut]`;
+- `rawConeRimEcef` utilise un `vec4<f32>` par echantillon, en metres;
+- le sommet n'est pas duplique: il reste dans `cityNed2EcefMatrices`;
+- le profil CPU constitue la reference de conformite des futurs kernels;
+- l'attenuation complexe reproduit les deux voisins circulaires, le retour a
+  Road et l'interpolation `smoothstep` du shader historique;
+- les bornes angulaires utilisent une tolerance compatible Float32.
+
 ```plantuml
 @startuml
 title Etape 7 - RawConePass
@@ -1468,7 +1489,7 @@ participant "Babylon Layers" as Babylon
 User -> UI : changeYear(year)
 UI -> TS : computeVisualization(year, params)
 TS -> Cache : getDynamicTownPrecompute(year)
-Cache --> TS : cityLinks, citiesDict, roadAlpha
+Cache --> TS : offsets, comptes, azimuts, alphas, roadAlphaRadians
 TS -> GPU : writeBuffer(dynamic buffers)
 TS -> GPU : dispatch RawConePass
 TS -> GPU : dispatch ConeConeIntersectionPass

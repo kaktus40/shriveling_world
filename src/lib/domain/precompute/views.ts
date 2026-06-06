@@ -5,12 +5,14 @@ import {
 	CITY_PAIR_INVARIANT_STRIDE,
 	CURVE_CONTROL_POINT_STRIDE,
 	CURVE_EDGE_PAIR_STRIDE,
+	type RawConePrecompute,
 	type CityInvariantBuffers,
 	type CityPairInvariantBuffers,
 	type CurveControlBuffers,
 	type DynamicTownPrecompute,
 	type OverlapCandidateBuffers,
 } from './types';
+import { RAW_CONE_RIM_ECEF_STRIDE } from './raw-cone-cpu';
 import { getCityPairIndex } from './static-town-cpu';
 
 /**
@@ -291,5 +293,41 @@ export class DynamicCityLinkView {
 
 	get alphaRadians(): number {
 		return this.#dynamicTown.cityLinkAlphaRadians[this.#linkIndex];
+	}
+}
+
+/** Read-only view over one raw cone rim sample in shared buffers. */
+export class RawConeRimView {
+	readonly #rawCone: RawConePrecompute;
+	readonly #sampleOffset: number;
+
+	constructor(rawCone: RawConePrecompute, cityIndex: number, azimuthSampleIndex: number) {
+		if (!Number.isSafeInteger(cityIndex) || cityIndex < 0 || cityIndex >= rawCone.cityCount) {
+			throw new RangeError('cityIndex must be a valid raw-cone city index');
+		}
+		if (
+			!Number.isSafeInteger(azimuthSampleIndex) ||
+			azimuthSampleIndex < 0 ||
+			azimuthSampleIndex >= rawCone.azimuthSampleCount
+		) {
+			throw new RangeError('azimuthSampleIndex must be a valid raw-cone sample index');
+		}
+		this.#rawCone = rawCone;
+		this.#sampleOffset = cityIndex * rawCone.azimuthSampleCount + azimuthSampleIndex;
+	}
+
+	/** Selected directional alpha in radians. */
+	get alphaRadians(): number {
+		return this.#rawCone.coneAlphaRadians[this.#sampleOffset];
+	}
+
+	/** Raw cone rim position in ECEF meters. */
+	get ecefMeters(): Vec3 {
+		const offset = this.#sampleOffset * RAW_CONE_RIM_ECEF_STRIDE;
+		return [
+			this.#rawCone.rawConeRimEcef[offset],
+			this.#rawCone.rawConeRimEcef[offset + 1],
+			this.#rawCone.rawConeRimEcef[offset + 2],
+		];
 	}
 }

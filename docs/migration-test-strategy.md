@@ -423,6 +423,18 @@ Reference CPU dynamique deja couverte:
 - generation du span historique complet;
 - mesure separee d'une annee et du span complet.
 
+Reference CPU des cones bruts deja couverte:
+
+- formes Road, reguliere selon le mode terrestre le plus rapide et complexe;
+- alpha exact dans la direction d'un lien;
+- retour a Road au-dela de la zone d'influence;
+- interpolation circulaire autour de `0/2 PI`;
+- tolerance des bornes compatible avec les futurs calculs Float32 GPU;
+- transformation NED vers ECEF en metres;
+- layout `vec4<f32>` du bord brut;
+- rejet des tailles, longueurs et attenuations invalides;
+- benchmark distinct de la selection des alphas et de la geometrie complete.
+
 Priorite 4:
 
 - tests E2E rendu Babylon.js.

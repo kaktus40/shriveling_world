@@ -11,7 +11,7 @@ participant "Couches Babylon" as Babylon
 Utilisateur -> UI : changerAnnee(annee)
 UI -> TS : calculerVisualisation(annee, parametres)
 TS -> Cache : obtenirPrecalculDynamique(annee)
-Cache --> TS : cityLinks, citiesDict, roadAlpha, hauteursCourbes
+Cache --> TS : offsets, comptes, azimuts, alphas, roadAlphaRadians, hauteursCourbes
 TS -> GPU : queue.writeBuffer(buffers dynamiques)
 TS -> GPU : dispatch Passe Cones Bruts
 TS -> GPU : dispatch Passe Intersections Cone/Cone

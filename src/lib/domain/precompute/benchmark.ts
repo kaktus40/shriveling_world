@@ -13,6 +13,8 @@ import {
 	computeDynamicTownPrecomputeByYearCpu,
 	computeDynamicTownPrecomputeForYearCpu,
 } from './dynamic-town-cpu';
+import { computeConeAlphaSamplesCpu, computeRawConePrecomputeCpu } from './raw-cone-cpu';
+import type { DynamicTownPrecompute, RawConePrecomputeOptions } from './types';
 
 /** Stable names used to compare equivalent compute phases across backends. */
 export type StaticTownBenchmarkPhase =
@@ -25,8 +27,11 @@ export type StaticTownBenchmarkPhase =
 /** Stable dynamic phases used to compare yearly and complete-span costs. */
 export type DynamicTownBenchmarkPhase = 'dynamic-year' | 'dynamic-all-years';
 
+/** Stable raw-cone phases used to compare directional and geometric costs. */
+export type RawConeBenchmarkPhase = 'raw-cone-alphas' | 'raw-cone-total';
+
 /** Stable phase names shared by current and future compute backends. */
-export type ComputeBenchmarkPhase = StaticTownBenchmarkPhase | DynamicTownBenchmarkPhase;
+export type ComputeBenchmarkPhase = StaticTownBenchmarkPhase | DynamicTownBenchmarkPhase | RawConeBenchmarkPhase;
 
 /** Clock source returning a monotonic duration value in milliseconds. */
 export type BenchmarkClock = () => number;
@@ -92,6 +97,20 @@ export interface DynamicTownBenchmarkReport {
 	/** Number of measured executions per phase. */
 	measurementIterations: number;
 	/** Per-year and complete-span measurements. */
+	phases: ComputePhaseBenchmark[];
+}
+
+/** Comparable raw-cone benchmark report emitted by one compute profile. */
+export interface RawConeBenchmarkReport {
+	/** Backend profile that produced the report. */
+	profile: ComputeProfile;
+	/** City count used by the benchmark. */
+	cityCount: number;
+	/** Number of uniformly spaced azimuth samples per city. */
+	azimuthSampleCount: number;
+	/** Number of measured executions per phase. */
+	measurementIterations: number;
+	/** Directional-alpha and complete-geometry measurements. */
 	phases: ComputePhaseBenchmark[];
 }
 
@@ -170,6 +189,38 @@ export function benchmarkDynamicTownPrecomputeCpu(
 		cityCount: dataset.cityCount,
 		edgeCount: dataset.edgeCount,
 		year,
+		measurementIterations,
+		phases,
+	};
+}
+
+/** Benchmarks directional alpha selection and complete raw cone generation. */
+export function benchmarkRawConePrecomputeCpu(
+	staticTown: StaticTownPrecompute,
+	dynamicTown: DynamicTownPrecompute,
+	options: RawConePrecomputeOptions,
+	benchmarkOptions: ComputeBenchmarkOptions = {},
+): RawConeBenchmarkReport {
+	const warmupIterations = normalizeIterationCount(benchmarkOptions.warmupIterations ?? 2, 'warmupIterations', true);
+	const measurementIterations = normalizeIterationCount(
+		benchmarkOptions.measurementIterations ?? 10,
+		'measurementIterations',
+		false,
+	);
+	const clock = benchmarkOptions.clock ?? (() => performance.now());
+	const phases: ComputePhaseBenchmark[] = [
+		measureCpuPhase('raw-cone-alphas', warmupIterations, measurementIterations, clock, () => {
+			computeConeAlphaSamplesCpu(dynamicTown, options);
+		}),
+		measureCpuPhase('raw-cone-total', warmupIterations, measurementIterations, clock, () => {
+			computeRawConePrecomputeCpu(staticTown, dynamicTown, options);
+		}),
+	];
+
+	return {
+		profile: 'cpu',
+		cityCount: staticTown.cityCount,
+		azimuthSampleCount: options.azimuthSampleCount,
 		measurementIterations,
 		phases,
 	};

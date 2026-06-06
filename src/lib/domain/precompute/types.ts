@@ -145,3 +145,47 @@ export interface DynamicTownPrecompute {
 
 /** Dynamic cone inputs indexed by their decimal historical year. */
 export type DynamicTownPrecomputeByYear = Record<string, DynamicTownPrecompute>;
+
+/** Supported scientific variants for raw cone slope generation. */
+export type ConeShape = 'road' | 'fastest-terrestrial' | 'complex';
+
+/** Options controlling CPU/GPU-equivalent raw cone generation. */
+export interface RawConePrecomputeOptions {
+	/** Scientific cone variant to generate. */
+	shape: ConeShape;
+	/** Number of uniformly spaced azimuth samples covering `[0, 2 PI)`. */
+	azimuthSampleCount: number;
+	/** Maximum slant length of every raw cone ray, in meters. */
+	coneLengthMeters: number;
+	/**
+	 * Maximum angular influence distance around a complex-cone link, in radians.
+	 *
+	 * Required only for the `complex` shape.
+	 */
+	attenuationRadians?: number;
+}
+
+/** Directional alpha samples shared by raw cone geometry backends. */
+export interface ConeAlphaSampleBuffers {
+	/** Number of represented cities. */
+	cityCount: number;
+	/** Number of uniformly spaced azimuth samples per city. */
+	azimuthSampleCount: number;
+	/** Selected alpha for each dense `[cityIndex, azimuthSampleIndex]` pair. */
+	coneAlphaRadians: Float32Array;
+}
+
+/** Raw, non-intersected cone rims generated before cone/country clipping. */
+export interface RawConePrecompute extends ConeAlphaSampleBuffers {
+	/** Scientific cone variant represented by the buffers. */
+	shape: ConeShape;
+	/** Maximum slant length used for every ray, in meters. */
+	coneLengthMeters: number;
+	/**
+	 * ECEF rim positions with one aligned `vec4<f32>` per city/azimuth sample.
+	 *
+	 * Layout is dense by city then azimuth. XYZ values are in meters and W is
+	 * always `1`.
+	 */
+	rawConeRimEcef: Float32Array;
+}

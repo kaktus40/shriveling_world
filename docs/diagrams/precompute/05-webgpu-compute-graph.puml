@@ -4,7 +4,7 @@ title Graphe de calcul WebGPU pour cones et courbes
 skinparam componentStyle rectangle
 
 database "Buffers GPU statiques\nsommetsECEF\nned2ECEF\ntownOverlaps\nlimites\ncontroles courbes" as staticBuffers
-database "Buffers GPU dynamiques\ncityLinks[annee]\ncitiesDict[annee]\nroadAlpha[annee]\nhauteurs courbes[annee]" as dynamicBuffers
+database "Buffers GPU dynamiques\ncityLinkOffsets[annee]\ncityLinkCounts[annee]\ncityLinkAzimuthRadians[annee]\ncityLinkAlphaRadians[annee]\nroadAlphaRadians[annee]\nhauteurs courbes[annee]" as dynamicBuffers
 
 component "Passe Cones Bruts WGSL\nEntree: statique + dynamique\nSortie: buffer cones bruts" as raw
 component "Passe Intersections Cone/Cone WGSL\nEntree: cones bruts + townOverlaps\nSortie: buffer cones decoupes" as ciseled

@@ -753,6 +753,18 @@ Implementation CPU du precalcul dynamique annuel:
 - les tests couvrent les periodes inclusives, les deux directions,
   l'exclusion Road/courbes, le minimum alpha, le tri et les offsets.
 
+Implementation CPU de la generation des cones bruts:
+
+- `src/lib/domain/precompute/raw-cone-cpu.ts` formalise la reference des trois
+  formes `road`, `fastest-terrestrial` et `complex`;
+- la loi complexe reprend les voisins circulaires, l'atténuation vers Road et
+  l'interpolation `smoothstep` prevues par `rawCones.frag`;
+- les alphas directionnels et le bord ECEF sont deux sorties distinctes;
+- le sommet n'est pas replique dans le bord puisqu'il est porte par la matrice
+  NED vers ECEF;
+- la tolerance angulaire Float32 partagee fixe les comparaisons aux bornes;
+- tests, vues legeres, benchmark et schema PlantUML francais sont fournis.
+
 ## M3: Extraction Du Domaine Metier
 
 Statut: `todo`

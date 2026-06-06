@@ -133,6 +133,53 @@ sources de verite. Il ne doit pas etre reproduit dans la migration.
 - interpole ou attenue entre ces influences et `roadAlpha`;
 - s'aplatit dans les directions des reseaux terrestres rapides.
 
+### Loi Directionnelle Retenue Pour Le Cone Complexe
+
+La reference CPU reprend l'intention du bloc commente de
+`toBabylon/src/application/cone/shaders/rawCones.frag`.
+
+Pour chaque couple `(ville, azimut echantillonne)`:
+
+1. trouver circulairement le lien immediatement inferieur;
+2. trouver circulairement le lien immediatement superieur;
+3. remplacer un cote situe au-dela de `attenuationRadians` par un point
+   artificiel portant `roadAlpha`;
+4. interpoler les deux alphas avec `smoothstep`.
+
+Si plusieurs destinations partagent le meme azimut dans la tolerance Float32,
+la direction retient le minimum alpha, donc la vitesse terrestre la plus
+elevee.
+
+Avec un lien unique, chaque cote est traite independamment. L'influence
+complete peut donc s'etendre jusqu'a `2 * attenuationRadians` autour du lien,
+avec un retour progressif vers Road. Ce comportement historique est maintenant
+caracterise par les tests et devra etre reproduit par les profils GPU.
+
+Les comparaisons aux bornes utilisent
+`FLOAT32_ANGULAR_EPSILON_RADIANS = 1e-6` afin que la reference CPU reste
+compatible avec la precision attendue des shaders Float32, notamment au
+passage `0/2 PI`.
+
+### Generation Du Bord Brut
+
+Pour une longueur oblique `coneLengthMeters`, chaque echantillon est construit
+dans le repere local NED:
+
+```text
+north = coneLengthMeters * cos(alpha) * cos(azimuth)
+east  = coneLengthMeters * cos(alpha) * sin(azimuth)
+down  = coneLengthMeters * sin(alpha)
+```
+
+Le vecteur local est ensuite transforme en ECEF metres par la matrice
+`cityNed2EcefMatrices` de la ville. Le buffer `rawConeRimEcef` ne contient que
+le bord du cone. Le sommet n'est pas duplique puisqu'il est deja disponible
+dans la colonne de translation de la matrice NED vers ECEF.
+
+Schéma:
+
+![Reference CPU des cones bruts](diagrams/precompute/09-raw-cone-cpu-reference.png)
+
 ## Courbes Reliant Deux Villes
 
 Une arête du graphe est distincte de sa representation graphique. Toute arête
@@ -253,6 +300,17 @@ Le profil CPU de reference est implemente dans
 
 Ces sorties constituent la reference attendue pour les futurs profils WebGL2
 et WebGPU.
+
+La passe suivante est implementee dans
+`src/lib/domain/precompute/raw-cone-cpu.ts`:
+
+- `computeConeAlphaSamplesCpu` selectionne les alphas directionnels;
+- `computeRawConePrecomputeCpu` produit le bord ECEF brut;
+- les formes `road`, `fastest-terrestrial` et `complex` partagent le meme
+  contrat;
+- `RawConeRimView` expose un echantillon sans recopier les buffers;
+- `benchmarkRawConePrecomputeCpu` mesure separement les alphas et la geometrie
+  complete.
 
 ## Erreur D'Offsets Historique
 
