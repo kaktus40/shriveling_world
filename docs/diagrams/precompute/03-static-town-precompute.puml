@@ -1,38 +1,37 @@
 @startuml
-title Detail du precalcul statique des villes
+title Detail du precalcul statique des villes - profils conformes
 
 |CPU - Dataset prepare|
 start
 :villes[] avec cityIndex, cityCode, lon, lat;
 :options: secteursVoisins, limiteVoisins;
 
-|CPU - Referentiels|
-:construireCityMap();
-:construireReferentielsLocaux();
-:calculer sommetsECEF + lignes ned2ECEF;
+|Backend CPU ou GPU - Invariants villes|
+:produire cityNed2EcefMatrices;
 
-|CPU ou GPU candidat - Geometrie des paires|
+|Backend CPU ou GPU - Invariants paires|
 :pour chaque paire ordonnee villeA/villeB;
 :calculer azimut A->B;
 :calculer azimut B->A;
 :calculer distance angulaire theta;
-:calculer midpoint;
-:calculer pointP et pointQ;
-:calculer vecteur unitaire local et elevation;
+:calculer sectorIndex avec sectorCount;
 
-|CPU - Selection du voisinage|
+|Backend CPU ou GPU - Selection du voisinage|
 :repartir les candidats par secteur angulaire;
 :trier les candidats par distance dans chaque secteur;
-:selectionner au plus limiteVoisins;
+:redistribuer les places libres;
 :trier les voisins retenus par azimut;
 
-|CPU - Precalcul statique des villes|
-:cityMap;
-:citiesGlslDatas;
-:azDistMid stride 4;
-:pointPPointQ stride 4;
-:vUnitAndElevation stride 4;
-:townOverlaps stride 3;
-:limiteVoisins;
+|Backend CPU ou GPU - Courbes connues|
+:pour chaque entree de curveEdgePairs;
+:calculer controles ECEF [A, P, Q, B];
+
+|Contrat commun - Buffers compacts|
+:cityNed2EcefMatrices stride 16;
+:cityPairInvariants stride 4;
+:cityPairSectorIndexes stride 1;
+:overlapCandidates + counts;
+:curveEdgePairs stride 2;
+:curveControlPointsEcef stride 16;
 stop
 @enduml

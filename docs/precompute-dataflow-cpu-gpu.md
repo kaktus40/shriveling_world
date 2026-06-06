@@ -320,15 +320,15 @@ interface PreparedSpeedTimeline {
 
 Fonction cible: `prepareStaticTownPrecompute(preparedDataset, options)`
 
-- Acteur: CPU pour le premier portage; GPU possible ensuite pour la matrice de paires.
+- Acteur: backend CPU de reference ou backend GPU de production.
 - Entree: `PreparedDataset`, rayon terrestre, nombre de secteurs, limite de voisins.
 - Transformation:
-  - cree un referentiel local NED pour chaque ville;
-  - produit les sommets ECEF et les matrices NED/ECEF;
+  - produit les matrices `cityNed2EcefMatrices`;
   - calcule toutes les paires ordonnees ville A vers ville B;
-  - calcule azimut, distance angulaire, midpoint, points P/Q et vecteur unitaire;
+  - calcule azimuts, distance angulaire et index de secteur;
   - repartit les voisins par secteur angulaire;
-  - selectionne un nombre borne de voisins par ville pour les intersections.
+  - selectionne un nombre borne de voisins par ville pour les intersections;
+  - calcule `[A, P, Q, B]` uniquement pour les arêtes connues.
 - Sortie: `StaticTownPrecompute`.
 - Diagnostics: cityCode duplique, ville invalide, voisinage incomplet.
 - Invalidation: dataset different, modele geodesique different, resolution/strategie de voisinage differente.
@@ -337,22 +337,25 @@ Sortie attendue:
 
 ```ts
 interface StaticTownPrecompute {
-  cityMap: Map<number, number>;
-  neighborLimit: number;
-  townOverlaps: Float32Array;
-  azDistMid: Float32Array;
-  pointPPointQ: Float32Array;
-  vUnitAndElevation: Float32Array;
-  citiesGlslDatas: CityReferentialGpuData[];
+  cityCount: number;
+  cityNed2EcefMatrices: Float32Array;
+  cityPairInvariants: Float32Array;
+  cityPairSectorIndexes: Uint32Array;
+  overlapCandidates: Uint32Array;
+  overlapCandidateCounts: Uint32Array;
+  curveEdgePairs: Uint32Array;
+  curveControlPointsEcef: Float32Array;
 }
 ```
 
-Strides a formaliser:
+Strides valides:
 
-- `townOverlaps`: stride 3, `[neighborCityIndex, azimuthFromCity, azimuthFromNeighbor]`.
-- `azDistMid`: stride 4, `[azimuth, angularDistance, midpointLongitude, midpointLatitude]`.
-- `pointPPointQ`: stride 4, `[pointPLongitude, pointPLatitude, pointQLongitude, pointQLatitude]`.
-- `vUnitAndElevation`: stride 4, `[unitX, unitY, unitZ, elevation]`.
+- `cityNed2EcefMatrices`: stride 16, matrice colonne-major par ville.
+- `cityPairInvariants`: stride 4,
+  `[forwardAzimuthRadians, reverseAzimuthRadians, angularDistanceRadians, 0]`.
+- `cityPairSectorIndexes`: stride 1.
+- `curveEdgePairs`: stride 2, `[originCityIndex, destinationCityIndex]`.
+- `curveControlPointsEcef`: stride 16, quatre `vec4<f32>` pour `[A, P, Q, B]`.
 
 ### 6. Precalcul Dynamique Par Annee
 
@@ -365,7 +368,7 @@ Fonction cible: `prepareDynamicTownPrecompute(preparedDataset, speedTimeline, st
   - selectionne les arcs actifs pour l'annee;
   - ignore les arcs non terrestres dans la construction des cones;
   - transforme origin/destination en indexes denses;
-  - recupere l'azimut A vers B dans `azDistMid`;
+  - recupere l'azimut A vers B dans `cityPairInvariants`;
   - recupere l'alpha du mode pour l'annee;
   - regroupe par ville origine;
   - dedoublonne les liens vers une meme ville destination;
@@ -399,10 +402,13 @@ Strides a formaliser:
 Fonction cible: `prepareCurvePrecompute(preparedDataset, speedTimeline, staticTown)`
 
 - Acteur: CPU.
-- Entree: arcs connectes, modes non terrestres et eventuellement modes terrestres affichables comme courbes, points P/Q, theta, vitesses.
+- Entree: arcs connectes, modes non terrestres et eventuellement modes
+  terrestres affichables comme courbes, `curveEdgePairs`,
+  `curveControlPointsEcef`, theta et vitesses.
 - Transformation:
   - dedoublonne les courbes par origine/destination/mode;
-  - recupere les points de controle dans `pointPPointQ`;
+  - recupere les points de controle `[A, P, Q, B]` dans
+    `curveControlPointsEcef`;
   - conserve `theta`;
   - calcule la vitesse modelisee par annee avec `getModelledSpeed`;
   - conserve `maxSpeedPerYear` pour calculer la hauteur de courbe.
@@ -849,7 +855,7 @@ Cette etape est encore CPU car elle depend de peu de donnees et produit des tabl
 
 ## Etape 4: Precalcul Statique Des Villes Et Des Paires
 
-Responsable principal cible: CPU dans un premier portage, GPU possible ensuite.
+Responsables cibles: profils CPU et GPU conformes au meme contrat de buffers.
 
 Reference historique:
 
@@ -859,23 +865,23 @@ Reference historique:
 Entrees:
 
 - villes preparees;
-- longitude, latitude;
+- longitude, latitude en radians, dans l'ordre stable produit par l'ingestion;
 - rayon terrestre;
 - nombre de secteurs voisins;
 - limite maximale de voisins par ville.
 
 Traitements:
 
-- construire un referentiel local NED par ville;
-- produire les matrices NED/ECEF;
+- produire `cityNed2EcefMatrices`, source de verite compacte des positions et
+  reperes locaux;
 - calculer pour chaque paire de villes:
   - azimut A vers B;
+  - azimut B vers A;
   - distance angulaire;
-  - midpoint;
-  - points de controle P et Q;
-  - vecteur unitaire local A vers B;
-  - elevation associee;
-- construire `townOverlaps`, c'est-a-dire une selection bornee de voisins par secteurs angulaires.
+  - index du secteur angulaire;
+- construire une selection bornee de voisins par secteurs angulaires;
+- calculer les points de controle `[A, P, Q, B]` uniquement pour les arêtes
+  connues, et non pour toutes les paires.
 
 Sortie:
 
@@ -892,19 +898,25 @@ class PreparedDataset {
 }
 
 class StaticTownPrecompute {
-  cityMap
-  neighborLimit
-  townOverlaps
-  azDistMid
-  pointPPointQ
-  vUnitAndElevation
-  citiesGlslDatas
+  cityNed2EcefMatrices
+  cityPairInvariants
+  cityPairSectorIndexes
+  overlapCandidates
+  overlapCandidateCounts
+  curveEdgePairs
+  curveControlPointsEcef
 }
 
-component "prepareStaticTownGeometry" as staticPrep
+interface StaticTownPrecomputeBackend
+component "Profil CPU" as cpu
+component "Profil GPU WebGPU" as gpu
 
-PreparedDataset --> staticPrep : CPU\nvilles compactes
-staticPrep --> StaticTownPrecompute : CPU aujourd'hui\nGPU possible ensuite
+PreparedDataset --> cpu : villes et arêtes compactes
+PreparedDataset --> gpu : villes et arêtes compactes
+StaticTownPrecomputeBackend <|.. cpu
+StaticTownPrecomputeBackend <|.. gpu
+cpu --> StaticTownPrecompute : buffers de reference
+gpu --> StaticTownPrecompute : buffers de production
 
 note right of StaticTownPrecompute
   Invariant tant que le dataset,
@@ -916,7 +928,14 @@ end note
 
 Ce precalcul est un invariant fort. Il ne depend pas de l'annee. Il depend du dataset, du modele de terre et de la strategie de voisinage/intersection.
 
-Dans `toBabylon`, une partie de ce calcul est deja faite via pseudo-compute WebGL. Pour la migration, je recommande de porter d'abord la version CPU pour avoir un resultat testable en Node, puis d'optimiser certaines parties avec WebGPU si necessaire.
+Dans `toBabylon`, une partie de ce calcul est deja faite via pseudo-compute
+WebGL. La migration maintient volontairement deux profils: le CPU sert de
+reference fonctionnelle, de fallback et d'oracle de test; le GPU execute les
+calculs intensifs en production. Les deux profils produisent exactement les
+memes contrats de buffers.
+
+Le detail des strides, dispatchs, reductions et vues sur buffers est defini
+dans [Architecture du precalcul statique des villes](static-town-precompute-architecture.md).
 
 ## Etape 5: Precalcul Dynamique Par Annee
 
@@ -941,7 +960,7 @@ Traitements:
   - selectionner les arcs actifs;
   - conserver les arcs terrestres pour les cones;
   - convertir chaque destination en index compact;
-  - recuperer l'azimut depuis `azDistMid`;
+  - recuperer l'azimut depuis `cityPairInvariants`;
   - recuperer l'alpha du mode;
   - dedoublonner les transports multiples vers une meme destination;
   - trier les liens par azimut;
@@ -958,8 +977,7 @@ Sortie:
 title Etape 5 - Precalcul dynamique par annee
 
 class StaticTownPrecompute {
-  cityMap
-  azDistMid
+  cityPairInvariants
 }
 
 class SpeedPrecompute {
@@ -1238,19 +1256,20 @@ Cette passe doit rester separee des intersections cone/cone. Les limites geograp
 
 ## Etape 10: Generation Des Courbes
 
-Responsable principal: CPU pour les invariants, GPU pour les vertices.
+Responsables principaux: profil CPU ou GPU pour les invariants, GPU pour les
+vertices de rendu.
 
 Reference historique:
 
 - `main/src/application/cone/curveMeshShader.ts`;
 - donnees de courbes produites dans `networkFromCities`;
-- esquisse `toBabylon` avec `pointPPointQ` et vitesses par mode/annee.
+- esquisse `toBabylon` avec `pointPPointQ` et vitesses par mode/annee,
+  remplacee dans la cible par `curveControlPointsEcef`.
 
 Entrees CPU invariantes:
 
-- origine;
-- destination;
-- points de controle P et Q;
+- `curveEdgePairs`, limite aux arêtes connues;
+- `curveControlPointsEcef`, qui regroupe `[A, P, Q, B]` en ECEF metres;
 - theta;
 - mode de transport;
 - vitesses ou vitesses modelisees par annee;
@@ -1265,8 +1284,9 @@ Entrees dynamiques:
 
 Traitements:
 
-- CPU:
-  - preparer les points de controle et les tables temporelles;
+- profil CPU ou GPU:
+  - preparer les points de controle uniquement pour les arêtes connues;
+  - preparer les tables temporelles;
   - calculer ou selectionner la hauteur de courbe par annee;
 - GPU:
   - echantillonner `t`;
@@ -1283,10 +1303,8 @@ Sortie:
 title Etape 10 - Courbes
 
 class CurvePrecompute {
-  beginCity
-  endCity
-  pointP
-  pointQ
+  curveEdgePairs stride 2
+  curveControlPointsEcef stride 16
   theta
   speedByModeByYear
   maxSpeedPerYear
@@ -1310,7 +1328,11 @@ curves --> CurveVertexBuffer : GPU\nparallel curve x sample
 @enduml
 ```
 
-Les courbes peuvent suivre une migration progressive. Elles ne sont pas aussi avancees que les cones dans `toBabylon`, mais les invariants sont deja presents: points P/Q, midpoint, theta et vitesses par annee.
+Les courbes peuvent suivre une migration progressive. Le calcul de leurs
+controles est limite aux arêtes connues, ce qui ramene ce travail de `O(N²)` a
+`O(E)`. Une premiere implementation peut conserver plusieurs controles
+identiques lorsque plusieurs modes partagent la meme origine et destination;
+la deduplication pourra etre ajoutee sans changer le contrat public.
 
 ## Etape 11: Affichage Babylon.js
 
@@ -1438,7 +1460,7 @@ Ici, tout est reconstruit car les invariants dependent du dataset.
 | Assemblage lossless | CPU | fichiers + manifest | `BaseNetwork` | dataset change |
 | Preparation metier | CPU | `BaseNetwork` | `PreparedDataset` | dataset change |
 | Preparation vitesses | CPU | modes + vitesses | speed/alpha tables | dataset change ou modele vitesse change |
-| Precalcul statique villes | CPU puis GPU possible | villes | `StaticTownPrecompute` | dataset ou modele geodesique change |
+| Precalcul statique villes | backend CPU ou GPU conforme | villes + arêtes | `StaticTownPrecompute` | dataset, modele geodesique ou strategie de voisinage change |
 | Precalcul dynamique annuel | CPU | arcs + alphas + statique | `DynamicTownPrecomputeByYear` | dataset, span, mode vitesse ou strategie cone change |
 | Upload buffers statiques | CPU/TS + GPU memory | statique | buffers GPU | dataset/precalcul statique change |
 | Upload buffers dynamiques | CPU/TS + GPU memory | annee | buffers GPU dynamiques | annee ou parametre dynamique change |

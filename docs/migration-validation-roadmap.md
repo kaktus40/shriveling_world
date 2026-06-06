@@ -669,6 +669,23 @@ Limites restantes:
 - `PreparedDataset` complet reste a construire;
 - les invariants ville et paires de villes ne sont pas encore produits depuis `BaseNetwork`.
 
+Orientation validee pour le precalcul statique des villes:
+
+- deux profils `CPU` et `GPU` implementeront le meme contrat de buffers;
+- le profil CPU restera la reference fonctionnelle, le fallback et l'oracle
+  des tests de conformite;
+- les buffers compacts seront la source de verite, exposes par des vues et
+  getters sans duplication des donnees;
+- `cityNed2EcefMatrices` regroupera position ECEF et repere NED par ville;
+- les invariants des paires contiendront azimuts, distance angulaire et index
+  de secteur;
+- les reductions de voisinage reproduiront initialement la strategie
+  historique avant toute evolution algorithmique;
+- les controles de courbes `[A, P, Q, B]` seront calcules uniquement pour les
+  arêtes connues via `curveEdgePairs`, en `O(E)`;
+- le contrat detaille est documente dans
+  `docs/static-town-precompute-architecture.md`.
+
 ## M3: Extraction Du Domaine Metier
 
 Statut: `todo`
