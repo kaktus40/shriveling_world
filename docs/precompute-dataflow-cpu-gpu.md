@@ -855,7 +855,8 @@ Cette etape est encore CPU car elle depend de peu de donnees et produit des tabl
 
 ## Etape 4: Precalcul Statique Des Villes Et Des Paires
 
-Responsables cibles: profils CPU et GPU conformes au meme contrat de buffers.
+Responsables cibles: profils CPU, WebGL2 et WebGPU conformes au meme contrat de
+buffers, avec la chaine de repli `WebGPU -> WebGL2 -> CPU`.
 
 Reference historique:
 
@@ -909,13 +910,17 @@ class StaticTownPrecompute {
 
 interface StaticTownPrecomputeBackend
 component "Profil CPU" as cpu
+component "Profil WebGL2" as webgl2
 component "Profil GPU WebGPU" as gpu
 
 PreparedDataset --> cpu : villes et arêtes compactes
+PreparedDataset --> webgl2 : villes et arêtes compactes
 PreparedDataset --> gpu : villes et arêtes compactes
 StaticTownPrecomputeBackend <|.. cpu
+StaticTownPrecomputeBackend <|.. webgl2
 StaticTownPrecomputeBackend <|.. gpu
 cpu --> StaticTownPrecompute : buffers de reference
+webgl2 --> StaticTownPrecompute : fallback accelere
 gpu --> StaticTownPrecompute : buffers de production
 
 note right of StaticTownPrecompute
@@ -930,9 +935,9 @@ Ce precalcul est un invariant fort. Il ne depend pas de l'annee. Il depend du da
 
 Dans `toBabylon`, une partie de ce calcul est deja faite via pseudo-compute
 WebGL. La migration maintient volontairement deux profils: le CPU sert de
-reference fonctionnelle, de fallback et d'oracle de test; le GPU execute les
-calculs intensifs en production. Les deux profils produisent exactement les
-memes contrats de buffers.
+reference fonctionnelle, de dernier fallback et d'oracle de test; WebGL2 est le
+fallback accelere; WebGPU execute les calculs intensifs en production. Les
+trois profils produisent exactement les memes contrats de buffers.
 
 Le detail des strides, dispatchs, reductions et vues sur buffers est defini
 dans [Architecture du precalcul statique des villes](static-town-precompute-architecture.md).

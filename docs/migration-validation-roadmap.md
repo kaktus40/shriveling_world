@@ -671,8 +671,10 @@ Limites restantes:
 
 Orientation validee pour le precalcul statique des villes:
 
-- deux profils `CPU` et `GPU` implementeront le meme contrat de buffers;
-- le profil CPU restera la reference fonctionnelle, le fallback et l'oracle
+- trois profils `CPU`, `WebGL2` et `WebGPU` implementeront le meme contrat de
+  buffers;
+- la chaine de repli sera `WebGPU -> WebGL2 -> CPU`;
+- le profil CPU restera la reference fonctionnelle, le dernier fallback et l'oracle
   des tests de conformite;
 - les buffers compacts seront la source de verite, exposes par des vues et
   getters sans duplication des donnees;
@@ -685,6 +687,22 @@ Orientation validee pour le precalcul statique des villes:
   arêtes connues via `curveEdgePairs`, en `O(E)`;
 - le contrat detaille est documente dans
   `docs/static-town-precompute-architecture.md`.
+
+Implementation commencee:
+
+- `src/lib/domain/precompute/types.ts` definit les premiers contrats et strides;
+- `src/lib/domain/precompute/static-town-cpu.ts` implemente la reference CPU
+  des invariants par ville et par paire ordonnee;
+- `src/lib/domain/precompute/backend.ts` formalise le contrat commun et la
+  chaine de repli `WebGPU -> WebGL2 -> CPU`;
+- `src/lib/domain/precompute/benchmark.ts` definit les rapports comparables par
+  phase et globalement, et instrumente le profil CPU;
+- `src/lib/domain/precompute/views.ts` fournit les premieres vues legeres sur
+  les buffers partages;
+- `tests/unit/precompute/static-town-cpu.test.ts` caracterise l'ordre stable,
+  les unites SI, les azimuts, distances, secteurs et paires diagonales;
+- les reductions de voisinage, `curveEdgePairs`, les controles `[A, P, Q, B]`
+  et le backend WebGPU restent a implementer.
 
 ## M3: Extraction Du Domaine Metier
 

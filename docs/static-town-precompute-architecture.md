@@ -12,19 +12,31 @@ selection des voisins change.
 
 ## Principes Directeurs
 
-### Deux profils conformes
+### Trois profils conformes
 
-Le pipeline expose deux implementations d'un meme contrat:
+Le pipeline expose trois implementations d'un meme contrat:
 
-- le profil `CPU` constitue la reference fonctionnelle, le fallback et l'oracle
-  des tests de conformite;
-- le profil `GPU` maximise les calculs intensifs WebGPU et constitue la cible
-  de production pour les grands datasets.
+- le profil `WebGPU` maximise les calculs intensifs et constitue la cible de
+  production pour les plateformes compatibles;
+- le profil `WebGL2` constitue le fallback accelere de WebGPU et permet de
+  conserver une execution massivement parallele sur les plateformes sans
+  WebGPU;
+- le profil `CPU` constitue la reference fonctionnelle, le dernier fallback et
+  l'oracle des tests de conformite;
 
-Les deux profils doivent produire les memes buffers, avec les memes strides,
+Les trois profils doivent produire les memes buffers, avec les memes strides,
 unites, conventions d'indexation et tolerances numeriques. Le choix du profil
 est porte par une strategie injectee. Les fonctions metier ne doivent pas
-multiplier les tests conditionnels `cpu/gpu`.
+multiplier les tests conditionnels par profil.
+
+La chaine de repli par defaut est:
+
+```text
+WebGPU -> WebGL2 -> CPU
+```
+
+Un choix explicite de `WebGL2` utilise `WebGL2 -> CPU`. Un choix explicite de
+`CPU` ne tente aucun backend graphique.
 
 Babylon.js n'intervient pas dans ces calculs. Il consomme uniquement les
 buffers finaux necessaires au rendu.
@@ -172,16 +184,42 @@ interface StaticTownPrecompute {
 }
 
 interface StaticTownPrecomputeBackend {
+  readonly profile: 'webgpu' | 'webgl2' | 'cpu';
   compute(
     dataset: PreparedDataset,
     options: StaticTownPrecomputeOptions
   ): Promise<StaticTownPrecompute>;
+  benchmark(
+    dataset: PreparedDataset,
+    options: StaticTownPrecomputeOptions,
+    benchmarkOptions?: ComputeBenchmarkOptions
+  ): Promise<StaticTownBenchmarkReport>;
 }
 ```
+
+L'orchestrateur selectionne le premier backend disponible et initialise avec
+succes dans la chaine de repli demandee. Une erreur d'execution peut provoquer
+un repli vers le profil suivant apres liberation des ressources du backend en
+echec.
 
 Les noms finaux pourront evoluer pendant l'implementation, mais les
 responsabilites, unites et dispositions de buffers constituent le contrat a
 preserver.
+
+## Mesure Des Performances
+
+Chaque backend doit mesurer les memes phases et le pipeline complet. Les
+rapports utilisent des noms de phases stables afin de comparer CPU, WebGL2 et
+WebGPU sur les memes datasets et options.
+
+Chaque phase expose au minimum le temps bout-en-bout `wallClock`. Les backends
+WebGL2 et WebGPU ajoutent un temps `device` lorsque les extensions ou timestamp
+queries necessaires sont disponibles. Les rapports conservent minimum,
+mediane, percentile 95 et maximum apres echauffement.
+
+Les benchmarks distinguent l'execution chaude des couts d'initialisation,
+compilation, upload et readback. Aucun seuil de vitesse dependant de la machine
+n'est impose dans les tests unitaires.
 
 ## Profil CPU
 
@@ -199,7 +237,18 @@ Ce profil doit rester disponible meme apres le portage WebGPU. Il permet les
 tests Node.js, le diagnostic des kernels et l'execution sur une plateforme sans
 WebGPU, avec une limite de taille de dataset explicite si necessaire.
 
-## Profil GPU
+## Profil WebGL2
+
+Le profil WebGL2 reprend le principe de pseudo-compute deja employe dans
+`toBabylon`: textures de donnees, fragment shaders, framebuffer et lecture des
+sorties. Il ne doit toutefois pas reutiliser les anciens contrats de textures.
+Il produit les memes buffers logiques que les profils CPU et WebGPU.
+
+Ce backend est maintenu comme fallback accelere, pas comme architecture de
+reference. Ses contraintes de taille de textures, formats flottants et
+extensions disponibles doivent etre detectees avant son activation.
+
+## Profil WebGPU
 
 Le profil GPU utilise plusieurs dispatchs specialises dans une meme phase
 d'orchestration WebGPU. Un dispatch monolithique rendrait les reductions,
@@ -266,8 +315,8 @@ chaque lecture.
 
 ## Validation Attendue
 
-Pour chaque phase, les tests de conformite executent le profil CPU et le profil
-GPU avec les memes entrees, puis comparent:
+Pour chaque phase, les tests de conformite executent le profil CPU puis les
+profils WebGL2 et WebGPU disponibles avec les memes entrees, puis comparent:
 
 - tailles, strides et indexations;
 - matrices NED/ECEF;

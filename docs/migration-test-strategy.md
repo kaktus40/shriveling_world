@@ -10,7 +10,8 @@ La strategie de tests doit garantir:
 
 - la non-regression des invariants deja compris dans le projet historique;
 - la tracabilite des decisions de migration;
-- la comparaison future entre reference CPU et implementation WebGPU;
+- la comparaison entre les profils CPU, WebGL2 et WebGPU;
+- la mesure de leurs performances par phase et pour le pipeline complet;
 - la verification stricte des unites internes en systeme international;
 - la validation des contrats de buffers consommes par les shaders;
 - la capacite a tester des datasets reduits et reproductibles;
@@ -18,9 +19,10 @@ La strategie de tests doit garantir:
 
 ## Principes
 
-### Reference CPU Avant GPU
+### Reference CPU Avant Les Profils Graphiques
 
-Toute passe de calcul WebGPU doit avoir une implementation CPU de reference lorsque c'est raisonnable.
+Toute passe de calcul WebGL2 ou WebGPU doit avoir une implementation CPU de
+reference lorsque c'est raisonnable.
 
 La CPU n'est pas la cible de performance. Elle sert a:
 
@@ -191,15 +193,15 @@ Invariants a verifier:
 
 Ces tests ne doivent pas chercher une exactitude geodesique parfaite pour des polygones artificiels. Ils doivent verifier les invariants robustes et la coherence CPU/GPU future.
 
-### Niveau 5: Tests De Conformite CPU/GPU
+### Niveau 5: Tests De Conformite CPU/WebGL2/WebGPU
 
-But: comparer les sorties WebGPU avec la reference CPU.
+But: comparer les sorties WebGL2 et WebGPU avec la reference CPU.
 
 Principe:
 
 1. Construire les memes entrees compactes pour CPU et GPU.
 2. Executer la reference CPU.
-3. Executer la passe WebGPU.
+3. Executer les passes WebGL2 et WebGPU disponibles.
 4. Comparer les buffers avec tolerance.
 
 Comparaisons:
@@ -218,6 +220,59 @@ Tolerance initiale proposee:
 - flags et index: egalite stricte.
 
 La tolerance devra etre resserree ou justifiee apres caracterisation des kernels WGSL.
+
+### Niveau 5.1: Benchmarks Des Profils De Calcul
+
+But: mesurer la vitesse de computation des profils CPU, WebGL2 et WebGPU pour
+chaque phase equivalente et pour le pipeline complet.
+
+Les benchmarks sont separes des tests unitaires:
+
+- les tests unitaires verifient que les rapports contiennent les phases,
+  scopes et statistiques attendus;
+- les benchmarks enregistrent les performances reelles sans imposer de seuil
+  bloquant dependant de la machine;
+- des budgets de regression pourront etre introduits plus tard sur une machine
+  de reference et un environnement controle.
+
+Chaque rapport doit contenir:
+
+- le profil utilise;
+- les caracteristiques utiles de l'environnement;
+- le dataset et le nombre de villes/arêtes;
+- le nombre de secteurs et les autres parametres de calcul;
+- le nombre d'iterations d'echauffement et de mesure;
+- pour chaque phase: minimum, mediane, percentile 95 et maximum;
+- une mesure `total` couvrant le pipeline complet.
+
+Scopes temporels:
+
+- `wallClock`: temps bout-en-bout observe par l'application;
+- `device`: temps GPU obtenu par timestamp queries lorsqu'elles sont
+  disponibles;
+- l'absence de timestamp queries doit etre explicite et ne doit pas invalider
+  la mesure `wallClock`.
+
+Pour WebGL2 et WebGPU, le rapport doit distinguer clairement:
+
+- initialisation du backend et compilation des shaders;
+- upload des entrees;
+- execution des passes;
+- readback eventuel;
+- execution chaude sans recompilation.
+
+La comparaison principale des calculs recurrents utilise l'execution chaude.
+Une mesure bout-en-bout incluant initialisation et transferts reste necessaire
+pour evaluer le temps reel de chargement d'un dataset.
+
+Les premiers noms de phases stables sont:
+
+- `city-invariants`;
+- `city-pair-invariants`;
+- `total`.
+
+Ils seront completes par `overlap-reduction`, `curve-controls`, raycast des
+limites et passes de cones au fur et a mesure de leur implementation.
 
 ### Niveau 6: Tests D'Integration Pipeline
 
@@ -344,4 +399,3 @@ Un jalon est validable lorsque:
 - les validations applicables passent;
 - les limites connues sont documentees;
 - le commit contient code, documentation et tests du jalon.
-

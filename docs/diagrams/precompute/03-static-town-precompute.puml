@@ -6,23 +6,23 @@ start
 :villes[] avec cityIndex, cityCode, lon, lat;
 :options: secteursVoisins, limiteVoisins;
 
-|Backend CPU ou GPU - Invariants villes|
+|Backend CPU, WebGL2 ou WebGPU - Invariants villes|
 :produire cityNed2EcefMatrices;
 
-|Backend CPU ou GPU - Invariants paires|
+|Backend CPU, WebGL2 ou WebGPU - Invariants paires|
 :pour chaque paire ordonnee villeA/villeB;
 :calculer azimut A->B;
 :calculer azimut B->A;
 :calculer distance angulaire theta;
 :calculer sectorIndex avec sectorCount;
 
-|Backend CPU ou GPU - Selection du voisinage|
+|Backend CPU, WebGL2 ou WebGPU - Selection du voisinage|
 :repartir les candidats par secteur angulaire;
 :trier les candidats par distance dans chaque secteur;
 :redistribuer les places libres;
 :trier les voisins retenus par azimut;
 
-|Backend CPU ou GPU - Courbes connues|
+|Backend CPU, WebGL2 ou WebGPU - Courbes connues|
 :pour chaque entree de curveEdgePairs;
 :calculer controles ECEF [A, P, Q, B];
 
