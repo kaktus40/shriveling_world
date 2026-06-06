@@ -361,7 +361,10 @@ Strides valides:
 
 ### 6. Precalcul Dynamique Par Annee
 
-Fonction cible: `prepareDynamicTownPrecompute(preparedDataset, speedTimeline, staticTown)`
+Fonctions CPU implementees:
+
+- `computeDynamicTownPrecomputeForYearCpu(preparedDataset, staticTown, year)`;
+- `computeDynamicTownPrecomputeByYearCpu(preparedDataset, staticTown)`.
 
 - Acteur: CPU.
 - Entree: `PreparedDataset`, `SpeedTimelinePrecompute`, `StaticTownPrecompute`.
@@ -385,19 +388,27 @@ Sortie attendue:
 
 ```ts
 interface DynamicTownPrecompute {
-  cityLinks: Float32Array;
-  citiesDict: Int32Array;
-  roadAlpha: number;
+  year: number;
+  roadAlphaRadians: number;
+  cityLinkOffsets: Uint32Array;
+  cityLinkCounts: Uint32Array;
+  cityLinkDestinationIndexes: Uint32Array;
+  cityLinkAzimuthRadians: Float32Array;
+  cityLinkAlphaRadians: Float32Array;
+  cityFastestTerrestrialAlphaRadians: Float32Array;
 }
 
 type DynamicTownPrecomputeByYear = Record<string, DynamicTownPrecompute>;
 ```
 
-Strides a formaliser:
+Les valeurs sont stockees dans des tableaux separes pour permettre un acces
+direct et des uploads GPU selectifs. Une ville sans lien utilise `count = 0`;
+aucune sentinelle ni case vide n'est necessaire.
 
-- `cityLinks`: stride 3, `[destinationCityIndex, azimuth, alpha]`.
-- `citiesDict`: stride 2, `[beginOffset, endOffset]`.
-- valeur sentinelle sans lien: `[-1, -1]`.
+`PreparedDataset` porte egalement `edgeYearBegins` et `edgeYearEnds` sous forme
+de `Int32Array`. Les années absentes utilisent des sentinelles non bornees
+explicites, ce qui evite de relire les records lossless pendant les boucles
+intensives.
 
 ### 7. Precalcul Des Courbes
 
@@ -1126,9 +1137,11 @@ Entrees GPU:
 
 - sommets ECEF des villes;
 - matrices NED/ECEF;
-- `cityLinks`;
-- `citiesDict`;
-- `roadAlpha`;
+- `cityLinkOffsets`;
+- `cityLinkCounts`;
+- `cityLinkAzimuthRadians`;
+- `cityLinkAlphaRadians`;
+- `roadAlphaRadians`;
 - longueur maximale des cones;
 - attenuation angulaire.
 
@@ -1155,9 +1168,11 @@ class GpuStaticBuffers {
 }
 
 class GpuDynamicBuffers {
-  cityLinks
-  citiesDict
-  roadAlpha
+  cityLinkOffsets
+  cityLinkCounts
+  cityLinkAzimuthRadians
+  cityLinkAlphaRadians
+  roadAlphaRadians
 }
 
 class RawConeBuffer {

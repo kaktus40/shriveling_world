@@ -117,3 +117,31 @@ export interface StaticTownInvariantPrecompute extends CityInvariantBuffers, Cit
 
 /** Static-town precompute buffers currently produced by the CPU backend. */
 export interface StaticTownPrecompute extends StaticTownInvariantPrecompute, OverlapCandidateBuffers, CurveControlBuffers {}
+
+/**
+ * Compact dynamic cone inputs computed for one historical year.
+ *
+ * Link lists use `offset + count` with an exclusive upper bound. One link is
+ * retained per origin/destination pair and lists are sorted by azimuth.
+ */
+export interface DynamicTownPrecompute {
+	/** Historical year represented by these buffers. */
+	year: number;
+	/** Alpha of the reference Road surface, in radians. */
+	roadAlphaRadians: number;
+	/** First link index for every city. */
+	cityLinkOffsets: Uint32Array;
+	/** Number of links for every city. */
+	cityLinkCounts: Uint32Array;
+	/** Destination city index for every compact link. */
+	cityLinkDestinationIndexes: Uint32Array;
+	/** Forward azimuth of every compact link, in radians. */
+	cityLinkAzimuthRadians: Float32Array;
+	/** Selected terrestrial alpha of every compact link, in radians. */
+	cityLinkAlphaRadians: Float32Array;
+	/** Minimum connected terrestrial alpha per city, bounded by Road alpha. */
+	cityFastestTerrestrialAlphaRadians: Float32Array;
+}
+
+/** Dynamic cone inputs indexed by their decimal historical year. */
+export type DynamicTownPrecomputeByYear = Record<string, DynamicTownPrecompute>;

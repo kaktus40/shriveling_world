@@ -7,6 +7,12 @@ import {
 import { selectOverlapCandidatesCpu } from './overlap-cpu';
 import { computeCurveControlPointsCpu } from './curve-cpu';
 import type { StaticTownInput, StaticTownPrecomputeOptions } from './types';
+import type { PreparedDataset } from '../data';
+import type { StaticTownPrecompute } from './types';
+import {
+	computeDynamicTownPrecomputeByYearCpu,
+	computeDynamicTownPrecomputeForYearCpu,
+} from './dynamic-town-cpu';
 
 /** Stable names used to compare equivalent compute phases across backends. */
 export type StaticTownBenchmarkPhase =
@@ -15,6 +21,12 @@ export type StaticTownBenchmarkPhase =
 	| 'overlap-reduction'
 	| 'curve-controls'
 	| 'total';
+
+/** Stable dynamic phases used to compare yearly and complete-span costs. */
+export type DynamicTownBenchmarkPhase = 'dynamic-year' | 'dynamic-all-years';
+
+/** Stable phase names shared by current and future compute backends. */
+export type ComputeBenchmarkPhase = StaticTownBenchmarkPhase | DynamicTownBenchmarkPhase;
 
 /** Clock source returning a monotonic duration value in milliseconds. */
 export type BenchmarkClock = () => number;
@@ -44,7 +56,7 @@ export interface ComputeBenchmarkStatistics {
 /** Measurement of one equivalent compute phase. */
 export interface ComputePhaseBenchmark {
 	/** Stable phase name shared by every backend. */
-	phase: StaticTownBenchmarkPhase;
+	phase: ComputeBenchmarkPhase;
 	/** End-to-end duration observed by the application. */
 	wallClock: ComputeBenchmarkStatistics;
 	/**
@@ -64,6 +76,22 @@ export interface StaticTownBenchmarkReport {
 	/** Number of measured executions per phase. */
 	measurementIterations: number;
 	/** Measurements ordered from individual phases to total execution. */
+	phases: ComputePhaseBenchmark[];
+}
+
+/** Comparable dynamic-town benchmark report emitted by one compute profile. */
+export interface DynamicTownBenchmarkReport {
+	/** Backend profile that produced the report. */
+	profile: ComputeProfile;
+	/** City count used by the benchmark. */
+	cityCount: number;
+	/** Edge count evaluated by the benchmark. */
+	edgeCount: number;
+	/** Representative year measured independently. */
+	year: number;
+	/** Number of measured executions per phase. */
+	measurementIterations: number;
+	/** Per-year and complete-span measurements. */
 	phases: ComputePhaseBenchmark[];
 }
 
@@ -114,8 +142,41 @@ export function benchmarkStaticTownInvariantsCpu(
 	};
 }
 
+/** Benchmarks one dynamic year and the complete prepared historical span. */
+export function benchmarkDynamicTownPrecomputeCpu(
+	dataset: PreparedDataset,
+	staticTown: StaticTownPrecompute,
+	year = dataset.speedTimeline.span.beginYear,
+	benchmarkOptions: ComputeBenchmarkOptions = {},
+): DynamicTownBenchmarkReport {
+	const warmupIterations = normalizeIterationCount(benchmarkOptions.warmupIterations ?? 2, 'warmupIterations', true);
+	const measurementIterations = normalizeIterationCount(
+		benchmarkOptions.measurementIterations ?? 10,
+		'measurementIterations',
+		false,
+	);
+	const clock = benchmarkOptions.clock ?? (() => performance.now());
+	const phases: ComputePhaseBenchmark[] = [
+		measureCpuPhase('dynamic-year', warmupIterations, measurementIterations, clock, () => {
+			computeDynamicTownPrecomputeForYearCpu(dataset, staticTown, year);
+		}),
+		measureCpuPhase('dynamic-all-years', warmupIterations, measurementIterations, clock, () => {
+			computeDynamicTownPrecomputeByYearCpu(dataset, staticTown);
+		}),
+	];
+
+	return {
+		profile: 'cpu',
+		cityCount: dataset.cityCount,
+		edgeCount: dataset.edgeCount,
+		year,
+		measurementIterations,
+		phases,
+	};
+}
+
 function measureCpuPhase(
-	phase: StaticTownBenchmarkPhase,
+	phase: ComputeBenchmarkPhase,
 	warmupIterations: number,
 	measurementIterations: number,
 	clock: BenchmarkClock,

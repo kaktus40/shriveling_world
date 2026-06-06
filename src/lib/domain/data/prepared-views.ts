@@ -1,4 +1,9 @@
-import { PREPARED_EDGE_STRIDE, type PreparedDataset } from './types';
+import {
+	PREPARED_EDGE_STRIDE,
+	UNBOUNDED_EDGE_YEAR_BEGIN,
+	UNBOUNDED_EDGE_YEAR_END,
+	type PreparedDataset,
+} from './types';
 
 /** Read-only view over one city in a compact prepared dataset. */
 export class PreparedCityView {
@@ -83,6 +88,18 @@ export class PreparedEdgeView {
 	/** Dense transport-mode index. */
 	get modeIndex(): number {
 		return this.#dataset.edges[this.#offset + 2];
+	}
+
+	/** Inclusive opening year, or `null` when the edge has no lower bound. */
+	get yearBegin(): number | null {
+		const year = this.#dataset.edgeYearBegins[this.#edgeIndex];
+		return year === UNBOUNDED_EDGE_YEAR_BEGIN ? null : year;
+	}
+
+	/** Inclusive closing year, or `null` when the edge has no upper bound. */
+	get yearEnd(): number | null {
+		const year = this.#dataset.edgeYearEnds[this.#edgeIndex];
+		return year === UNBOUNDED_EDGE_YEAR_END ? null : year;
 	}
 }
 

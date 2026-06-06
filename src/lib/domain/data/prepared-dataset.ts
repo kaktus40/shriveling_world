@@ -1,12 +1,15 @@
 import { prepareSpeedTimeline } from './preparation';
 import {
 	PREPARED_EDGE_STRIDE,
+	UNBOUNDED_EDGE_YEAR_BEGIN,
+	UNBOUNDED_EDGE_YEAR_END,
 	type BaseNetwork,
 	type DatasetDiagnostic,
 	type PrepareSpeedTimelineOptions,
 	type PreparedDataset,
 	type PreparedSpeedTimeline,
 } from './types';
+import { toFiniteNumber } from './csv';
 
 const DEGREES_TO_RADIANS = Math.PI / 180;
 
@@ -95,6 +98,8 @@ export function prepareDataset(
 	const edgeIds = new Uint32Array(edgeCount);
 	const edgeSourceRecordIds = new Uint32Array(edgeCount);
 	const edges = new Uint32Array(edgeCount * PREPARED_EDGE_STRIDE);
+	const edgeYearBegins = new Int32Array(edgeCount);
+	const edgeYearEnds = new Int32Array(edgeCount);
 	const curvePairs: number[] = [];
 	const curveEdgeIdValues: number[] = [];
 
@@ -108,6 +113,35 @@ export function prepareDataset(
 		edges[offset] = originCityIndex;
 		edges[offset + 1] = destinationCityIndex;
 		edges[offset + 2] = modeIndex;
+		const sourceRecord = baseNetwork.sourceRecords[edge.sourceRecordId];
+		const yearBegin = sourceRecord ? toFiniteNumber(sourceRecord.raw.eYearBegin) : null;
+		const yearEnd = sourceRecord ? toFiniteNumber(sourceRecord.raw.eYearEnd) : null;
+		edgeYearBegins[edgeIndex] = prepareEdgeYear(
+			yearBegin,
+			UNBOUNDED_EDGE_YEAR_BEGIN,
+			'eYearBegin',
+			edge.id,
+			edge.sourceRecordId,
+			diagnostics,
+		);
+		edgeYearEnds[edgeIndex] = prepareEdgeYear(
+			yearEnd,
+			UNBOUNDED_EDGE_YEAR_END,
+			'eYearEnd',
+			edge.id,
+			edge.sourceRecordId,
+			diagnostics,
+		);
+		if (edgeYearBegins[edgeIndex] > edgeYearEnds[edgeIndex]) {
+			diagnostics.push({
+				severity: 'error',
+				code: 'prepared-edge-empty-period',
+				edgeId: edge.id,
+				sourceRecordId: edge.sourceRecordId,
+				yearBegin: edgeYearBegins[edgeIndex],
+				yearEnd: edgeYearEnds[edgeIndex],
+			});
+		}
 
 		if (modeIndex !== speedTimeline.roadModeId) {
 			curvePairs.push(originCityIndex, destinationCityIndex);
@@ -126,6 +160,8 @@ export function prepareDataset(
 		edgeIds,
 		edgeSourceRecordIds,
 		edges,
+		edgeYearBegins,
+		edgeYearEnds,
 		modeCount,
 		modeIds,
 		modeCodes,
@@ -160,4 +196,29 @@ export function toStaticTownInput(preparedDataset: PreparedDataset): {
  */
 export function hasPreparedDatasetErrors(preparedDataset: PreparedDataset): boolean {
 	return preparedDataset.diagnostics.some((diagnostic) => diagnostic.severity === 'error');
+}
+
+function prepareEdgeYear(
+	year: number | null,
+	unboundedValue: number,
+	column: string,
+	edgeId: number,
+	sourceRecordId: number,
+	diagnostics: DatasetDiagnostic[],
+): number {
+	if (year === null) {
+		return unboundedValue;
+	}
+	if (!Number.isSafeInteger(year) || year <= UNBOUNDED_EDGE_YEAR_BEGIN || year >= UNBOUNDED_EDGE_YEAR_END) {
+		diagnostics.push({
+			severity: 'error',
+			code: 'prepared-edge-invalid-year',
+			column,
+			edgeId,
+			sourceRecordId,
+			year,
+		});
+		return unboundedValue;
+	}
+	return year;
 }

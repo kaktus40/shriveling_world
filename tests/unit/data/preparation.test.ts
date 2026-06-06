@@ -10,6 +10,8 @@ import {
 	toStaticTownInput,
 	hasPreparedDatasetErrors,
 	PREPARED_EDGE_STRIDE,
+	UNBOUNDED_EDGE_YEAR_BEGIN,
+	UNBOUNDED_EDGE_YEAR_END,
 	PreparedCityView,
 	PreparedEdgeView,
 	type BaseNetwork,
@@ -203,9 +205,25 @@ test('prepareDataset preserves stable entity order and converts city coordinates
 	assert.equal(prepared.edges.length, prepared.edgeCount * PREPARED_EDGE_STRIDE);
 	assert.deepEqual(Array.from(prepared.edges), [0, 1, 1, 0, 1, 2]);
 	assert.deepEqual(Array.from(prepared.edgeIds), [0, 1]);
+	assert.deepEqual(Array.from(prepared.edgeYearBegins), [2005, 2007]);
+	assert.deepEqual(Array.from(prepared.edgeYearEnds), [2010, 2010]);
 	assert.deepEqual(Array.from(prepared.curveEdgePairs), [0, 1, 0, 1]);
 	assert.deepEqual(Array.from(prepared.curveEdgeIds), [0, 1]);
 	assert.equal(hasPreparedDatasetErrors(prepared), false);
+});
+
+test('prepareDataset represents missing edge dates with explicit unbounded sentinels', () => {
+	const prepared = prepareDataset(
+		buildBaseNetwork({
+			transportNetwork: `
+cityCodeOri,cityCodeDes,transportModeCode,eYearBegin,eYearEnd
+1,2,2,,
+`,
+		}),
+	);
+
+	assert.deepEqual(Array.from(prepared.edgeYearBegins), [UNBOUNDED_EDGE_YEAR_BEGIN]);
+	assert.deepEqual(Array.from(prepared.edgeYearEnds), [UNBOUNDED_EDGE_YEAR_END]);
 });
 
 test('prepareDataset excludes unresolved edges from compute buffers without deleting lossless records', () => {
@@ -251,5 +269,29 @@ test('PreparedDataset views expose compact values and lossless traceability ids'
 	assert.equal(edge.originCityIndex, 0);
 	assert.equal(edge.destinationCityIndex, 1);
 	assert.equal(edge.modeIndex, 2);
+	assert.equal(edge.yearBegin, 2007);
+	assert.equal(edge.yearEnd, 2010);
 	assert.equal('sourceRecords' in prepared, false);
+});
+
+test('prepareDataset diagnoses invalid or reversed compact edge years', () => {
+	const invalid = prepareDataset(
+		buildBaseNetwork({
+			transportNetwork: `
+cityCodeOri,cityCodeDes,transportModeCode,eYearBegin,eYearEnd
+1,2,2,2005.5,2010
+`,
+		}),
+	);
+	const reversed = prepareDataset(
+		buildBaseNetwork({
+			transportNetwork: `
+cityCodeOri,cityCodeDes,transportModeCode,eYearBegin,eYearEnd
+1,2,2,2010,2005
+`,
+		}),
+	);
+
+	assert.ok(invalid.diagnostics.some(({ code }) => code === 'prepared-edge-invalid-year'));
+	assert.ok(reversed.diagnostics.some(({ code }) => code === 'prepared-edge-empty-period'));
 });

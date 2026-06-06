@@ -410,6 +410,19 @@ Priorite 3:
 - tests de conformite CPU/GPU pour le raycast de frontiere;
 - tests de conformite CPU/GPU pour les cones.
 
+Reference CPU dynamique deja couverte:
+
+- activation inclusive des arêtes par annee;
+- arêtes sans borne temporelle;
+- emission bidirectionnelle;
+- exclusion des modes non terrestres et de Road;
+- selection du minimum alpha par destination;
+- bornage des modes plus lents par `roadAlpha`;
+- tri des liens par azimut;
+- continuite stricte de `offset + count`;
+- generation du span historique complet;
+- mesure separee d'une annee et du span complet.
+
 Priorite 4:
 
 - tests E2E rendu Babylon.js.

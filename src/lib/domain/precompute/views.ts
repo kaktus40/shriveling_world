@@ -8,6 +8,7 @@ import {
 	type CityInvariantBuffers,
 	type CityPairInvariantBuffers,
 	type CurveControlBuffers,
+	type DynamicTownPrecompute,
 	type OverlapCandidateBuffers,
 } from './types';
 import { getCityPairIndex } from './static-town-cpu';
@@ -213,5 +214,82 @@ export class CurveControlView {
 			this.#curves.curveControlPointsEcef[offset + 1],
 			this.#curves.curveControlPointsEcef[offset + 2],
 		];
+	}
+}
+
+/** Read-only view over one city's compact dynamic links for a selected year. */
+export class DynamicCityLinksView {
+	readonly #dynamicTown: DynamicTownPrecompute;
+	readonly #cityIndex: number;
+
+	constructor(dynamicTown: DynamicTownPrecompute, cityIndex: number) {
+		if (!Number.isSafeInteger(cityIndex) || cityIndex < 0 || cityIndex >= dynamicTown.cityLinkCounts.length) {
+			throw new RangeError('cityIndex must be a valid dynamic city index');
+		}
+		this.#dynamicTown = dynamicTown;
+		this.#cityIndex = cityIndex;
+	}
+
+	/** First compact link index for this city. */
+	get offset(): number {
+		return this.#dynamicTown.cityLinkOffsets[this.#cityIndex];
+	}
+
+	/** Number of compact links for this city. */
+	get count(): number {
+		return this.#dynamicTown.cityLinkCounts[this.#cityIndex];
+	}
+
+	/** Minimum connected terrestrial alpha, or Road alpha without links. */
+	get fastestTerrestrialAlphaRadians(): number {
+		return this.#dynamicTown.cityFastestTerrestrialAlphaRadians[this.#cityIndex];
+	}
+
+	/** Resolves one link using a city-local index. */
+	link(localLinkIndex: number): DynamicCityLinkView {
+		if (!Number.isSafeInteger(localLinkIndex) || localLinkIndex < 0 || localLinkIndex >= this.count) {
+			throw new RangeError('localLinkIndex must reference a dynamic city link');
+		}
+		return new DynamicCityLinkView(this.#dynamicTown, this.#cityIndex, this.offset + localLinkIndex);
+	}
+}
+
+/** Read-only view over one compact dynamic directional influence. */
+export class DynamicCityLinkView {
+	readonly #dynamicTown: DynamicTownPrecompute;
+	readonly #originCityIndex: number;
+	readonly #linkIndex: number;
+
+	constructor(dynamicTown: DynamicTownPrecompute, originCityIndex: number, linkIndex: number) {
+		if (!Number.isSafeInteger(originCityIndex) || originCityIndex < 0 || originCityIndex >= dynamicTown.cityLinkCounts.length) {
+			throw new RangeError('originCityIndex must be a valid dynamic city index');
+		}
+		if (!Number.isSafeInteger(linkIndex) || linkIndex < 0 || linkIndex >= dynamicTown.cityLinkDestinationIndexes.length) {
+			throw new RangeError('linkIndex must be a valid compact dynamic link index');
+		}
+		const offset = dynamicTown.cityLinkOffsets[originCityIndex];
+		const count = dynamicTown.cityLinkCounts[originCityIndex];
+		if (linkIndex < offset || linkIndex >= offset + count) {
+			throw new RangeError('linkIndex must belong to originCityIndex');
+		}
+		this.#dynamicTown = dynamicTown;
+		this.#originCityIndex = originCityIndex;
+		this.#linkIndex = linkIndex;
+	}
+
+	get originCityIndex(): number {
+		return this.#originCityIndex;
+	}
+
+	get destinationCityIndex(): number {
+		return this.#dynamicTown.cityLinkDestinationIndexes[this.#linkIndex];
+	}
+
+	get azimuthRadians(): number {
+		return this.#dynamicTown.cityLinkAzimuthRadians[this.#linkIndex];
+	}
+
+	get alphaRadians(): number {
+		return this.#dynamicTown.cityLinkAlphaRadians[this.#linkIndex];
 	}
 }

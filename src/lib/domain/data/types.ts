@@ -338,6 +338,12 @@ export interface PreparedSpeedTimeline {
 /** Number of unsigned integer values used by one prepared directed edge. */
 export const PREPARED_EDGE_STRIDE = 3;
 
+/** Inclusive lower-year sentinel used when an edge has no opening bound. */
+export const UNBOUNDED_EDGE_YEAR_BEGIN = -0x80000000;
+
+/** Inclusive upper-year sentinel used when an edge has no closing bound. */
+export const UNBOUNDED_EDGE_YEAR_END = 0x7fffffff;
+
 /**
  * Compact, compute-ready dataset derived from a lossless {@link BaseNetwork}.
  *
@@ -369,6 +375,10 @@ export interface PreparedDataset {
 	 * Each tuple is `[originCityIndex, destinationCityIndex, modeIndex]`.
 	 */
 	edges: Uint32Array;
+	/** Inclusive opening year for each prepared edge, or {@link UNBOUNDED_EDGE_YEAR_BEGIN}. */
+	edgeYearBegins: Int32Array;
+	/** Inclusive closing year for each prepared edge, or {@link UNBOUNDED_EDGE_YEAR_END}. */
+	edgeYearEnds: Int32Array;
 	/** Number of transport modes in stable base-network order. */
 	modeCount: number;
 	/** Base-mode ids in stable prepared mode order. */

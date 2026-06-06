@@ -234,6 +234,26 @@ for (let index = offset; index < offset + count; index += 1) {
 Les destinations sont conservees explicitement pour les tests, diagnostics,
 requêtes, interactions et futures evolutions algorithmiques.
 
+## Etat De L'Implementation CPU
+
+Le profil CPU de reference est implemente dans
+`src/lib/domain/precompute/dynamic-town-cpu.ts`.
+
+- `PreparedDataset.edgeYearBegins` et `edgeYearEnds` compactent les periodes
+  inclusives des arêtes sans relire le reseau lossless;
+- `computeDynamicTownPrecomputeForYearCpu` produit un paquet annuel;
+- `computeDynamicTownPrecomputeByYearCpu` produit tout le span historique;
+- les arêtes sont parcourues une seule fois par annee et emettent les deux sens;
+- `Road` et les modes non terrestres sont exclus des liens de cone;
+- un lien plus lent que Road est borne a `roadAlpha`;
+- les doublons de destination retiennent le minimum alpha;
+- les listes sont triees par azimut puis compactees sans trou;
+- `DynamicCityLinksView` expose les buffers sans dupliquer les donnees;
+- `benchmarkDynamicTownPrecomputeCpu` mesure une annee et le span complet.
+
+Ces sorties constituent la reference attendue pour les futurs profils WebGL2
+et WebGPU.
+
 ## Erreur D'Offsets Historique
 
 `toBabylon/prepareDynamicTownGeometry` produit une borne de fin ressemblant a

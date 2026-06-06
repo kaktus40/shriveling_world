@@ -741,6 +741,18 @@ Decision validee pour le precalcul dynamique annuel:
 - les trois variantes a alimenter sont le cone Road, le cone regulier selon la
   meilleure connexion terrestre et le cone complexe par direction.
 
+Implementation CPU du precalcul dynamique annuel:
+
+- `PreparedDataset` porte maintenant les periodes inclusives de chaque arête
+  dans deux `Int32Array`, avec sentinelles explicites pour les bornes absentes;
+- `src/lib/domain/precompute/dynamic-town-cpu.ts` implemente la production
+  annuelle et la production du span complet;
+- les sorties utilisent `offset + count`, des tableaux separes et aucun trou;
+- `DynamicCityLinksView` fournit des getters sans recopier les buffers;
+- le benchmark CPU compare le cout d'une annee et celui du span complet;
+- les tests couvrent les periodes inclusives, les deux directions,
+  l'exclusion Road/courbes, le minimum alpha, le tri et les offsets.
+
 ## M3: Extraction Du Domaine Metier
 
 Statut: `todo`
