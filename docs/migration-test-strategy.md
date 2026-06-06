@@ -435,6 +435,34 @@ Reference CPU des cones bruts deja couverte:
 - rejet des tailles, longueurs et attenuations invalides;
 - benchmark distinct de la selection des alphas et de la geometrie complete.
 
+Plan de tests des intersections a implementer:
+
+- oracle exhaustif sur toutes les faces des seuls voisins statiques;
+- verification du rayon symetrique
+  `phiB0 = wrapPositive(gammaBA - wrapSigned(phiA - gammaAB))`;
+- mesure de la priorite de parcours `phiB0 -> gammaBA`;
+- cones complexes presentant plusieurs minima locaux;
+- comparaison de l'heuristique droite/gauche avec l'oracle;
+- comparaison du filtre par intervalle d'azimuts avec l'oracle;
+- comparaison de la BVH circulaire avec l'oracle;
+- Moller-Trumbore double face sur sommets, arêtes et interieur des faces;
+- cas Float32 au passage `0/2 PI`;
+- longueurs globales et locales de cones;
+- reduction `min(rawT, coneIntersectionT, countryBoundaryT)`;
+- comparaison d'une passe WebGPU fusionnee avec les fonctions CPU separees.
+
+Benchmarks obligatoires:
+
+- duree totale et par strategie;
+- moyenne et p95 des faces testees par rayon/voisin;
+- moyenne et p95 des blocs visites;
+- taux de rejet des voisins et blocs;
+- proportion du minimum trouve entre `phiB0` et `gammaBA`;
+- nombre d'intersections manquees;
+- erreur maximale et p95 sur la distance `t`;
+- cout de l'ecriture de `ciseledConeRimEcef`;
+- cout de la fusion du clipping pays.
+
 Priorite 4:
 
 - tests E2E rendu Babylon.js.

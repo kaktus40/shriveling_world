@@ -1,0 +1,35 @@
+@startuml
+title Strategie d'intersection des cones et reduction finale
+
+|Entrees|
+start
+:rayon brut A\nsommet, direction, longueur connue;
+:voisins statiques de A;
+:faces circulaires des cones voisins;
+:limite pays alignee sur l'azimut;
+
+|Recherche prioritaire|
+:pour chaque voisin B;
+:calculer gammaAB, gammaBA et delta;
+:calculer phiB0 = gammaBA - delta;
+:prioriser les faces de phiB0 vers gammaBA;
+
+|Filtrage garanti|
+:parcourir la BVH circulaire de B;
+if (blockEntryT < bestT ?) then (oui)
+  :descendre dans le bloc;
+  :tester les faces candidates\navec Moller-Trumbore;
+  :bestT = min(bestT, intersectionT);
+else (non)
+  :rejeter le bloc;
+endif
+
+|Reduction pays|
+:coneIntersectionT = bestT;
+:finalT = min(coneIntersectionT, countryBoundaryT);
+
+|Sorties WebGPU|
+:ecrire ciseledConeRimEcef;
+:ecrire finalConeRimEcef;
+stop
+@enduml

@@ -1171,11 +1171,18 @@ Ameliorer les intersections entre cones et les decoupes par limites.
 
 Travail attendu:
 
-- formaliser les cas geometriques simples;
-- distinguer intersection cone/cone et clipping frontieres;
-- construire un index spatial exploitable par WebGPU;
+- conserver `overlapCandidates` comme perimetre de villes voisines;
+- construire les longueurs maximales de cones par ville;
+- formaliser le rayon symetrique `phiB0` entre deux villes;
+- prioriser le parcours de `phiB0` vers le plan A-B-centre Terre;
+- construire une BVH circulaire de blocs de faces exploitable par WebGPU;
+- benchmarker le filtre par intervalle d'azimuts possible;
+- distinguer conceptuellement intersection cone/cone et clipping frontieres,
+  tout en evaluant leur fusion dans une meme passe WebGPU;
 - definir les buffers necessaires;
-- implementer une premiere passe d'intersection robuste;
+- implementer un oracle exhaustif limite aux voisins statiques;
+- implementer Moller-Trumbore double face puis evaluer une variante watertight
+  si les tests Float32 le necessitent;
 - comparer visuellement et numeriquement.
 
 Cas tests minimum:
@@ -1186,12 +1193,20 @@ Cas tests minimum:
 - ville proche d'une frontiere;
 - polygone avec concavite;
 - changement de resolution sans rupture topologique majeure.
+- rayon symetrique situe de part et d'autre du plan A-B-centre Terre;
+- cone complexe avec plusieurs minima locaux;
+- rayon passant sur une arête partagee par deux faces;
+- longueur globale et longueur locale de cone;
+- comparaison exhaustive, intervalle angulaire, heuristique et BVH circulaire.
 
 Critere d'acceptation:
 
 - les artefacts historiques identifies diminuent;
 - la stabilite est meilleure quand la resolution varie;
 - les performances restent compatibles avec l'interaction.
+- aucune intersection n'est manquee face a l'oracle sur les jeux de conformite;
+- les benchmarks mesurent le nombre moyen et p95 de faces testees;
+- le cout de la sortie intermediaire et de la fusion pays est documente.
 
 Validation:
 

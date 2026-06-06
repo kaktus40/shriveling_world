@@ -1221,17 +1221,23 @@ Reference historique:
 Entrees GPU:
 
 - `RawConeBuffer`;
-- `townOverlaps`;
-- `neighborLimit`;
-- parametres d'ouverture de recherche.
+- `overlapCandidates`;
+- `overlapCandidateCounts`;
+- longueurs maximales des cones par ville;
+- hierarchie circulaire de blocs de faces;
+- invariants de paires pour `gammaAB` et `gammaBA`.
 
 Traitement:
 
-- pour chaque vertex brut d'un cone A:
+- pour chaque rayon brut d'un cone A:
   - prendre la demi-droite sommet A -> vertex;
-  - parcourir les cones voisins preselectionnes;
-  - tester les triangles du cone voisin autour de l'azimut pertinent;
-  - conserver l'intersection la plus proche du sommet A;
+  - parcourir uniquement les villes de `overlapCandidates`;
+  - calculer le rayon symetrique `phiB0` sur chaque voisin B;
+  - prioriser le parcours de `phiB0` vers le plan A-B-centre Terre;
+  - parcourir une BVH circulaire de faces;
+  - rejeter un bloc lorsque sa borne `blockEntryT` ne peut ameliorer `bestT`;
+  - tester les faces retenues avec Moller-Trumbore double face;
+  - conserver le minimum `t`;
   - sinon conserver le vertex brut.
 
 Sortie:
@@ -1247,8 +1253,14 @@ class RawConeBuffer {
 }
 
 class TownNeighborIndex {
-  townOverlaps
-  neighborLimit
+  overlapCandidates
+  overlapCandidateCounts
+}
+
+class CircularFaceBvh {
+  blockBounds
+  childIndexes
+  faceRanges
 }
 
 class CiseledConeBuffer {
@@ -1259,6 +1271,7 @@ component "ConeConeIntersectionPass WGSL" as intersect
 
 RawConeBuffer --> intersect
 TownNeighborIndex --> intersect
+CircularFaceBvh --> intersect
 intersect --> CiseledConeBuffer : GPU\nray/triangle tests
 
 note right of intersect
@@ -1269,12 +1282,17 @@ end note
 @enduml
 ```
 
-C'est la passe centrale a ameliorer. La qualite des intersections dependra de:
+C'est la passe centrale a ameliorer. Le detail de la decision est documente
+dans `docs/cone-intersection-architecture.md`.
 
-- la strategie de voisinage;
-- la resolution angulaire;
-- la robustesse numerique des tests rayon/triangle;
-- la separation entre intersection cone/cone et clipping par limites.
+Le voisinage statique est maintenu comme perimetre metier. Le rayon symetrique
+et le parcours vers le plan A-B-centre Terre definissent l'ordre probable le
+plus efficace. Une augmentation locale de distance ne constitue toutefois pas
+un critere d'arret fiable pour un cone deforme. La BVH circulaire fournit un
+arret garanti lorsque `blockEntryT >= bestT`.
+
+L'intervalle d'azimuts possible reste une strategie candidate a benchmarker
+contre l'oracle exhaustif limite aux voisins statiques.
 
 ## Etape 9: Clipping Par Limites Geographiques
 
@@ -1333,7 +1351,17 @@ title Etape 9 - ConeBoundaryClipPass
 @enduml
 ```
 
-Cette passe doit rester separee des intersections cone/cone. Les limites geographiques ne sont pas le meme probleme que l'intersection entre cones.
+Les limites geographiques restent un probleme conceptuellement distinct et une
+fonction separee dans la reference CPU. Le profil WebGPU peut cependant
+fusionner les deux reductions dans la meme invocation:
+
+```text
+coneIntersectionT = min(rawT, intersections cones)
+finalT = min(coneIntersectionT, countryBoundaryT)
+```
+
+Le shader peut ecrire simultanement `ciseledConeRimEcef` pour les tests et
+diagnostics, puis `finalConeRimEcef` pour le rendu.
 
 ## Etape 10: Generation Des Courbes
 

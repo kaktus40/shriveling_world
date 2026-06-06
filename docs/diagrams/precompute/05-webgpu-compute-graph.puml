@@ -3,25 +3,22 @@ title Graphe de calcul WebGPU pour cones et courbes
 
 skinparam componentStyle rectangle
 
-database "Buffers GPU statiques\nsommetsECEF\nned2ECEF\ntownOverlaps\nlimites\ncontroles courbes" as staticBuffers
+database "Buffers GPU statiques\nsommetsECEF\nned2ECEF\noverlapCandidates\nBVH circulaires\nlimites\ncontroles courbes" as staticBuffers
 database "Buffers GPU dynamiques\ncityLinkOffsets[annee]\ncityLinkCounts[annee]\ncityLinkAzimuthRadians[annee]\ncityLinkAlphaRadians[annee]\nroadAlphaRadians[annee]\nhauteurs courbes[annee]" as dynamicBuffers
 
 component "Passe Cones Bruts WGSL\nEntree: statique + dynamique\nSortie: buffer cones bruts" as raw
-component "Passe Intersections Cone/Cone WGSL\nEntree: cones bruts + townOverlaps\nSortie: buffer cones decoupes" as ciseled
-component "Passe Decoupe Par Limites WGSL\nEntree: cones decoupes + limites\nSortie: buffer cones finaux" as final
+component "Passe Reduction Intersections WGSL\nEntree: cones bruts + voisins + BVH + limites\nSorties: cones ciseles + cones finaux" as intersect
 component "Passe Geometrie Courbes WGSL\nEntree: controles + hauteurs dynamiques\nSortie: buffer vertices courbes" as curve
 component "Couche Cones Babylon\nEntree: buffer cones finaux" as coneLayer
 component "Couche Courbes Babylon\nEntree: buffer vertices courbes" as curveLayer
 
 staticBuffers --> raw
 dynamicBuffers --> raw
-raw --> ciseled
-staticBuffers --> ciseled
-ciseled --> final
-staticBuffers --> final
+raw --> intersect
+staticBuffers --> intersect
 staticBuffers --> curve
 dynamicBuffers --> curve
-final --> coneLayer
+intersect --> coneLayer
 curve --> curveLayer
 
 note bottom of raw
@@ -29,9 +26,10 @@ note bottom of raw
   tache = cityIndex x echantillonAzimut.
 end note
 
-note bottom of ciseled
+note bottom of intersect
   Passe critique:
-  intersections cone/cone
-  bornees par townOverlaps.
+  minimum des intersections cone/cone
+  puis minimum avec limite pays.
+  La sortie ciselee reste optionnelle.
 end note
 @enduml
