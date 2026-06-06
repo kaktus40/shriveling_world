@@ -3,15 +3,20 @@ import test from 'node:test';
 import {
 	CITY_NED2ECEF_MATRIX_STRIDE,
 	CITY_PAIR_INVARIANT_STRIDE,
+	UNUSED_INDEX,
 	CityInvariantView,
 	CityPairInvariantView,
+	OverlapCandidateView,
 	CpuStaticTownInvariantBackend,
 	computeAzimuthSectorIndex,
 	computeStaticTownInvariantsCpu,
+	computeStaticTownPrecomputeCpu,
 	benchmarkStaticTownInvariantsCpu,
 	getComputeProfileFallbackChain,
 	getCityPairIndex,
+	selectOverlapCandidatesCpu,
 	summarizeBenchmarkSamples,
+	type CityPairInvariantBuffers,
 } from '../../../src/lib/domain/precompute';
 import { EARTH_RADIUS_METERS, PI, TWO_PI } from '../../../src/lib/shared';
 import { degreesToRadians } from '../../../src/lib/domain/geojson';
@@ -114,16 +119,20 @@ test('compute profiles follow WebGPU, WebGL2, then CPU fallback order', async ()
 	assert.deepEqual(getComputeProfileFallbackChain('cpu'), ['cpu']);
 
 	const backend = new CpuStaticTownInvariantBackend();
-	const result = await backend.compute({ cityLonLatRadians: new Float32Array([0, 0]) }, { sectorCount: 4 });
+	const result = await backend.compute(
+		{ cityLonLatRadians: new Float32Array([0, 0]) },
+		{ sectorCount: 4, neighborLimit: 100 },
+	);
 	assert.equal(backend.profile, 'cpu');
 	assert.equal(result.cityCount, 1);
+	assert.equal(result.neighborLimit, 0);
 });
 
 test('CPU benchmark reports every implemented phase and total execution', () => {
 	let clockValue = 0;
 	const report = benchmarkStaticTownInvariantsCpu(
 		{ cityLonLatRadians: new Float32Array([0, 0, 1, 0]) },
-		{ sectorCount: 4 },
+		{ sectorCount: 4, neighborLimit: 1 },
 		{
 			warmupIterations: 0,
 			measurementIterations: 3,
@@ -135,12 +144,66 @@ test('CPU benchmark reports every implemented phase and total execution', () => 
 	assert.equal(report.measurementIterations, 3);
 	assert.deepEqual(
 		report.phases.map(({ phase }) => phase),
-		['city-invariants', 'city-pair-invariants', 'total'],
+		['city-invariants', 'city-pair-invariants', 'overlap-reduction', 'total'],
 	);
 	for (const phase of report.phases) {
 		assert.equal(phase.wallClock.medianMilliseconds, 1);
 		assert.equal(phase.device, undefined);
 	}
+});
+
+test('overlap reduction redistributes quotas from empty and sparse sectors', () => {
+	const pairInvariants = createPairInvariantFixture(6, 4, [
+		{ from: 0, to: 1, azimuth: 0.1, distance: 0.1, sector: 0 },
+		{ from: 0, to: 2, azimuth: 0.2, distance: 0.2, sector: 0 },
+		{ from: 0, to: 3, azimuth: 0.3, distance: 0.3, sector: 0 },
+		{ from: 0, to: 4, azimuth: 2, distance: 0.4, sector: 1 },
+		{ from: 0, to: 5, azimuth: 5, distance: 0.5, sector: 3 },
+	]);
+
+	const result = selectOverlapCandidatesCpu(pairInvariants, 4);
+
+	assert.equal(result.neighborLimit, 4);
+	assert.equal(result.overlapCandidateCounts[0], 4);
+	assert.deepEqual(Array.from(result.overlapCandidates.slice(0, 4)), [1, 2, 4, 5]);
+});
+
+test('overlap reduction keeps the nearest candidates per sector then orders by azimuth', () => {
+	const pairInvariants = createPairInvariantFixture(5, 2, [
+		{ from: 0, to: 1, azimuth: 0.8, distance: 0.4, sector: 0 },
+		{ from: 0, to: 2, azimuth: 0.2, distance: 0.1, sector: 0 },
+		{ from: 0, to: 3, azimuth: 4.5, distance: 0.2, sector: 1 },
+		{ from: 0, to: 4, azimuth: 4, distance: 0.3, sector: 1 },
+	]);
+
+	const result = selectOverlapCandidatesCpu(pairInvariants, 2);
+
+	assert.deepEqual(Array.from(result.overlapCandidates.slice(0, 2)), [2, 3]);
+});
+
+test('overlap reduction caps neighborLimit to available non-diagonal cities', () => {
+	const result = computeStaticTownPrecomputeCpu(
+		{ cityLonLatRadians: new Float32Array([0, 0, 1, 0]) },
+		{ sectorCount: 4, neighborLimit: 100 },
+	);
+
+	assert.equal(result.neighborLimit, 1);
+	assert.deepEqual(Array.from(result.overlapCandidateCounts), [1, 1]);
+	assert.ok(Array.from(result.overlapCandidates).every((index) => index !== UNUSED_INDEX));
+});
+
+test('overlap candidate views resolve non-duplicated pair invariants', () => {
+	const result = computeStaticTownPrecomputeCpu(
+		{ cityLonLatRadians: new Float32Array([0, 0, degreesToRadians(90), 0]) },
+		{ sectorCount: 4, neighborLimit: 1 },
+	);
+	const overlap = new OverlapCandidateView(result, result, 0, 0);
+
+	assert.equal(overlap.cityIndex, 0);
+	assert.equal(overlap.neighborCityIndex, 1);
+	assertClose(overlap.forwardAzimuthRadians, PI / 2);
+	assertClose(overlap.reverseAzimuthRadians, (3 * PI) / 2);
+	assertClose(overlap.halfAngularDistanceRadians, PI / 4);
 });
 
 test('benchmark statistics expose median and p95 without imposing machine thresholds', () => {
@@ -151,3 +214,28 @@ test('benchmark statistics expose median and p95 without imposing machine thresh
 		maxMilliseconds: 10,
 	});
 });
+
+interface PairFixtureValue {
+	from: number;
+	to: number;
+	azimuth: number;
+	distance: number;
+	sector: number;
+}
+
+function createPairInvariantFixture(
+	cityCount: number,
+	sectorCount: number,
+	values: PairFixtureValue[],
+): CityPairInvariantBuffers {
+	const cityPairInvariants = new Float32Array(cityCount * cityCount * CITY_PAIR_INVARIANT_STRIDE);
+	const cityPairSectorIndexes = new Uint32Array(cityCount * cityCount);
+	for (const value of values) {
+		const pairIndex = value.from * cityCount + value.to;
+		const offset = pairIndex * CITY_PAIR_INVARIANT_STRIDE;
+		cityPairInvariants[offset] = value.azimuth;
+		cityPairInvariants[offset + 2] = value.distance;
+		cityPairSectorIndexes[pairIndex] = value.sector;
+	}
+	return { cityCount, sectorCount, cityPairInvariants, cityPairSectorIndexes };
+}

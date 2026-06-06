@@ -15,7 +15,10 @@ import {
 	type CityPairPrecomputeOptions,
 	type StaticCityInput,
 	type StaticTownInvariantPrecompute,
+	type StaticTownPrecompute,
+	type StaticTownPrecomputeOptions,
 } from './types';
+import { selectOverlapCandidatesCpu } from './overlap-cpu';
 
 /** Returns the dense index of an ordered pair `(cityAIndex, cityBIndex)`. */
 export function getCityPairIndex(cityAIndex: number, cityBIndex: number, cityCount: number): number {
@@ -124,6 +127,21 @@ export function computeStaticTownInvariantsCpu(
 	const cityInvariants = computeCityInvariantsCpu(input);
 	const pairInvariants = computeCityPairInvariantsCpu(cityInvariants, options);
 	return { ...cityInvariants, ...pairInvariants };
+}
+
+/**
+ * Runs every currently implemented CPU static-town phase.
+ *
+ * The result includes city invariants, ordered-pair invariants, and the
+ * angularly distributed neighbor selection used by later cone intersections.
+ */
+export function computeStaticTownPrecomputeCpu(
+	input: StaticCityInput,
+	options: StaticTownPrecomputeOptions,
+): StaticTownPrecompute {
+	const invariants = computeStaticTownInvariantsCpu(input, options);
+	const overlaps = selectOverlapCandidatesCpu(invariants, options.neighborLimit);
+	return { ...invariants, ...overlaps };
 }
 
 function validateStaticCityInput(input: StaticCityInput): number {

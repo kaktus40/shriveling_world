@@ -134,6 +134,15 @@ des places inutilisees, puis ordre final par azimut. Toute evolution de cette
 strategie devra etre caracterisee separement, car elle peut changer le resultat
 des intersections de cones.
 
+La reference CPU est implementee dans
+`src/lib/domain/precompute/overlap-cpu.ts`. Contrairement au tableau historique
+`townOverlaps`, elle ne duplique pas les azimuts aller/retour et la demi-distance:
+ces informations sont lues depuis `cityPairInvariants` avec le couple
+`(cityIndex, neighborCityIndex)`.
+
+`OverlapCandidateView` fournit cet acces sans recopier les valeurs dans les
+objets metier.
+
 ### Courbes Limitees Aux Arêtes Connues
 
 Les points de controle ne sont pas calcules pour les `N x N` paires. Ils sont
@@ -236,6 +245,13 @@ Le profil CPU est implemente en fonctions pures et decoupe en phases testables:
 Ce profil doit rester disponible meme apres le portage WebGPU. Il permet les
 tests Node.js, le diagnostic des kernels et l'execution sur une plateforme sans
 WebGPU, avec une limite de taille de dataset explicite si necessaire.
+
+Etat d'implementation:
+
+- `computeCityInvariantsCpu`: implemente;
+- `computeCityPairInvariantsCpu`: implemente;
+- `selectOverlapCandidatesCpu`: implemente;
+- `computeCurveControlPointsCpu`: a implementer.
 
 ## Profil WebGL2
 

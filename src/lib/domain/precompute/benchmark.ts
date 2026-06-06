@@ -2,12 +2,13 @@ import type { ComputeProfile } from './backend';
 import {
 	computeCityInvariantsCpu,
 	computeCityPairInvariantsCpu,
-	computeStaticTownInvariantsCpu,
+	computeStaticTownPrecomputeCpu,
 } from './static-town-cpu';
-import type { CityPairPrecomputeOptions, StaticCityInput } from './types';
+import { selectOverlapCandidatesCpu } from './overlap-cpu';
+import type { StaticCityInput, StaticTownPrecomputeOptions } from './types';
 
 /** Stable names used to compare equivalent compute phases across backends. */
-export type StaticTownBenchmarkPhase = 'city-invariants' | 'city-pair-invariants' | 'total';
+export type StaticTownBenchmarkPhase = 'city-invariants' | 'city-pair-invariants' | 'overlap-reduction' | 'total';
 
 /** Clock source returning a monotonic duration value in milliseconds. */
 export type BenchmarkClock = () => number;
@@ -68,7 +69,7 @@ export interface StaticTownBenchmarkReport {
  */
 export function benchmarkStaticTownInvariantsCpu(
 	input: StaticCityInput,
-	options: CityPairPrecomputeOptions,
+	options: StaticTownPrecomputeOptions,
 	benchmarkOptions: ComputeBenchmarkOptions = {},
 ): StaticTownBenchmarkReport {
 	const warmupIterations = normalizeIterationCount(benchmarkOptions.warmupIterations ?? 2, 'warmupIterations', true);
@@ -79,6 +80,7 @@ export function benchmarkStaticTownInvariantsCpu(
 	);
 	const clock = benchmarkOptions.clock ?? (() => performance.now());
 	const cityInvariants = computeCityInvariantsCpu(input);
+	const pairInvariants = computeCityPairInvariantsCpu(cityInvariants, options);
 
 	const phases: ComputePhaseBenchmark[] = [
 		measureCpuPhase('city-invariants', warmupIterations, measurementIterations, clock, () => {
@@ -87,8 +89,11 @@ export function benchmarkStaticTownInvariantsCpu(
 		measureCpuPhase('city-pair-invariants', warmupIterations, measurementIterations, clock, () => {
 			computeCityPairInvariantsCpu(cityInvariants, options);
 		}),
+		measureCpuPhase('overlap-reduction', warmupIterations, measurementIterations, clock, () => {
+			selectOverlapCandidatesCpu(pairInvariants, options.neighborLimit);
+		}),
 		measureCpuPhase('total', warmupIterations, measurementIterations, clock, () => {
-			computeStaticTownInvariantsCpu(input, options);
+			computeStaticTownPrecomputeCpu(input, options);
 		}),
 	];
 

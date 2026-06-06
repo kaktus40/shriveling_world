@@ -1,5 +1,5 @@
-import type { CityPairPrecomputeOptions, StaticCityInput, StaticTownInvariantPrecompute } from './types';
-import { computeStaticTownInvariantsCpu } from './static-town-cpu';
+import type { StaticCityInput, StaticTownPrecompute, StaticTownPrecomputeOptions } from './types';
+import { computeStaticTownPrecomputeCpu } from './static-town-cpu';
 import { benchmarkStaticTownInvariantsCpu } from './benchmark';
 import type { ComputeBenchmarkOptions, StaticTownBenchmarkReport } from './benchmark';
 
@@ -16,11 +16,11 @@ export interface StaticTownInvariantBackend {
 	/** Profile implemented by this backend. */
 	readonly profile: ComputeProfile;
 	/** Computes static city and ordered-pair invariant buffers. */
-	compute(input: StaticCityInput, options: CityPairPrecomputeOptions): Promise<StaticTownInvariantPrecompute>;
+	compute(input: StaticCityInput, options: StaticTownPrecomputeOptions): Promise<StaticTownPrecompute>;
 	/** Benchmarks every implemented phase and the complete backend pipeline. */
 	benchmark(
 		input: StaticCityInput,
-		options: CityPairPrecomputeOptions,
+		options: StaticTownPrecomputeOptions,
 		benchmarkOptions?: ComputeBenchmarkOptions,
 	): Promise<StaticTownBenchmarkReport>;
 }
@@ -29,13 +29,13 @@ export interface StaticTownInvariantBackend {
 export class CpuStaticTownInvariantBackend implements StaticTownInvariantBackend {
 	readonly profile = 'cpu' as const;
 
-	async compute(input: StaticCityInput, options: CityPairPrecomputeOptions): Promise<StaticTownInvariantPrecompute> {
-		return computeStaticTownInvariantsCpu(input, options);
+	async compute(input: StaticCityInput, options: StaticTownPrecomputeOptions): Promise<StaticTownPrecompute> {
+		return computeStaticTownPrecomputeCpu(input, options);
 	}
 
 	async benchmark(
 		input: StaticCityInput,
-		options: CityPairPrecomputeOptions,
+		options: StaticTownPrecomputeOptions,
 		benchmarkOptions?: ComputeBenchmarkOptions,
 	): Promise<StaticTownBenchmarkReport> {
 		return benchmarkStaticTownInvariantsCpu(input, options, benchmarkOptions);

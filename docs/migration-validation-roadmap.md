@@ -699,10 +699,14 @@ Implementation commencee:
   phase et globalement, et instrumente le profil CPU;
 - `src/lib/domain/precompute/views.ts` fournit les premieres vues legeres sur
   les buffers partages;
+- `src/lib/domain/precompute/overlap-cpu.ts` reproduit la selection historique
+  des voisins par secteur, la redistribution des quotas et l'ordre final par
+  azimut, sans dupliquer les invariants de paires;
 - `tests/unit/precompute/static-town-cpu.test.ts` caracterise l'ordre stable,
-  les unites SI, les azimuts, distances, secteurs et paires diagonales;
-- les reductions de voisinage, `curveEdgePairs`, les controles `[A, P, Q, B]`
-  et le backend WebGPU restent a implementer.
+  les unites SI, les azimuts, distances, secteurs, paires diagonales et
+  reductions de voisinage;
+- `curveEdgePairs`, les controles `[A, P, Q, B]` et les backends WebGL2/WebGPU
+  restent a implementer.
 
 ## M3: Extraction Du Domaine Metier
 

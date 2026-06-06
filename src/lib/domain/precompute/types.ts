@@ -7,6 +7,9 @@ export const CITY_NED2ECEF_MATRIX_STRIDE = 16;
 /** Number of float values used by one ordered city-pair invariant record. */
 export const CITY_PAIR_INVARIANT_STRIDE = 4;
 
+/** Sentinel used by unused slots in dense unsigned integer buffers. */
+export const UNUSED_INDEX = 0xffffffff;
+
 /**
  * Compact static city input shared by CPU and GPU precompute backends.
  *
@@ -22,6 +25,12 @@ export interface StaticCityInput {
 export interface CityPairPrecomputeOptions {
 	/** Number of equal azimuth sectors covering `[0, 2 PI)`. */
 	sectorCount: number;
+}
+
+/** Options controlling the complete static-town CPU precompute. */
+export interface StaticTownPrecomputeOptions extends CityPairPrecomputeOptions {
+	/** Maximum number of overlap candidates retained for each city. */
+	neighborLimit: number;
 }
 
 /** Invariants computed independently for every city. */
@@ -49,5 +58,24 @@ export interface CityPairInvariantBuffers {
 	cityPairSectorIndexes: Uint32Array;
 }
 
+/** Neighbor indexes retained for later cone-intersection calculations. */
+export interface OverlapCandidateBuffers {
+	/** Maximum number of dense candidate slots reserved for each city. */
+	neighborLimit: number;
+	/**
+	 * Neighbor city indexes with dense layout
+	 * `cityIndex * neighborLimit + candidateIndex`.
+	 *
+	 * Valid candidates are ordered by forward azimuth. Unused slots contain
+	 * {@link UNUSED_INDEX}.
+	 */
+	overlapCandidates: Uint32Array;
+	/** Number of valid candidates retained for each city. */
+	overlapCandidateCounts: Uint32Array;
+}
+
 /** First CPU tranche of the static-town precompute contract. */
 export interface StaticTownInvariantPrecompute extends CityInvariantBuffers, CityPairInvariantBuffers {}
+
+/** Static-town precompute buffers currently produced by the CPU backend. */
+export interface StaticTownPrecompute extends StaticTownInvariantPrecompute, OverlapCandidateBuffers {}

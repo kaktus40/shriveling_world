@@ -6,6 +6,7 @@
  */
 export * from './types';
 export * from './static-town-cpu';
+export * from './overlap-cpu';
 export * from './backend';
 export * from './benchmark';
 export * from './views';

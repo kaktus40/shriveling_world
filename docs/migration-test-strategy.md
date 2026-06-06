@@ -158,6 +158,10 @@ Contrats a verifier:
 - `cityContourIndexes`: index par ordre de ville;
 - `townCountryIndexes`: index par `cityId` lorsque necessaire;
 - `cityNed2EcefMatrices`: stride 16, column-major;
+- `cityPairInvariants`: stride 4, azimuts aller/retour et distance angulaire;
+- `cityPairSectorIndexes`: stride 1;
+- `overlapCandidates`: indices de villes, ordre par azimut;
+- `overlapCandidateCounts`: nombre de voisins retenus par ville;
 - `azimuthIntervals`: stride 2, `[minRadians, maxRadians]`;
 - `townBoundaryAngular`: stride 4;
 - `townBoundaryEcef`: stride 4.
@@ -269,10 +273,11 @@ Les premiers noms de phases stables sont:
 
 - `city-invariants`;
 - `city-pair-invariants`;
+- `overlap-reduction`;
 - `total`.
 
-Ils seront completes par `overlap-reduction`, `curve-controls`, raycast des
-limites et passes de cones au fur et a mesure de leur implementation.
+Ils seront completes par `curve-controls`, raycast des limites et passes de
+cones au fur et a mesure de leur implementation.
 
 ### Niveau 6: Tests D'Integration Pipeline
 

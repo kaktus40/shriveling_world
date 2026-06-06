@@ -5,6 +5,7 @@ import {
 	CITY_PAIR_INVARIANT_STRIDE,
 	type CityInvariantBuffers,
 	type CityPairInvariantBuffers,
+	type OverlapCandidateBuffers,
 } from './types';
 import { getCityPairIndex } from './static-town-cpu';
 
@@ -82,5 +83,73 @@ export class CityPairInvariantView {
 	/** Equal-width azimuth sector containing the forward azimuth. */
 	get sectorIndex(): number {
 		return this.#pairInvariants.cityPairSectorIndexes[this.#pairIndex];
+	}
+}
+
+/**
+ * Read-only view over one retained overlap candidate.
+ *
+ * The view resolves azimuths and distance from the shared dense pair buffer;
+ * these values are deliberately not duplicated in the overlap index buffer.
+ */
+export class OverlapCandidateView {
+	readonly #cityIndex: number;
+	readonly #candidateIndex: number;
+	readonly #neighborCityIndex: number;
+	readonly #pairOffset: number;
+	readonly #pairInvariants: CityPairInvariantBuffers;
+
+	constructor(
+		pairInvariants: CityPairInvariantBuffers,
+		overlaps: OverlapCandidateBuffers,
+		cityIndex: number,
+		candidateIndex: number,
+	) {
+		if (!Number.isSafeInteger(cityIndex) || cityIndex < 0 || cityIndex >= pairInvariants.cityCount) {
+			throw new RangeError('cityIndex must be a valid city index');
+		}
+		if (
+			!Number.isSafeInteger(candidateIndex) ||
+			candidateIndex < 0 ||
+			candidateIndex >= overlaps.overlapCandidateCounts[cityIndex]
+		) {
+			throw new RangeError('candidateIndex must reference a retained overlap candidate');
+		}
+		const neighborCityIndex = overlaps.overlapCandidates[cityIndex * overlaps.neighborLimit + candidateIndex];
+		this.#cityIndex = cityIndex;
+		this.#candidateIndex = candidateIndex;
+		this.#neighborCityIndex = neighborCityIndex;
+		this.#pairOffset = getCityPairIndex(cityIndex, neighborCityIndex, pairInvariants.cityCount) * CITY_PAIR_INVARIANT_STRIDE;
+		this.#pairInvariants = pairInvariants;
+	}
+
+	/** Dense index of the origin city. */
+	get cityIndex(): number {
+		return this.#cityIndex;
+	}
+
+	/** Position of this neighbor in the origin city's azimuth-sorted list. */
+	get candidateIndex(): number {
+		return this.#candidateIndex;
+	}
+
+	/** Dense index of the retained neighbor city. */
+	get neighborCityIndex(): number {
+		return this.#neighborCityIndex;
+	}
+
+	/** Initial azimuth from the origin city to the neighbor, in radians. */
+	get forwardAzimuthRadians(): number {
+		return this.#pairInvariants.cityPairInvariants[this.#pairOffset];
+	}
+
+	/** Initial azimuth from the neighbor back to the origin city, in radians. */
+	get reverseAzimuthRadians(): number {
+		return this.#pairInvariants.cityPairInvariants[this.#pairOffset + 1];
+	}
+
+	/** Half of the great-circle angular distance, in radians. */
+	get halfAngularDistanceRadians(): number {
+		return this.#pairInvariants.cityPairInvariants[this.#pairOffset + 2] / 2;
 	}
 }
