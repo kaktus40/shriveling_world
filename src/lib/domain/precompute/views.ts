@@ -3,8 +3,11 @@ import type { Vec3 } from '../../shared/vector3';
 import {
 	CITY_NED2ECEF_MATRIX_STRIDE,
 	CITY_PAIR_INVARIANT_STRIDE,
+	CURVE_CONTROL_POINT_STRIDE,
+	CURVE_EDGE_PAIR_STRIDE,
 	type CityInvariantBuffers,
 	type CityPairInvariantBuffers,
+	type CurveControlBuffers,
 	type OverlapCandidateBuffers,
 } from './types';
 import { getCityPairIndex } from './static-town-cpu';
@@ -151,5 +154,64 @@ export class OverlapCandidateView {
 	/** Half of the great-circle angular distance, in radians. */
 	get halfAngularDistanceRadians(): number {
 		return this.#pairInvariants.cityPairInvariants[this.#pairOffset + 2] / 2;
+	}
+}
+
+/** Read-only view over one known curve edge and its four ECEF control points. */
+export class CurveControlView {
+	readonly #curveIndex: number;
+	readonly #curves: CurveControlBuffers;
+
+	constructor(curves: CurveControlBuffers, curveIndex: number) {
+		const curveCount = curves.curveEdgePairs.length / CURVE_EDGE_PAIR_STRIDE;
+		if (!Number.isSafeInteger(curveIndex) || curveIndex < 0 || curveIndex >= curveCount) {
+			throw new RangeError('curveIndex must be a valid curve index');
+		}
+		this.#curveIndex = curveIndex;
+		this.#curves = curves;
+	}
+
+	/** Dense curve index preserving the prepared edge order. */
+	get curveIndex(): number {
+		return this.#curveIndex;
+	}
+
+	/** Dense origin city index. */
+	get originCityIndex(): number {
+		return this.#curves.curveEdgePairs[this.#curveIndex * CURVE_EDGE_PAIR_STRIDE];
+	}
+
+	/** Dense destination city index. */
+	get destinationCityIndex(): number {
+		return this.#curves.curveEdgePairs[this.#curveIndex * CURVE_EDGE_PAIR_STRIDE + 1];
+	}
+
+	/** Curve start point A in ECEF meters. */
+	get pointAEcefMeters(): Vec3 {
+		return this.#readPoint(0);
+	}
+
+	/** First intermediate point P in ECEF meters. */
+	get pointPEcefMeters(): Vec3 {
+		return this.#readPoint(4);
+	}
+
+	/** Second intermediate point Q in ECEF meters. */
+	get pointQEcefMeters(): Vec3 {
+		return this.#readPoint(8);
+	}
+
+	/** Curve end point B in ECEF meters. */
+	get pointBEcefMeters(): Vec3 {
+		return this.#readPoint(12);
+	}
+
+	#readPoint(pointOffset: number): Vec3 {
+		const offset = this.#curveIndex * CURVE_CONTROL_POINT_STRIDE + pointOffset;
+		return [
+			this.#curves.curveControlPointsEcef[offset],
+			this.#curves.curveControlPointsEcef[offset + 1],
+			this.#curves.curveControlPointsEcef[offset + 2],
+		];
 	}
 }

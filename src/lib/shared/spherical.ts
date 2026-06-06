@@ -1,5 +1,5 @@
 import { EARTH_RADIUS_METERS, PI, TWO_PI } from './constants';
-import { add3, clamp, cross3, dot3, normalize3, scale3 } from './vector3';
+import { add3, clamp, cross3, dot3, norm3, normalize3, scale3 } from './vector3';
 import type { Vec3 } from './vector3';
 
 /** A longitude/latitude pair expressed in radians. */
@@ -23,6 +23,24 @@ export function nVectorToLonLat(vector: Vec3): LonLatRadians {
 /** Computes the angular distance between two n-vectors, in radians. */
 export function angularDistanceRadians(a: Vec3, b: Vec3): number {
 	return Math.acos(clamp(dot3(normalize3(a), normalize3(b)), -1, 1));
+}
+
+/**
+ * Interpolates two n-vectors then projects the result onto the unit sphere.
+ *
+ * This reproduces the normalized linear interpolation used by the historical
+ * project for midpoint and quarter-point construction. Antipodal interpolation
+ * at the exact midpoint is undefined and rejected explicitly.
+ */
+export function intermediateNVector(a: Vec3, b: Vec3, fraction: number): Vec3 {
+	if (!Number.isFinite(fraction) || fraction < 0 || fraction > 1) {
+		throw new RangeError('fraction must be finite and belong to [0, 1]');
+	}
+	const interpolated = add3(scale3(a, 1 - fraction), scale3(b, fraction));
+	if (norm3(interpolated) <= 1e-7) {
+		throw new RangeError('cannot interpolate antipodal n-vectors at this fraction');
+	}
+	return normalize3(interpolated);
 }
 
 /** Builds a corrected NED-to-ECEF matrix in column-major order. */

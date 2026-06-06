@@ -5,10 +5,16 @@ import {
 	computeStaticTownPrecomputeCpu,
 } from './static-town-cpu';
 import { selectOverlapCandidatesCpu } from './overlap-cpu';
-import type { StaticCityInput, StaticTownPrecomputeOptions } from './types';
+import { computeCurveControlPointsCpu } from './curve-cpu';
+import type { StaticTownInput, StaticTownPrecomputeOptions } from './types';
 
 /** Stable names used to compare equivalent compute phases across backends. */
-export type StaticTownBenchmarkPhase = 'city-invariants' | 'city-pair-invariants' | 'overlap-reduction' | 'total';
+export type StaticTownBenchmarkPhase =
+	| 'city-invariants'
+	| 'city-pair-invariants'
+	| 'overlap-reduction'
+	| 'curve-controls'
+	| 'total';
 
 /** Clock source returning a monotonic duration value in milliseconds. */
 export type BenchmarkClock = () => number;
@@ -68,7 +74,7 @@ export interface StaticTownBenchmarkReport {
  * phase. Total timing includes both phases and their intermediate allocations.
  */
 export function benchmarkStaticTownInvariantsCpu(
-	input: StaticCityInput,
+	input: StaticTownInput,
 	options: StaticTownPrecomputeOptions,
 	benchmarkOptions: ComputeBenchmarkOptions = {},
 ): StaticTownBenchmarkReport {
@@ -91,6 +97,9 @@ export function benchmarkStaticTownInvariantsCpu(
 		}),
 		measureCpuPhase('overlap-reduction', warmupIterations, measurementIterations, clock, () => {
 			selectOverlapCandidatesCpu(pairInvariants, options.neighborLimit);
+		}),
+		measureCpuPhase('curve-controls', warmupIterations, measurementIterations, clock, () => {
+			computeCurveControlPointsCpu(cityInvariants, input.curveEdgePairs ?? new Uint32Array());
 		}),
 		measureCpuPhase('total', warmupIterations, measurementIterations, clock, () => {
 			computeStaticTownPrecomputeCpu(input, options);

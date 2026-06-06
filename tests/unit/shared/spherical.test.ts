@@ -4,6 +4,7 @@ import {
 	EARTH_RADIUS_METERS,
 	buildNed2EcefMatrix,
 	lonLatToNVector,
+	intermediateNVector,
 	nVectorToLonLat,
 	readMatrixColumn3,
 	readNVectorFromNed2Ecef,
@@ -44,4 +45,10 @@ test('buildNed2EcefMatrix keeps the north pole translation on the Z axis', () =>
 
 	assertVecClose(readMatrixColumn3(matrix, 0, 3), [0, 0, EARTH_RADIUS_METERS], 1e-2);
 	assertVecClose(readNVectorFromNed2Ecef(matrix, 0), [0, 0, 1], 1e-6);
+});
+
+test('intermediateNVector follows normalized spherical interpolation used by historical midpoints', () => {
+	const quarter = intermediateNVector([1, 0, 0], [0, 1, 0], 0.5);
+	assertVecClose(quarter, [Math.SQRT1_2, Math.SQRT1_2, 0]);
+	assert.throws(() => intermediateNVector([1, 0, 0], [-1, 0, 0], 0.5), /antipodal/);
 });

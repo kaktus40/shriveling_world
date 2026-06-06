@@ -14,11 +14,13 @@ import {
 	type CityPairInvariantBuffers,
 	type CityPairPrecomputeOptions,
 	type StaticCityInput,
+	type StaticTownInput,
 	type StaticTownInvariantPrecompute,
 	type StaticTownPrecompute,
 	type StaticTownPrecomputeOptions,
 } from './types';
 import { selectOverlapCandidatesCpu } from './overlap-cpu';
+import { computeCurveControlPointsCpu } from './curve-cpu';
 
 /** Returns the dense index of an ordered pair `(cityAIndex, cityBIndex)`. */
 export function getCityPairIndex(cityAIndex: number, cityBIndex: number, cityCount: number): number {
@@ -136,12 +138,13 @@ export function computeStaticTownInvariantsCpu(
  * angularly distributed neighbor selection used by later cone intersections.
  */
 export function computeStaticTownPrecomputeCpu(
-	input: StaticCityInput,
+	input: StaticTownInput,
 	options: StaticTownPrecomputeOptions,
 ): StaticTownPrecompute {
 	const invariants = computeStaticTownInvariantsCpu(input, options);
 	const overlaps = selectOverlapCandidatesCpu(invariants, options.neighborLimit);
-	return { ...invariants, ...overlaps };
+	const curves = computeCurveControlPointsCpu(invariants, input.curveEdgePairs ?? new Uint32Array());
+	return { ...invariants, ...overlaps, ...curves };
 }
 
 function validateStaticCityInput(input: StaticCityInput): number {

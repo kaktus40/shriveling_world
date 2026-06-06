@@ -702,11 +702,18 @@ Implementation commencee:
 - `src/lib/domain/precompute/overlap-cpu.ts` reproduit la selection historique
   des voisins par secteur, la redistribution des quotas et l'ordre final par
   azimut, sans dupliquer les invariants de paires;
+- `src/lib/domain/precompute/curve-cpu.ts` construit `curveEdgePairs` et les
+  controles `[A, P, Q, B]` uniquement pour les arêtes connues, en ECEF metres;
 - `tests/unit/precompute/static-town-cpu.test.ts` caracterise l'ordre stable,
   les unites SI, les azimuts, distances, secteurs, paires diagonales et
-  reductions de voisinage;
-- `curveEdgePairs`, les controles `[A, P, Q, B]` et les backends WebGL2/WebGPU
-  restent a implementer.
+  reductions de voisinage, ainsi que les controles de courbes;
+- les arêtes antipodales sont rejetees tant qu'une regle metier ne definit pas
+  le grand cercle a utiliser;
+- la selection des arêtes metier a transmettre a `buildCurveEdgePairsCpu`
+  reste a relier au futur `PreparedDataset`;
+- seul le profil CPU est implemente a ce stade;
+- les backends WebGL2/WebGPU restent a implementer apres stabilisation du
+  pipeline CPU.
 
 ## M3: Extraction Du Domaine Metier
 

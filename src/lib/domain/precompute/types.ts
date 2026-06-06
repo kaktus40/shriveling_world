@@ -7,6 +7,12 @@ export const CITY_NED2ECEF_MATRIX_STRIDE = 16;
 /** Number of float values used by one ordered city-pair invariant record. */
 export const CITY_PAIR_INVARIANT_STRIDE = 4;
 
+/** Number of unsigned integer values used by one known curve edge pair. */
+export const CURVE_EDGE_PAIR_STRIDE = 2;
+
+/** Number of float values used by the four ECEF curve control points. */
+export const CURVE_CONTROL_POINT_STRIDE = 16;
+
 /** Sentinel used by unused slots in dense unsigned integer buffers. */
 export const UNUSED_INDEX = 0xffffffff;
 
@@ -19,6 +25,25 @@ export const UNUSED_INDEX = 0xffffffff;
 export interface StaticCityInput {
 	/** Longitude/latitude pairs with stride {@link CITY_LON_LAT_STRIDE}. */
 	cityLonLatRadians: Float32Array;
+}
+
+/** Complete static-town input consumed by the profile backends. */
+export interface StaticTownInput extends StaticCityInput {
+	/**
+	 * Known curve edges with stride {@link CURVE_EDGE_PAIR_STRIDE}.
+	 *
+	 * The order is preserved in the curve control-point output. Multiple
+	 * business edges may intentionally reference the same city pair.
+	 */
+	curveEdgePairs?: Uint32Array;
+}
+
+/** Object-oriented input accepted when constructing compact curve edge pairs. */
+export interface KnownCurveEdge {
+	/** Dense origin city index. */
+	originCityIndex: number;
+	/** Dense destination city index. */
+	destinationCityIndex: number;
 }
 
 /** Options controlling ordered city-pair invariant computation. */
@@ -74,8 +99,21 @@ export interface OverlapCandidateBuffers {
 	overlapCandidateCounts: Uint32Array;
 }
 
+/** Static control-point buffers for curves associated with known edges. */
+export interface CurveControlBuffers {
+	/** Known origin/destination pairs with stride {@link CURVE_EDGE_PAIR_STRIDE}. */
+	curveEdgePairs: Uint32Array;
+	/**
+	 * ECEF control points with stride {@link CURVE_CONTROL_POINT_STRIDE}.
+	 *
+	 * Each curve stores `[A, P, Q, B]` as four aligned `vec4<f32>` values in
+	 * meters. The fourth component of every point is `1`.
+	 */
+	curveControlPointsEcef: Float32Array;
+}
+
 /** First CPU tranche of the static-town precompute contract. */
 export interface StaticTownInvariantPrecompute extends CityInvariantBuffers, CityPairInvariantBuffers {}
 
 /** Static-town precompute buffers currently produced by the CPU backend. */
-export interface StaticTownPrecompute extends StaticTownInvariantPrecompute, OverlapCandidateBuffers {}
+export interface StaticTownPrecompute extends StaticTownInvariantPrecompute, OverlapCandidateBuffers, CurveControlBuffers {}

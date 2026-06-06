@@ -1339,6 +1339,12 @@ controles est limite aux arêtes connues, ce qui ramene ce travail de `O(N²)` a
 identiques lorsque plusieurs modes partagent la meme origine et destination;
 la deduplication pourra etre ajoutee sans changer le contrat public.
 
+La reference CPU est implementee dans
+`src/lib/domain/precompute/curve-cpu.ts`. Elle reproduit les points historiques
+`P` et `Q` par midpoints normalises successifs et produit directement
+`[A, P, Q, B]` en ECEF metres. Les profils WebGL2 et WebGPU ne sont pas encore
+implementes.
+
 ## Etape 11: Affichage Babylon.js
 
 Responsable principal: renderer.

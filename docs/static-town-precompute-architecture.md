@@ -171,6 +171,16 @@ Cette strategie ramene le calcul des controles de courbes de `O(N²)` a `O(E)`,
 ou `E` est le nombre d'arêtes connues. Elle est simple a implementer puisque
 chaque invocation lit directement un couple d'indices de `curveEdgePairs`.
 
+La reference CPU reproduit la construction historique:
+
+- `M` est le midpoint normalise entre `A` et `B`;
+- `P` est le midpoint normalise entre `A` et `M`;
+- `Q` est le midpoint normalise entre `M` et `B`.
+
+Une arête reliant deux villes antipodales est rejetee: son midpoint n'est pas
+defini sans choisir arbitrairement un grand cercle. Une regle metier explicite
+sera necessaire avant de supporter ce cas.
+
 ## Interface Commune Des Backends
 
 Le contrat cible est conceptuellement le suivant:
@@ -246,12 +256,17 @@ Ce profil doit rester disponible meme apres le portage WebGPU. Il permet les
 tests Node.js, le diagnostic des kernels et l'execution sur une plateforme sans
 WebGPU, avec une limite de taille de dataset explicite si necessaire.
 
+Pendant cette phase de migration, seul le profil CPU est implemente. Il doit
+stabiliser l'ensemble des contrats et comportements avant le debut des profils
+WebGL2 et WebGPU.
+
 Etat d'implementation:
 
 - `computeCityInvariantsCpu`: implemente;
 - `computeCityPairInvariantsCpu`: implemente;
 - `selectOverlapCandidatesCpu`: implemente;
-- `computeCurveControlPointsCpu`: a implementer.
+- `buildCurveEdgePairsCpu`: implemente;
+- `computeCurveControlPointsCpu`: implemente.
 
 ## Profil WebGL2
 

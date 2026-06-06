@@ -3,12 +3,17 @@ import test from 'node:test';
 import {
 	CITY_NED2ECEF_MATRIX_STRIDE,
 	CITY_PAIR_INVARIANT_STRIDE,
+	CURVE_CONTROL_POINT_STRIDE,
 	UNUSED_INDEX,
 	CityInvariantView,
 	CityPairInvariantView,
+	CurveControlView,
 	OverlapCandidateView,
 	CpuStaticTownInvariantBackend,
 	computeAzimuthSectorIndex,
+	buildCurveEdgePairsCpu,
+	computeCurveControlPointsCpu,
+	computeCityInvariantsCpu,
 	computeStaticTownInvariantsCpu,
 	computeStaticTownPrecomputeCpu,
 	benchmarkStaticTownInvariantsCpu,
@@ -144,7 +149,7 @@ test('CPU benchmark reports every implemented phase and total execution', () => 
 	assert.equal(report.measurementIterations, 3);
 	assert.deepEqual(
 		report.phases.map(({ phase }) => phase),
-		['city-invariants', 'city-pair-invariants', 'overlap-reduction', 'total'],
+		['city-invariants', 'city-pair-invariants', 'overlap-reduction', 'curve-controls', 'total'],
 	);
 	for (const phase of report.phases) {
 		assert.equal(phase.wallClock.medianMilliseconds, 1);
@@ -204,6 +209,60 @@ test('overlap candidate views resolve non-duplicated pair invariants', () => {
 	assertClose(overlap.forwardAzimuthRadians, PI / 2);
 	assertClose(overlap.reverseAzimuthRadians, (3 * PI) / 2);
 	assertClose(overlap.halfAngularDistanceRadians, PI / 4);
+});
+
+test('curve edge pairs preserve prepared edge order and duplicates', () => {
+	const pairs = buildCurveEdgePairsCpu(
+		[
+			{ originCityIndex: 2, destinationCityIndex: 0 },
+			{ originCityIndex: 0, destinationCityIndex: 1 },
+			{ originCityIndex: 0, destinationCityIndex: 1 },
+		],
+		3,
+	);
+
+	assert.deepEqual(Array.from(pairs), [2, 0, 0, 1, 0, 1]);
+});
+
+test('curve controls produce aligned quarter points A P Q B in ECEF meters', () => {
+	const cityInvariants = computeCityInvariantsCpu({
+		cityLonLatRadians: new Float32Array([0, 0, degreesToRadians(90), 0]),
+	});
+	const curves = computeCurveControlPointsCpu(cityInvariants, new Uint32Array([0, 1]));
+	const curve = new CurveControlView(curves, 0);
+
+	assert.equal(curves.curveControlPointsEcef.length, CURVE_CONTROL_POINT_STRIDE);
+	assert.deepEqual(Array.from(curves.curveControlPointsEcef.filter((_, index) => index % 4 === 3)), [1, 1, 1, 1]);
+	assert.equal(curve.originCityIndex, 0);
+	assert.equal(curve.destinationCityIndex, 1);
+	assertClose(Math.atan2(curve.pointAEcefMeters[1], curve.pointAEcefMeters[0]), 0);
+	assertClose(Math.atan2(curve.pointPEcefMeters[1], curve.pointPEcefMeters[0]), PI / 8);
+	assertClose(Math.atan2(curve.pointQEcefMeters[1], curve.pointQEcefMeters[0]), (3 * PI) / 8);
+	assertClose(Math.atan2(curve.pointBEcefMeters[1], curve.pointBEcefMeters[0]), PI / 2);
+});
+
+test('complete CPU static precompute includes controls only for known curve edges', () => {
+	const result = computeStaticTownPrecomputeCpu(
+		{
+			cityLonLatRadians: new Float32Array([0, 0, degreesToRadians(45), 0, degreesToRadians(90), 0]),
+			curveEdgePairs: new Uint32Array([0, 2]),
+		},
+		{ sectorCount: 4, neighborLimit: 2 },
+	);
+
+	assert.deepEqual(Array.from(result.curveEdgePairs), [0, 2]);
+	assert.equal(result.curveControlPointsEcef.length, CURVE_CONTROL_POINT_STRIDE);
+});
+
+test('curve controls reject invalid, diagonal, and antipodal edges', () => {
+	assert.throws(() => buildCurveEdgePairsCpu([{ originCityIndex: 0, destinationCityIndex: 0 }], 1), /distinct/);
+
+	const cityInvariants = computeCityInvariantsCpu({
+		cityLonLatRadians: new Float32Array([0, 0, PI, 0]),
+	});
+	assert.throws(() => computeCurveControlPointsCpu(cityInvariants, new Uint32Array([0, 2])), /valid city index/);
+	assert.throws(() => computeCurveControlPointsCpu(cityInvariants, new Uint32Array([0, 0])), /distinct/);
+	assert.throws(() => computeCurveControlPointsCpu(cityInvariants, new Uint32Array([0, 1])), /antipodal/);
 });
 
 test('benchmark statistics expose median and p95 without imposing machine thresholds', () => {

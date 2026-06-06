@@ -162,6 +162,9 @@ Contrats a verifier:
 - `cityPairSectorIndexes`: stride 1;
 - `overlapCandidates`: indices de villes, ordre par azimut;
 - `overlapCandidateCounts`: nombre de voisins retenus par ville;
+- `curveEdgePairs`: stride 2, arêtes connues dans l'ordre prepare;
+- `curveControlPointsEcef`: stride 16, quatre points alignes `[A, P, Q, B]` en
+  ECEF metres;
 - `azimuthIntervals`: stride 2, `[minRadians, maxRadians]`;
 - `townBoundaryAngular`: stride 4;
 - `townBoundaryEcef`: stride 4.
@@ -274,10 +277,11 @@ Les premiers noms de phases stables sont:
 - `city-invariants`;
 - `city-pair-invariants`;
 - `overlap-reduction`;
+- `curve-controls`;
 - `total`.
 
-Ils seront completes par `curve-controls`, raycast des limites et passes de
-cones au fur et a mesure de leur implementation.
+Ils seront completes par le raycast des limites et les passes de cones au fur
+et a mesure de leur implementation.
 
 ### Niveau 6: Tests D'Integration Pipeline
 
