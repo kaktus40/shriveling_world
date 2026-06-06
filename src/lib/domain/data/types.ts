@@ -334,3 +334,59 @@ export interface PreparedSpeedTimeline {
 	/** Diagnostics emitted during preparation. */
 	diagnostics: DatasetDiagnostic[];
 }
+
+/** Number of unsigned integer values used by one prepared directed edge. */
+export const PREPARED_EDGE_STRIDE = 3;
+
+/**
+ * Compact, compute-ready dataset derived from a lossless {@link BaseNetwork}.
+ *
+ * The dataset preserves the stable order of base cities and modes. It keeps
+ * source ids for traceability while measured values use internal SI units.
+ */
+export interface PreparedDataset {
+	/** Number of cities represented by the compact buffers. */
+	cityCount: number;
+	/** Base-city ids in stable prepared city order. */
+	cityIds: Uint32Array;
+	/** City source-record ids in stable prepared city order. */
+	citySourceRecordIds: Uint32Array;
+	/** City codes in stable prepared city order. */
+	cityCodes: Float64Array;
+	/** Longitude/latitude pairs in radians with stride 2. */
+	cityLonLatRadians: Float32Array;
+	/** Dense city index keyed by source city code. */
+	cityIndexByCode: Record<string, number>;
+	/** Number of valid prepared directed edges. */
+	edgeCount: number;
+	/** Base-edge ids in prepared edge order. */
+	edgeIds: Uint32Array;
+	/** Edge source-record ids in prepared edge order. */
+	edgeSourceRecordIds: Uint32Array;
+	/**
+	 * Directed edge tuples with stride {@link PREPARED_EDGE_STRIDE}.
+	 *
+	 * Each tuple is `[originCityIndex, destinationCityIndex, modeIndex]`.
+	 */
+	edges: Uint32Array;
+	/** Number of transport modes in stable base-network order. */
+	modeCount: number;
+	/** Base-mode ids in stable prepared mode order. */
+	modeIds: Uint32Array;
+	/** Source transport-mode codes in stable prepared mode order. */
+	modeCodes: Float64Array;
+	/** Source-record ids for prepared transport modes. */
+	modeSourceRecordIds: Uint32Array;
+	/** Prepared speed timeline and graphical mode classification. */
+	speedTimeline: PreparedSpeedTimeline;
+	/**
+	 * Known non-road edge pairs with stride 2.
+	 *
+	 * Order and duplicates follow prepared edge order.
+	 */
+	curveEdgePairs: Uint32Array;
+	/** Base-edge ids corresponding one-to-one with `curveEdgePairs`. */
+	curveEdgeIds: Uint32Array;
+	/** Diagnostics emitted while preparing compact compute buffers. */
+	diagnostics: DatasetDiagnostic[];
+}

@@ -738,6 +738,22 @@ Objectif:
 
 Transformer le reseau lossless en donnees metier compactes, sans encore entrer dans les details GPU. C'est l'equivalent cible de la partie propre de `reader.ts` dans `toBabylon`.
 
+Implementation CPU actuelle:
+
+- `prepareDataset(baseNetwork)` preserve l'ordre stable des villes, modes et
+  arêtes resolues;
+- les longitudes/latitudes source sont converties des degres vers les radians;
+- les arêtes non resolues restent dans `BaseNetwork` mais sont exclues des
+  buffers de calcul avec diagnostic;
+- toutes les arêtes hors mode `Road` alimentent `curveEdgePairs`, car une arête
+  terrestre peut participer aux cones tout en restant une relation du reseau
+  representable par une courbe;
+- les IDs compacts conservent le chemin vers `BaseNetwork` et `SourceRecord`
+  pour les requêtes utilisateur;
+- les colonnes libres ne sont pas dupliquees dans `PreparedDataset`;
+- `toStaticTownInput` partage directement `cityLonLatRadians` et
+  `curveEdgePairs` avec le profil statique CPU.
+
 Traitements:
 
 - construire `cityMap`: `cityCode -> cityIndex`;

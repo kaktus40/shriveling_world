@@ -666,8 +666,9 @@ Validations executees:
 Limites restantes:
 
 - le pipeline CSV complet reste a valider avec des tests d'integration sur fixtures;
-- `PreparedDataset` complet reste a construire;
-- les invariants ville et paires de villes ne sont pas encore produits depuis `BaseNetwork`.
+- les fixtures completes restent a raccorder aux tests d'integration de
+  `PreparedDataset`;
+- la preparation dynamique annuelle reste a construire.
 
 Orientation validee pour le precalcul statique des villes:
 
@@ -690,6 +691,15 @@ Orientation validee pour le precalcul statique des villes:
 
 Implementation commencee:
 
+- `src/lib/domain/data/prepared-dataset.ts` construit le chaînon compact
+  `BaseNetwork -> PreparedDataset`, convertit les coordonnees en radians,
+  preserve les ids de tracabilite et exclut les arêtes non resolues uniquement
+  des buffers de calcul;
+- `PreparedDataset.curveEdgePairs` contient toutes les arêtes connues hors mode
+  `Road`, dans l'ordre des arêtes preparees, y compris les doublons metier;
+- `src/lib/domain/data/prepared-views.ts` fournit des vues legeres sur les
+  villes et arêtes compactes sans recopier les colonnes libres du reseau
+  lossless;
 - `src/lib/domain/precompute/types.ts` definit les premiers contrats et strides;
 - `src/lib/domain/precompute/static-town-cpu.ts` implemente la reference CPU
   des invariants par ville et par paire ordonnee;
@@ -709,8 +719,8 @@ Implementation commencee:
   reductions de voisinage, ainsi que les controles de courbes;
 - les arêtes antipodales sont rejetees tant qu'une regle metier ne definit pas
   le grand cercle a utiliser;
-- la selection des arêtes metier a transmettre a `buildCurveEdgePairsCpu`
-  reste a relier au futur `PreparedDataset`;
+- `PreparedDataset` alimente le profil statique CPU sans copie de ses buffers
+  villes et courbes;
 - seul le profil CPU est implemente a ce stade;
 - les backends WebGL2/WebGPU restent a implementer apres stabilisation du
   pipeline CPU.

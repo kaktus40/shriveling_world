@@ -5,11 +5,18 @@ import {
 	identifyRoadMode,
 	inspectDatasetFiles,
 	prepareSpeedTimeline,
+	prepareDataset,
 	resolveDatasetManifest,
+	toStaticTownInput,
+	hasPreparedDatasetErrors,
+	PREPARED_EDGE_STRIDE,
+	PreparedCityView,
+	PreparedEdgeView,
 	type BaseNetwork,
 	type DatasetDiagnostic,
 	type SourceFile,
 } from '../../../src/lib/domain/data';
+import { computeStaticTownPrecomputeCpu } from '../../../src/lib/domain/precompute';
 
 function csv(name: string, text: string): SourceFile {
 	return { name, text: text.trim() };
@@ -177,4 +184,72 @@ cityCodeOri,cityCodeDes,transportModeCode,eYearBegin,eYearEnd
 	const timeline = prepareSpeedTimeline(network);
 
 	assert.equal(timeline.speedByModeByYear['2']['2005'].speedMetersPerSecond, (200 * 1000) / 3600);
+});
+
+test('prepareDataset preserves stable entity order and converts city coordinates to radians', () => {
+	const prepared = prepareDataset(buildBaseNetwork());
+
+	assert.equal(prepared.cityCount, 2);
+	assert.deepEqual(Array.from(prepared.cityIds), [0, 1]);
+	assert.deepEqual(Array.from(prepared.cityCodes), [1, 2]);
+	assert.equal(prepared.cityIndexByCode['1'], 0);
+	assert.equal(prepared.cityIndexByCode['2'], 1);
+	assert.equal(prepared.cityLonLatRadians[0], 0);
+	assert.ok(Math.abs(prepared.cityLonLatRadians[2] - Math.PI / 18) < 1e-6);
+
+	assert.equal(prepared.modeCount, 3);
+	assert.deepEqual(Array.from(prepared.modeCodes), [1, 2, 3]);
+	assert.equal(prepared.edgeCount, 2);
+	assert.equal(prepared.edges.length, prepared.edgeCount * PREPARED_EDGE_STRIDE);
+	assert.deepEqual(Array.from(prepared.edges), [0, 1, 1, 0, 1, 2]);
+	assert.deepEqual(Array.from(prepared.edgeIds), [0, 1]);
+	assert.deepEqual(Array.from(prepared.curveEdgePairs), [0, 1, 0, 1]);
+	assert.deepEqual(Array.from(prepared.curveEdgeIds), [0, 1]);
+	assert.equal(hasPreparedDatasetErrors(prepared), false);
+});
+
+test('prepareDataset excludes unresolved edges from compute buffers without deleting lossless records', () => {
+	const network = buildBaseNetwork({
+		transportNetwork: `
+cityCodeOri,cityCodeDes,transportModeCode,eYearBegin,eYearEnd
+1,2,2,2005,2010
+1,99,3,2007,2010
+`,
+	});
+	const prepared = prepareDataset(network);
+
+	assert.equal(network.edges.length, 2);
+	assert.equal(prepared.edgeCount, 1);
+	assert.deepEqual(Array.from(prepared.edgeIds), [0]);
+	assert.deepEqual(Array.from(prepared.curveEdgePairs), [0, 1]);
+	assert.ok(prepared.diagnostics.some((diagnostic) => diagnostic.code === 'prepared-edge-excluded-unresolved'));
+});
+
+test('PreparedDataset feeds the complete static-town CPU profile without copying inputs', () => {
+	const prepared = prepareDataset(buildBaseNetwork());
+	const input = toStaticTownInput(prepared);
+	const staticTown = computeStaticTownPrecomputeCpu(input, { sectorCount: 4, neighborLimit: 100 });
+
+	assert.equal(input.cityLonLatRadians, prepared.cityLonLatRadians);
+	assert.equal(input.curveEdgePairs, prepared.curveEdgePairs);
+	assert.equal(staticTown.cityCount, prepared.cityCount);
+	assert.deepEqual(Array.from(staticTown.curveEdgePairs), [0, 1, 0, 1]);
+	assert.equal(staticTown.curveControlPointsEcef.length, 32);
+});
+
+test('PreparedDataset views expose compact values and lossless traceability ids', () => {
+	const prepared = prepareDataset(buildBaseNetwork());
+	const city = new PreparedCityView(prepared, 1);
+	const edge = new PreparedEdgeView(prepared, 1);
+
+	assert.equal(city.cityIndex, 1);
+	assert.equal(city.cityId, 1);
+	assert.equal(city.cityCode, 2);
+	assert.ok(Math.abs(city.longitudeRadians - Math.PI / 18) < 1e-6);
+	assert.equal(city.latitudeRadians, 0);
+	assert.equal(edge.edgeId, 1);
+	assert.equal(edge.originCityIndex, 0);
+	assert.equal(edge.destinationCityIndex, 1);
+	assert.equal(edge.modeIndex, 2);
+	assert.equal('sourceRecords' in prepared, false);
 });

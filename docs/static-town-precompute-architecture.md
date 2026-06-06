@@ -152,7 +152,7 @@ calcules uniquement pour les arêtes connues du reseau.
 
 - stride: `2`;
 - disposition: `[originCityIndex, destinationCityIndex]`;
-- une entree par courbe a produire;
+- une entree par arête connue hors mode `Road`;
 - une premiere implementation peut conserver plusieurs entrees geometriquement
   identiques lorsqu'elles correspondent a plusieurs modes ou arcs.
 

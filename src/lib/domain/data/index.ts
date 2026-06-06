@@ -10,3 +10,5 @@ export * from './csv';
 export * from './inspection';
 export * from './assembly';
 export * from './preparation';
+export * from './prepared-dataset';
+export * from './prepared-views';
