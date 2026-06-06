@@ -12,16 +12,18 @@ start
 |CPU - Boucle annuelle|
 :pour annee dans span.begin..span.end;
 :initialiser roadAlpha = roadAlphaByYear[annee];
+:initialiser fastestAlpha[ville] = roadAlpha;
 
 |CPU - Filtrage des arcs|
 :pour chaque arc connecte;
 if (arc actif pour l'annee ?) then (oui)
   if (mode terrestre ?) then (oui)
-    :index ville origine;
-    :index ville destination;
-    :azimut = azDistMid[indexPaire].azimut;
+    :emettre origine -> destination;
+    :emettre destination -> origine;
+    :azimut = cityPairInvariants[indexPaire].azimut;
     :alpha = alphaByModeByYear[mode][annee];
-    :ajouter un lien candidat;
+    :alpha = min(roadAlpha, alpha);
+    :ajouter candidat par origine/destination;
   else (non)
     :envoyer vers le precalcul des courbes;
   endif
@@ -30,10 +32,11 @@ endif
 |CPU - Compactage par ville|
 :regrouper les liens par ville origine;
 :dedoublonner les memes destinations;
-:appliquer la politique de choix d'alpha;
+:conserver le minimum alpha;
 :trier les liens par azimut;
-:ecrire les triplets cityLinks;
-:ecrire les offsets citiesDict;
+:ecrire destinations, azimuts et alphas;
+:ecrire cityLinkOffsets + cityLinkCounts;
+:ecrire cityFastestTerrestrialAlpha;
 
 |CPU - Sortie|
 :precalcul dynamique par annee[annee];

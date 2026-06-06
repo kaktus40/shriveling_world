@@ -1,0 +1,73 @@
+@startuml
+title Angle alpha, cone dynamique et courbe entre deux villes
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+rectangle "Annee selectionnee" as year
+rectangle "Vitesses des modes actifs\nmetres par seconde" as speeds
+rectangle "maximumSpeed\nvitesse maximale annuelle" as maxSpeed
+rectangle "Road speed\nvitesse terrestre par defaut" as roadSpeed
+rectangle "Mode terrestre rapide\nactif sur l'arete A-B" as terrSpeed
+rectangle "Mode non terrestre\nactif sur l'arete A-B" as nonTerrSpeed
+
+component "Calcul alpha\nalpha = atan(sqrt((maximumSpeed / ambientSpeed)^2 - 1))" as alpha
+component "roadAlpha\npente par defaut" as roadAlpha
+component "alpha terrestre A-B\nminimum alpha actif\nborne par roadAlpha" as edgeAlpha
+
+rectangle "Ville A\nposition + repere NED" as cityA
+rectangle "Ville B\nposition + repere NED" as cityB
+database "Invariants statiques A-B\nazimuts + theta\ncontroles ECEF [A, P, Q, B]" as invariants
+
+component "Cone dynamique A\nRoad: roadAlpha\nRegulier rapide: minimum connecte\nComplexe: alpha par azimut" as coneA
+component "Cone dynamique B\nRoad: roadAlpha\nRegulier rapide: minimum connecte\nComplexe: alpha par azimut" as coneB
+component "Geometrie de courbe A-B\nDroite / ligne brisee /\ngeodesique / Bezier" as curve
+
+rectangle "Buffers geometriques finaux" as buffers
+rectangle "Renderer\nBabylon.js ou luma.gl\naucun calcul scientifique" as renderer
+
+year --> speeds : selectionne les valeurs actives
+speeds --> maxSpeed : maximum annuel
+speeds --> roadSpeed : mode Road
+speeds --> terrSpeed : mode terrestre
+speeds --> nonTerrSpeed : autre mode
+
+maxSpeed --> alpha
+roadSpeed --> alpha
+alpha --> roadAlpha : ambientSpeed = Road
+terrSpeed --> alpha
+alpha --> edgeAlpha : ambientSpeed = mode terrestre
+
+cityA --> invariants
+cityB --> invariants
+
+roadAlpha --> coneA
+roadAlpha --> coneB
+edgeAlpha --> coneA : direction A vers B
+edgeAlpha --> coneB : direction B vers A
+invariants --> coneA : azimut A vers B
+invariants --> coneB : azimut B vers A
+
+invariants --> curve : [A, P, Q, B] + theta
+nonTerrSpeed --> curve : vitesse du mode
+terrSpeed --> curve : arête terrestre affichable
+maxSpeed --> curve : rapport de vitesses
+
+coneA --> buffers
+coneB --> buffers
+curve --> buffers
+buffers --> renderer
+
+note bottom of alpha
+  Vitesse plus elevee
+  => alpha plus faible
+  => cone plus plat
+end note
+
+note bottom of edgeAlpha
+  Pour plusieurs modes vers B:
+  conserver le minimum alpha.
+  Une liaison plus lente que Road
+  ne depasse jamais roadAlpha.
+end note
+@enduml

@@ -725,6 +725,22 @@ Implementation commencee:
 - les backends WebGL2/WebGPU restent a implementer apres stabilisation du
   pipeline CPU.
 
+Decision validee pour le precalcul dynamique annuel:
+
+- le contrat scientifique de `alpha` est documente dans
+  `docs/scientific-model-alpha-and-dynamic-cones.md`;
+- `alpha = atan(sqrt((maximumSpeed / ambientSpeed)^2 - 1))`;
+- une vitesse plus elevee produit un alpha plus faible et un cone plus plat;
+- `Road` definit `roadAlpha`, pente par defaut de la surface;
+- entre plusieurs modes terrestres actifs vers une meme destination, conserver
+  le minimum alpha;
+- une liaison plus lente que Road ne doit pas augmenter alpha au-dela de
+  `roadAlpha`;
+- les arêtes sont traitees comme bidirectionnelles;
+- les bornes historiques `citiesDict` sont remplacees par `offset + count`;
+- les trois variantes a alimenter sont le cone Road, le cone regulier selon la
+  meilleure connexion terrestre et le cone complexe par direction.
+
 ## M3: Extraction Du Domaine Metier
 
 Statut: `todo`

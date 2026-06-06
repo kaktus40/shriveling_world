@@ -67,6 +67,21 @@ Les tests doivent refuser les ambiguïtés d'unites:
 - ECEF en metres;
 - conversions degres -> radians uniquement aux frontieres d'import ou d'interface humaine.
 
+### Invariants Scientifiques De L'Angle Alpha
+
+Les tests numeriques doivent verifier le contrat documente dans
+`docs/scientific-model-alpha-and-dynamic-cones.md`:
+
+- `alpha = atan(sqrt((maximumSpeed / ambientSpeed)^2 - 1))`;
+- `cos(alpha) = ambientSpeed / maximumSpeed`;
+- une vitesse plus elevee produit un alpha plus faible;
+- une vitesse egale a `maximumSpeed` produit `alpha = 0`;
+- `roadAlpha` est la pente par defaut;
+- le minimum alpha selectionne le mode terrestre actif le plus rapide;
+- aucun alpha local ne depasse `roadAlpha` a cause d'une liaison plus lente;
+- les listes dynamiques utilisent `offset + count`, jamais des bornes
+  inclusives ambigues.
+
 ## Niveaux De Tests
 
 ### Niveau 0: Validations Techniques

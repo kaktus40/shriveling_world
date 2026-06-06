@@ -74,6 +74,7 @@ Schemas PNG:
 - ![Graphe compute WebGPU](diagrams/precompute/05-webgpu-compute-graph.png)
 - ![Sequence changement annee](diagrams/precompute/06-change-year-sequence.png)
 - ![Traitement GeoJSON et limites](diagrams/precompute/07-geojson-boundaries.png)
+- ![Alpha, cones dynamiques et courbes](diagrams/precompute/08-alpha-dynamic-cones-curves.png)
 
 Sources PlantUML:
 
@@ -84,6 +85,7 @@ Sources PlantUML:
 - `docs/diagrams/precompute/05-webgpu-compute-graph.puml`
 - `docs/diagrams/precompute/06-change-year-sequence.puml`
 - `docs/diagrams/precompute/07-geojson-boundaries.puml`
+- `docs/diagrams/precompute/08-alpha-dynamic-cones-curves.puml`
 
 ## Enchainement Detaille Des Fonctions
 
@@ -812,6 +814,14 @@ Ce niveau est necessaire pour ne pas melanger le contrat lossless avec les struc
 
 Responsable principal: CPU.
 
+Le contrat scientifique complet de `alpha`, son interpretation geometrique et
+les invariants a verifier lors du rendu final sont documentes dans
+[Modele scientifique: angle alpha, cones dynamiques et courbes](scientific-model-alpha-and-dynamic-cones.md).
+
+Schéma synthétique:
+
+![Alpha, cones dynamiques et courbes](diagrams/precompute/08-alpha-dynamic-cones-curves.png)
+
 Reference historique:
 
 - `toBabylon/src/application/merger/speedHelper.ts`;
@@ -950,7 +960,7 @@ end note
 Ce precalcul est un invariant fort. Il ne depend pas de l'annee. Il depend du dataset, du modele de terre et de la strategie de voisinage/intersection.
 
 Dans `toBabylon`, une partie de ce calcul est deja faite via pseudo-compute
-WebGL. La migration maintient volontairement deux profils: le CPU sert de
+WebGL. La migration maintient volontairement trois profils: le CPU sert de
 reference fonctionnelle, de dernier fallback et d'oracle de test; WebGL2 est le
 fallback accelere; WebGPU execute les calculs intensifs en production. Les
 trois profils produisent exactement les memes contrats de buffers.
@@ -978,15 +988,20 @@ Entrees:
 Traitements:
 
 - pour chaque annee du span:
+  - initialiser la surface par defaut avec `roadAlpha`;
   - selectionner les arcs actifs;
   - conserver les arcs terrestres pour les cones;
+  - emettre explicitement les deux directions de chaque arête bidirectionnelle;
   - convertir chaque destination en index compact;
   - recuperer l'azimut depuis `cityPairInvariants`;
   - recuperer l'alpha du mode;
-  - dedoublonner les transports multiples vers une meme destination;
+  - pour une meme destination, conserver le minimum alpha, correspondant au
+    mode terrestre actif le plus rapide;
+  - borner l'alpha retenu par `roadAlpha`;
   - trier les liens par azimut;
-  - produire un tableau compact `cityLinks`;
-  - produire un dictionnaire d'offsets `citiesDict`;
+  - produire des tableaux compacts separes;
+  - produire un offset et un compte par ville;
+  - produire le minimum alpha terrestre connecte par ville;
   - stocker `roadAlpha`.
 
 Sortie:
@@ -1008,9 +1023,13 @@ class SpeedPrecompute {
 
 class DynamicTownPrecomputeByYear {
   year
-  cityLinks
-  citiesDict
-  roadAlpha
+  cityLinkOffsets
+  cityLinkCounts
+  cityLinkDestinationIndexes
+  cityLinkAzimuthRadians
+  cityLinkAlphaRadians
+  cityFastestTerrestrialAlphaRadians
+  roadAlphaRadians
 }
 
 component "prepareDynamicTownGeometry" as dynamicPrep
@@ -1026,11 +1045,16 @@ end note
 @enduml
 ```
 
-Le format historique `cityLinks` et `citiesDict` doit etre conserve dans l'esprit, mais reformalise:
+Le format historique `cityLinks` et `citiesDict` contient une erreur de
+convention entre bornes inclusives et exclusives. La migration utilise:
 
-- `cityLinks`: tableau plat de triplets, par exemple `[cityDestIndex, azimuth, alpha]`;
-- `citiesDict`: offsets par ville, par exemple `[beginOffset, endOffset]`;
-- les strides doivent etre explicitement documentes pour WebGPU.
+- `cityLinkOffsets`: offset initial par ville;
+- `cityLinkCounts`: nombre de liens par ville;
+- `cityLinkDestinationIndexes`: destination de chaque lien;
+- `cityLinkAzimuthRadians`: azimut de chaque lien;
+- `cityLinkAlphaRadians`: minimum alpha retenu pour chaque destination;
+- `cityFastestTerrestrialAlphaRadians`: minimum alpha connecte par ville;
+- une boucle de lecture `index < offset + count`.
 
 ## Etape 6: Upload Vers Les Buffers GPU
 
