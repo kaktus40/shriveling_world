@@ -1325,6 +1325,39 @@ doivent rester strictement conformes a l'oracle. `winningFaceVisitOrders`
 mesure uniquement la rapidite avec laquelle cet ordre decouvre le minimum
 final.
 
+### Cache D'Instance Par Annee
+
+La sortie canonique reutilisable de l'etape cone/cone est la distance:
+
+```text
+coneIntersectionDistanceMeters[cityIndex, azimuthSampleIndex]
+```
+
+Elle est mise en cache dans l'instance applicative:
+
+```ts
+Map<number, Float32Array>
+```
+
+La cle est uniquement l'annee. Le dataset courant est porte par l'instance du
+pipeline; son remplacement vide la `Map`. La resolution est fixee par contrat
+a `1 deg`, soit `360` rayons par ville, et n'est pas configurable.
+
+Flux lors d'un changement d'annee:
+
+```text
+selection annee
+  -> cache hit: reutiliser coneIntersectionDistanceMeters
+  -> cache miss: calculer les intersections puis stocker le Float32Array
+  -> reconstruire le bord ECEF depuis sommet + direction brute * t
+  -> appliquer ou non le clipping pays
+```
+
+Le cache ne contient jamais `finalT`, car l'utilisateur peut activer ou
+desactiver a tout moment l'intersection avec les limites pays. Il ne contient
+pas non plus `ciseledConeRimEcef`, afin de limiter le cout memoire a un seul
+`Float32` par rayon.
+
 ## Etape 9: Clipping Par Limites Geographiques
 
 Responsable principal: GPU, avec preparation CPU des limites.

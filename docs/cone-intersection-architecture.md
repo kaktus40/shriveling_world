@@ -394,6 +394,70 @@ interface FinalConeComputeOutputs {
 `ciseledConeRimEcef` applique uniquement la reduction cone/cone.
 `finalConeRimEcef` applique ensuite le minimum avec les limites pays.
 
+## Cache Memoire Des Distances Ciselees
+
+La generation des intersections cone/cone est une phase dynamique couteuse.
+Son resultat depend du dataset charge et de l'annee demandee. Dans l'instance
+applicative courante:
+
+- la resolution angulaire est un invariant fixe de `1 deg`, soit exactement
+  `360` rayons par ville;
+- l'utilisateur ne peut pas modifier cette resolution;
+- le modele de cone calcule est le cone complexe attendu par l'application;
+- un changement de dataset vide integralement le cache;
+- une nouvelle instance de l'application commence avec un cache vide;
+- aucune persistance IndexedDB ou disque n'est requise.
+
+Le cache minimal est donc:
+
+```ts
+type HistoricalYear = number;
+type CiseledConeDistanceCache = Map<HistoricalYear, Float32Array>;
+```
+
+Chaque entree stocke uniquement:
+
+```text
+coneIntersectionDistanceMeters[cityIndex, azimuthSampleIndex]
+```
+
+Elle ne stocke ni position ECEF ni resultat apres clipping pays. La position
+ciselee est reconstruite lorsque necessaire:
+
+```text
+ciseledPosition = citySummit + rawRayDirection * coneIntersectionT
+```
+
+Le clipping pays reste une reduction interactive distincte:
+
+```text
+finalT = countryClippingEnabled
+  ? min(cachedConeIntersectionT, countryBoundaryT)
+  : cachedConeIntersectionT
+```
+
+L'activation ou la desactivation des limites pays ne vide donc pas le cache et
+ne relance pas les intersections cone/cone.
+
+Pour `5000` villes et `360` rayons:
+
+```text
+5000 * 360 * 4 octets = 7 200 000 octets
+                       = environ 6,87 Mio par annee
+```
+
+Cette taille est raisonnable pour quelques annees. Le premier contrat peut
+conserver toutes les annees consultees dans une `Map`. Une politique LRU ne
+sera ajoutee que si les mesures de memoire sur des sessions reelles montrent
+qu'un budget explicite est necessaire.
+
+Le cache ne doit pas masquer les benchmarks algorithmiques:
+
+- les benchmarks de filtration mesurent toujours un calcul sans cache;
+- un benchmark distinct mesure le temps de cache hit, le temps de
+  reconstruction ECEF et le taux de hit pendant un scenario interactif;
+- le cout memoire est rapporte par nombre d'annees retenues.
+
 ## Ajustement Des Sorties GeoJSON
 
 Les sorties de limites doivent suivre exactement l'ordre dense:
@@ -437,6 +501,10 @@ Mesures requises:
 - ecart maximal et p95 sur `t`;
 - cout de l'ecriture optionnelle de `ciseledConeRimEcef`;
 - cout de la fusion clipping pays dans le meme shader.
+- temps sans cache et avec cache hit;
+- temps de reconstruction du bord ECEF depuis les distances;
+- taux de hit lors de changements d'annee;
+- memoire du cache selon le nombre d'annees consultees.
 
 La strategie de production doit avoir zero intersection manquee face a
 l'oracle sur les jeux de conformite.

@@ -1205,7 +1205,40 @@ Travail realise:
   invariants de paire;
 - benchmark stable `cone-intersection-symmetric-order` et statistiques
   d'ordre de decouverte de la face gagnante;
+- contrat de cache memoire d'instance par annee pour
+  `coneIntersectionDistanceMeters`;
+- resolution angulaire fixe a `1 deg` et cache vide au changement de dataset;
+- clipping pays volontairement exclu du cache cone/cone;
 - tests analytiques sans dependance a Babylon.js, SvelteKit ou WebGPU.
+
+Etat de reflexion valide avant implementation de la filtration:
+
+- l'oracle CPU exhaustif reste la reference de conformite;
+- l'ordre symetrique exhaustif caracterise le rang de decouverte du minimum
+  sans supprimer de face;
+- la majorite des directions porte `roadAlpha`; les supports
+  `alpha < roadAlpha` sont rares, explicites et doivent enrichir la
+  fourchette prioritaire;
+- la fourchette candidate unit le couloir `phiB0 -> gammaBA`, ses faces de
+  bord et les supports rapides proches ou chevauchants;
+- les longues plages Road et les supports rapides eloignes seront regroupes
+  en blocs conservateurs;
+- aucune face ou bloc ne sera elimine uniquement par l'heuristique;
+- le rejet de production exige une borne geometrique
+  `blockEntryT >= bestT`;
+- toutes les strategies, parametres de voisinage et combinaisons de filtres
+  seront benchmarkes sans cache contre l'oracle;
+- le cache d'instance par annee sera mesure separement et ne stockera que
+  `coneIntersectionDistanceMeters`.
+
+Prochaine implementation:
+
+1. construire les supports Road/rapides et leurs plages de faces sur CPU;
+2. produire la fourchette prioritaire alpha-aware pour chaque rayon/voisin;
+3. instrumenter ses statistiques sans eliminer les faces;
+4. ajouter les blocs conservateurs et mesurer le rejet reel;
+5. comparer chaque variante a l'oracle exhaustif;
+6. implementer ensuite le cache memoire d'instance par annee.
 
 Cas tests minimum:
 

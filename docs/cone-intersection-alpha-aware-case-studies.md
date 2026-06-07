@@ -199,3 +199,19 @@ En plus des durees, le rapport doit fournir:
 
 Une strategie de production doit manquer exactement zero intersection sur les
 jeux de conformite.
+
+## Etat Actuel De La Decision
+
+Les elements suivants sont retenus:
+
+- l'ordre symetrique et les supports rapides definissent une priorite;
+- la priorite seule n'est jamais un filtre de production;
+- les plages Road majoritaires doivent etre regroupees en blocs;
+- les supports rapides proches ou chevauchants enrichissent la fourchette
+  prioritaire;
+- les supports rapides eloignes restent candidats jusqu'au rejet par borne;
+- la filtration CPU doit etre implementee et benchmarkee avant son portage
+  WebGL2 ou WebGPU;
+- les benchmarks algorithmiques contournent le cache annuel;
+- le cache annuel stocke seulement les distances cone/cone et reste limite a
+  l'instance applicative.

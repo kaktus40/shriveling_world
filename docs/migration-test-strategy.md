@@ -502,6 +502,24 @@ Benchmarks obligatoires:
   en nombre de faces;
 - proportion des faces Road regroupees en blocs et proportion des supports
   rapides ajoutes a la fourchette prioritaire;
+- temps de calcul cone/cone sans cache;
+- temps de reutilisation d'un `coneIntersectionDistanceMeters` en cache;
+- temps de reconstruction ECEF depuis le cache;
+- taux de hit lors d'un scenario de navigation entre annees;
+- consommation memoire pour 1, 5, 10 et toutes les annees consultees;
+- verification que les benchmarks de strategies de filtration contournent le
+  cache afin de rester comparables.
+
+Plan de tests du cache d'instance:
+
+- cache vide a la creation de l'application;
+- cache indexe uniquement par annee dans le dataset courant;
+- cache hit reutilisant exactement le meme `Float32Array`;
+- changement de dataset vidant toutes les annees;
+- activation et desactivation des limites pays sans invalidation;
+- reconstruction des positions ciselees depuis sommet, direction brute et `t`;
+- contrat fixe de `360` distances par ville;
+- aucune persistance entre deux instances applicatives.
 
 Priorite 4:
 
