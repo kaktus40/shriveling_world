@@ -19,6 +19,18 @@ La strategie de tests doit garantir:
 
 ## Principes
 
+### Cible De Runner De Tests
+
+La migration de la pile de tests vise a standardiser:
+
+- `Vitest` pour les tests unitaires, d'integration et de conformance CPU;
+- `Playwright` pour les tests E2E et de rendu interactif;
+- `tsx --test` comme pont temporaire tant que la migration des scripts n'est
+  pas terminee.
+
+`node:test` reste compatible a court terme, mais il n'est plus la cible finale
+de la migration.
+
 ### Reference CPU Avant Les Profils Graphiques
 
 Toute passe de calcul WebGL2 ou WebGPU doit avoir une implementation CPU de
@@ -103,8 +115,11 @@ Etat actuel:
 Evolution cible:
 
 - rendre `npm run validate` bloquant lorsque le legacy aura ete isole ou porte;
-- ajouter une commande `npm test` pour les tests automatises CPU;
-- ajouter une commande separee pour les tests WebGPU lorsque l'environnement le permettra.
+- migrer la commande `npm test` vers Vitest pour les tests automatises CPU;
+- ajouter une commande separee pour les tests WebGPU et les comparaisons de
+  conformance lorsque l'environnement le permettra;
+- introduire Playwright pour les tests E2E et de rendu interactif lorsque la
+  couche UI sera suffisamment stable.
 
 ### Niveau 1: Caracterisation Dataset
 
@@ -150,15 +165,18 @@ Exemples de tests:
 
 Runner recommande:
 
-- `node:test` pour demarrer sans nouvelle dependance;
-- bascule possible vers Vitest plus tard si les besoins SvelteKit ou snapshots deviennent plus importants.
+- `Vitest` comme cible finale pour les tests unitaires et d'integration;
+- `node:test` seulement comme solution de transition si un sous-ensemble du
+  code doit encore rester independant du runner principal.
 
 Raison du choix initial:
 
-- pas de dependance supplementaire;
+- integration naturelle avec SvelteKit et Vite;
+- support plus adapte aux fixtures, aux snapshots et a la structure multi-
+  projets de la migration;
 - execution rapide;
-- compatible avec TypeScript via `tsx`;
-- suffisant pour les fonctions CPU pures.
+- compatible avec TypeScript;
+- meilleur alignement avec les besoins futurs de conformance CPU/GPU.
 
 ### Niveau 3: Tests De Contrat De Buffers
 
@@ -332,7 +350,7 @@ Exemples:
 
 Runner possible:
 
-- Playwright plus tard, pas maintenant.
+- Playwright comme cible pour les tests E2E et de rendu.
 
 Raison:
 
@@ -382,14 +400,16 @@ Commandes cible:
 
 ```json
 {
-  "test": "tsx --test tests/unit/**/*.test.ts",
+  "test": "vitest run tests/unit/**/*.test.ts",
   "test:characterize": "npm run characterize:datasets",
-  "test:conformance": "tsx --test tests/conformance/**/*.test.ts",
-  "test:integration": "tsx --test tests/integration/**/*.test.ts"
+  "test:conformance": "vitest run tests/conformance/**/*.test.ts",
+  "test:integration": "vitest run tests/integration/**/*.test.ts"
 }
 ```
 
-Les commandes exactes seront introduites progressivement pour eviter de rendre bloquants des pans legacy non portes.
+Les commandes exactes seront introduites progressivement pour eviter de rendre
+bloquants des pans legacy non portes. Tant que la migration n'est pas terminee,
+`tsx --test` peut rester en usage interne sur certains scripts transitoires.
 
 ## Priorites De Mise En Place
 

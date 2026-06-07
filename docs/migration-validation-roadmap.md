@@ -52,6 +52,9 @@ Utiliser les statuts suivants:
 - Les changements scientifiques intentionnels sont documentes.
 - Les tests de regression sont mis a jour avant les migrations risquées.
 - La strategie de tests est documentee dans `docs/migration-test-strategy.md` et guide les validations de jalons.
+- La cible de runner pour la migration est `Vitest` pour les tests unitaires,
+  d'integration et de conformance CPU, avec `Playwright` pour les tests E2E et
+  de rendu.
 - Toute passe WebGPU critique doit avoir une reference CPU ou une justification documentee.
 - L'interface utilisateur commune reste SvelteKit.
 - Les kernels GPU intensifs sont ecrits en WGSL portable.
@@ -982,7 +985,8 @@ Document de reference:
 Travail attendu:
 
 - ajouter une commande `npm test` ou equivalente pour les tests CPU rapides;
-- choisir un runner minimal, prioritairement `node:test` execute via `tsx`;
+- choisir un runner cible base sur `Vitest`; `tsx --test` reste transitoire
+  tant que la migration des scripts n'est pas terminee;
 - creer les tests unitaires de `src/lib/shared`;
 - creer les tests de contrats de buffers GeoJSON;
 - creer les tests CPU de `computeTownBoundaryLimitsCpu`;
