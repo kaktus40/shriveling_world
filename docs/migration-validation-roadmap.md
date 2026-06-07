@@ -1447,4 +1447,4 @@ Entrees:
 - 2026-06-03 - M2.1 - validated - commit `360638c` - strategie de validation WGSL documentee.
 - 2026-06-04 - M2 - validated - commit `ddeab9c` - shell SvelteKit/Vite, import WGSL et build datasets portes.
 - 2026-06-04 - M3.1 - in_progress - commit `465e71d` - scripts dataset raccordes au module TypeScript documente; pipeline CSV complet non valide.
-- 2026-06-07 - M3.1 - validated - tests d'integration du pipeline lossless, invariance a l'ordre et diagnostics complets.
+- 2026-06-07 - M3.1 - validated - commit `0bd9ca0` - tests d'integration du pipeline lossless, invariance a l'ordre et diagnostics complets.
