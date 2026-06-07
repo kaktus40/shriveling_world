@@ -459,6 +459,16 @@ Plan de tests des intersections a implementer:
 - reduction `min(rawT, coneIntersectionT, countryBoundaryT)`;
 - comparaison d'une passe WebGPU fusionnee avec les fonctions CPU separees.
 
+Reference CPU d'intersection deja couverte:
+
+- Moller-Trumbore double face et independant de l'ordre des sommets;
+- rejet des intersections derriere l'origine ou au-dela du bord brut;
+- oracle limite aux voisins statiques mais exhaustif sur leurs faces;
+- conservation du bord brut lorsqu'aucune face ne coupe le rayon;
+- sorties de diagnostic: voisin gagnant, face gagnante et faces testees;
+- validation des tailles et index des buffers partages;
+- benchmark de la phase `cone-intersection-exhaustive`.
+
 Benchmarks obligatoires:
 
 - duree totale et par strategie;

@@ -14,7 +14,13 @@ import {
 	computeDynamicTownPrecomputeForYearCpu,
 } from './dynamic-town-cpu';
 import { computeConeAlphaSamplesCpu, computeRawConePrecomputeCpu } from './raw-cone-cpu';
-import type { DynamicTownPrecompute, RawConePrecomputeOptions } from './types';
+import { computeConeIntersectionOracleCpu } from './cone-intersection-cpu';
+import type {
+	ConeIntersectionStaticInput,
+	DynamicTownPrecompute,
+	RawConePrecompute,
+	RawConePrecomputeOptions,
+} from './types';
 
 /** Stable names used to compare equivalent compute phases across backends. */
 export type StaticTownBenchmarkPhase =
@@ -30,8 +36,15 @@ export type DynamicTownBenchmarkPhase = 'dynamic-year' | 'dynamic-all-years';
 /** Stable raw-cone phases used to compare directional and geometric costs. */
 export type RawConeBenchmarkPhase = 'raw-cone-alphas' | 'raw-cone-total';
 
+/** Stable cone-intersection phases used to compare oracle and accelerations. */
+export type ConeIntersectionBenchmarkPhase = 'cone-intersection-exhaustive';
+
 /** Stable phase names shared by current and future compute backends. */
-export type ComputeBenchmarkPhase = StaticTownBenchmarkPhase | DynamicTownBenchmarkPhase | RawConeBenchmarkPhase;
+export type ComputeBenchmarkPhase =
+	| StaticTownBenchmarkPhase
+	| DynamicTownBenchmarkPhase
+	| RawConeBenchmarkPhase
+	| ConeIntersectionBenchmarkPhase;
 
 /** Clock source returning a monotonic duration value in milliseconds. */
 export type BenchmarkClock = () => number;
@@ -111,6 +124,22 @@ export interface RawConeBenchmarkReport {
 	/** Number of measured executions per phase. */
 	measurementIterations: number;
 	/** Directional-alpha and complete-geometry measurements. */
+	phases: ComputePhaseBenchmark[];
+}
+
+/** Comparable report for one cone-intersection strategy. */
+export interface ConeIntersectionBenchmarkReport {
+	/** Backend profile that produced the report. */
+	profile: ComputeProfile;
+	/** City count used by the benchmark. */
+	cityCount: number;
+	/** Number of uniformly spaced azimuth samples per city. */
+	azimuthSampleCount: number;
+	/** Total number of neighbor faces tested by one execution. */
+	testedFaceCount: number;
+	/** Number of measured executions. */
+	measurementIterations: number;
+	/** Intersection strategy measurements. */
 	phases: ComputePhaseBenchmark[];
 }
 
@@ -221,6 +250,36 @@ export function benchmarkRawConePrecomputeCpu(
 		profile: 'cpu',
 		cityCount: staticTown.cityCount,
 		azimuthSampleCount: options.azimuthSampleCount,
+		measurementIterations,
+		phases,
+	};
+}
+
+/** Benchmarks the exhaustive CPU cone-intersection conformity oracle. */
+export function benchmarkConeIntersectionOracleCpu(
+	staticInput: ConeIntersectionStaticInput,
+	rawCones: RawConePrecompute,
+	benchmarkOptions: ComputeBenchmarkOptions = {},
+): ConeIntersectionBenchmarkReport {
+	const warmupIterations = normalizeIterationCount(benchmarkOptions.warmupIterations ?? 2, 'warmupIterations', true);
+	const measurementIterations = normalizeIterationCount(
+		benchmarkOptions.measurementIterations ?? 10,
+		'measurementIterations',
+		false,
+	);
+	const clock = benchmarkOptions.clock ?? (() => performance.now());
+	const reference = computeConeIntersectionOracleCpu(staticInput, rawCones);
+	const phases = [
+		measureCpuPhase('cone-intersection-exhaustive', warmupIterations, measurementIterations, clock, () => {
+			computeConeIntersectionOracleCpu(staticInput, rawCones);
+		}),
+	];
+
+	return {
+		profile: 'cpu',
+		cityCount: rawCones.cityCount,
+		azimuthSampleCount: rawCones.azimuthSampleCount,
+		testedFaceCount: reference.testedFaceCounts.reduce((sum, count) => sum + count, 0),
 		measurementIterations,
 		phases,
 	};

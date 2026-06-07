@@ -73,7 +73,7 @@ Utiliser les statuts suivants:
 | M5 | deferred | Prototype comparatif de rendu Babylon.js / luma.gl |
 | M6 | todo | Framework WebGPU compute minimal |
 | M7 | todo | Portage WGSL des passes existantes |
-| M8 | todo | Nouveau pipeline d'intersections |
+| M8 | in_progress | Nouveau pipeline d'intersections |
 | M9 | todo | Integration interactive complete |
 | M9.1 | todo | Packaging client lourd Tauri |
 | M10 | todo | Nettoyage, documentation utilisateur et stabilisation |
@@ -767,7 +767,7 @@ Implementation CPU de la generation des cones bruts:
 
 ## M3: Extraction Du Domaine Metier
 
-Statut: `todo`
+Statut: `in_progress`
 
 Objectif:
 
@@ -1188,6 +1188,16 @@ Travail attendu:
 - implementer Moller-Trumbore double face puis evaluer une variante watertight
   si les tests Float32 le necessitent;
 - comparer visuellement et numeriquement.
+
+Travail realise:
+
+- primitive CPU Moller-Trumbore double face documentee pour TypeDoc;
+- separation de la tolerance algebrique et de la distance minimale en metres;
+- oracle CPU exhaustif sur toutes les faces des voisins statiques retenus;
+- sortie du bord cisele, de la distance minimale et des index de diagnostic;
+- comptage des faces testees par rayon;
+- benchmark stable `cone-intersection-exhaustive`;
+- tests analytiques sans dependance a Babylon.js, SvelteKit ou WebGPU.
 
 Cas tests minimum:
 

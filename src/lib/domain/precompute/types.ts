@@ -189,3 +189,35 @@ export interface RawConePrecompute extends ConeAlphaSampleBuffers {
 	 */
 	rawConeRimEcef: Float32Array;
 }
+
+/**
+ * Static inputs required by cone-intersection compute backends.
+ *
+ * The contract deliberately references existing shared buffers instead of
+ * duplicating city summits or neighbor information.
+ */
+export interface ConeIntersectionStaticInput extends CityInvariantBuffers, OverlapCandidateBuffers {}
+
+/**
+ * Exhaustive CPU reference output for cone/cone intersections.
+ *
+ * Every dense output uses `[cityIndex, azimuthSampleIndex]` ordering. Debug
+ * indexes and face counts are retained because this implementation is the
+ * oracle used to validate and benchmark future heuristics and GPU kernels.
+ */
+export interface ConeIntersectionOraclePrecompute {
+	/** Number of represented cities. */
+	cityCount: number;
+	/** Number of uniformly spaced azimuth samples per city. */
+	azimuthSampleCount: number;
+	/** Minimum distance from each city summit, in meters. */
+	coneIntersectionDistanceMeters: Float32Array;
+	/** Ciseled ECEF rim positions as aligned `vec4<f32>` values in meters. */
+	ciseledConeRimEcef: Float32Array;
+	/** Winning neighbor city index, or {@link UNUSED_INDEX} when no cone clips the ray. */
+	winningNeighborCityIndexes: Uint32Array;
+	/** Winning neighbor face index, or {@link UNUSED_INDEX} when no cone clips the ray. */
+	winningFaceIndexes: Uint32Array;
+	/** Number of neighbor faces tested for every ray. */
+	testedFaceCounts: Uint32Array;
+}

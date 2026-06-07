@@ -384,12 +384,50 @@ Mesures requises:
 La strategie de production doit avoir zero intersection manquee face a
 l'oracle sur les jeux de conformite.
 
+## Reference CPU Exhaustive Implementee
+
+La premiere reference de conformite est implementee dans:
+
+```text
+src/lib/domain/precompute/cone-intersection-cpu.ts
+```
+
+`intersectRayTriangleDoubleSided` fournit la primitive Moller-Trumbore double
+face. Sa direction est normalisee; la valeur retournee est donc une distance
+en metres. La tolerance algebrique du determinant est separee de la distance
+minimale acceptee devant l'origine afin de ne pas confondre leurs dimensions.
+
+`computeConeIntersectionOracleCpu` consomme uniquement:
+
+- les matrices `cityNed2EcefMatrices`, dont la translation porte les sommets;
+- `overlapCandidates` et `overlapCandidateCounts`;
+- le bord brut `rawConeRimEcef`.
+
+Pour chaque rayon A, l'oracle teste toutes les faces de tous les voisins
+statiques retenus. Il n'utilise ni rayon symetrique, ni intervalle angulaire,
+ni ordre droite/gauche, ni BVH.
+
+Les sorties sont:
+
+- `coneIntersectionDistanceMeters`;
+- `ciseledConeRimEcef`;
+- `winningNeighborCityIndexes`;
+- `winningFaceIndexes`;
+- `testedFaceCounts`.
+
+Les trois dernieres sorties sont necessaires a la conformite et aux
+benchmarks. Elles pourront rester optionnelles dans un profil GPU de
+production, mais doivent etre disponibles dans ses modes test et debug.
+
+`benchmarkConeIntersectionOracleCpu` mesure la phase stable
+`cone-intersection-exhaustive` et enregistre le nombre total de faces testees.
+
 ## Ordre D'Implementation
 
 1. Produire les longueurs de cone par ville.
 2. Formaliser les sorties GeoJSON alignees sur `azimuthSampleCount`.
-3. Implementer Moller-Trumbore double face en TypeScript.
-4. Implementer l'oracle exhaustif limite aux voisins statiques.
+3. Implementer Moller-Trumbore double face en TypeScript. **Realise.**
+4. Implementer l'oracle exhaustif limite aux voisins statiques. **Realise.**
 5. Implementer et mesurer le rayon symetrique et le parcours prioritaire.
 6. Implementer et benchmarker l'intervalle angulaire.
 7. Implementer et benchmarker la BVH circulaire.

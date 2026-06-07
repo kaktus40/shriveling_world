@@ -1294,6 +1294,21 @@ arret garanti lorsque `blockEntryT >= bestT`.
 L'intervalle d'azimuts possible reste une strategie candidate a benchmarker
 contre l'oracle exhaustif limite aux voisins statiques.
 
+Reference CPU implementee:
+
+```text
+computeConeIntersectionOracleCpu(
+  staticInput: ConeIntersectionStaticInput,
+  rawCones: RawConePrecompute
+) -> ConeIntersectionOraclePrecompute
+```
+
+Cette fonction teste volontairement toutes les faces des voisins statiques.
+Elle produit le bord cisele et les distances en metres, ainsi que le voisin
+gagnant, la face gagnante et le nombre de faces testees. Ces diagnostics
+permettront de comparer chaque optimisation future sans modifier le contrat
+consomme par le rendu.
+
 ## Etape 9: Clipping Par Limites Geographiques
 
 Responsable principal: GPU, avec preparation CPU des limites.
