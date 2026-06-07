@@ -55,6 +55,7 @@ Utiliser les statuts suivants:
 - La cible de runner pour la migration est `Vitest` pour les tests unitaires,
   d'integration et de conformance CPU, avec `Playwright` pour les tests E2E et
   de rendu.
+- La suite Playwright expose au moins un smoke test de chargement applicatif.
 - Toute passe WebGPU critique doit avoir une reference CPU ou une justification documentee.
 - L'interface utilisateur commune reste SvelteKit.
 - Les kernels GPU intensifs sont ecrits en WGSL portable.
@@ -1422,6 +1423,13 @@ Travail attendu:
 - documenter les limitations;
 - documenter les benchmarks;
 - preparer une PR propre.
+
+Etat courant:
+
+- le worktree de migration ne contient plus les routes Sapper legacy;
+- le noyau `src/application` Three.js/WebGL historique a ete retire du worktree;
+- le pipeline Rollup historique et les assets `src/toStatic` non references ont ete supprimes;
+- `package.json` a ete reduit aux dependances encore utiles au socle SvelteKit, aux scripts datasets, a Vitest et a Playwright.
 
 Critere d'acceptation:
 

@@ -116,10 +116,12 @@ Evolution cible:
 
 - rendre `npm run validate` bloquant lorsque le legacy aura ete isole ou porte;
 - migrer la commande `npm test` vers Vitest pour les tests automatises CPU;
+- ajouter `npm run test:e2e` base sur Playwright pour les tests de chargement
+  applicatif et de rendu;
 - ajouter une commande separee pour les tests WebGPU et les comparaisons de
   conformance lorsque l'environnement le permettra;
-- introduire Playwright pour les tests E2E et de rendu interactif lorsque la
-  couche UI sera suffisamment stable.
+- garder le rendu interactif sous Playwright, avec des scenarii minimaux au
+  debut puis des parcours plus riches quand la couche UI evoluera.
 
 ### Niveau 1: Caracterisation Dataset
 
@@ -348,14 +350,16 @@ Exemples:
 - changement de representation;
 - presence des couches pays, villes, cones et courbes.
 
-Runner possible:
+Runner cible:
 
-- Playwright comme cible pour les tests E2E et de rendu.
+- Playwright pour les tests E2E et de rendu.
 
 Raison:
 
-- les contrats de calcul ne sont pas encore stabilises;
-- les tests de rendu seraient couteux et fragiles au stade actuel.
+- les contrats de calcul sont encore en evolution;
+- les tests de rendu doivent rester isoles du reste de la suite;
+- un smoke test Playwright suffit pour figer le chargement de base;
+- des scenarii plus complets seront ajoutes a mesure que l'UI se stabilisera.
 
 ## Strategie CPU/GPU Pour Les Limites GeoJSON
 
