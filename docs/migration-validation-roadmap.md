@@ -56,6 +56,8 @@ Utiliser les statuts suivants:
   d'integration et de conformance CPU, avec `Playwright` pour les tests E2E et
   de rendu.
 - La suite Playwright expose au moins un smoke test de chargement applicatif.
+- Les routes `src/routes/test/test1`, `test2` et `test3` sont les pages de
+  validation interactives officielles de la migration.
 - Toute passe WebGPU critique doit avoir une reference CPU ou une justification documentee.
 - L'interface utilisateur commune reste SvelteKit.
 - Les kernels GPU intensifs sont ecrits en WGSL portable.
@@ -477,6 +479,9 @@ Note de cadrage:
   aux jalons d'extraction et d'integration suivants;
 - la validation M3.1 ne signifie pas que le `Merger` historique est deja
   supprime.
+- `src/routes/test/test1/+page.svelte` est la page d'inspection interactive
+  rattachee a ce jalon pour charger un dataset compresse et afficher
+  inspection, manifest, `BaseNetwork`, `PreparedDataset` et diagnostics.
 
 Contrat dataset:
 
@@ -1027,6 +1032,11 @@ Validation:
 - Validations executees:
   - `npm test`;
   - `npm run build`.
+- Support interactif associe:
+  - `src/routes/test/test1/+page.svelte` couvre la preparation GeoJSON et la
+    reference CPU des limites par villes;
+  - `src/routes/test/test2/+page.svelte` inspecte contours, triangulation pays,
+    associations ville -> contour et diagnostics GeoJSON.
 - Limites restantes:
   - les tests WebGPU ne sont pas encore actifs car le kernel WGSL de raycast n'existe pas;
   - la conformite CPU/GPU sera ajoutee dans `tests/conformance/cpu-gpu`;
@@ -1299,6 +1309,10 @@ Validation:
   - controle TypeScript strict limite aux modules migres;
   - `npm test`;
   - `npm run build`.
+- Support interactif associe:
+  - `src/routes/test/test3/+page.svelte` expose les etapes CPU `staticTown`,
+    `dynamicTown`, `rawCones` et `coneIntersections` sur les datasets
+    compacts charges depuis l'application.
 - M8 reste `in_progress`: les blocs conservateurs, leur benchmark sur datasets
   reduits et le cache annuel ne sont pas encore implementes.
 
@@ -1325,6 +1339,9 @@ Travail attendu:
 - mettre a jour les buffers Babylon;
 - afficher les temps CPU/GPU en mode debug;
 - gerer les erreurs WebGPU.
+- faire evoluer `src/routes/test/test1`, `test2` et `test3` d'un role
+  d'inspection CPU vers un role de validation interactive complete des profils
+  CPU, WebGL2 et WebGPU.
 
 Critere d'acceptation:
 
@@ -1460,3 +1477,4 @@ Entrees:
 - 2026-06-04 - M2 - validated - commit `ddeab9c` - shell SvelteKit/Vite, import WGSL et build datasets portes.
 - 2026-06-04 - M3.1 - in_progress - commit `465e71d` - scripts dataset raccordes au module TypeScript documente; pipeline CSV complet non valide.
 - 2026-06-07 - M3.1 - validated - commit `0bd9ca0` - tests d'integration du pipeline lossless, invariance a l'ordre et diagnostics complets.
+- 2026-06-07 - M3/M4/M8 - in_progress - commit `ff17606` - routes SvelteKit `test1/test2/test3` portees sur le pipeline moderne et pile legacy Sapper/Three/Rollup supprimee.
