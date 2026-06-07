@@ -386,6 +386,18 @@ Implementation TypeScript `M3`:
 - le module ne depend pas de SvelteKit, Three.js, Babylon.js, WebGPU ou du DOM;
 - le module n'est pas encore branche dans le `Merger` historique.
 
+Priorite active `M3.1`:
+
+- valider par tests d'integration la chaine complete
+  `SourceFile[] -> DatasetManifest -> BaseNetwork -> PreparedDataset`;
+- verifier automatiquement que l'ordre d'arrivee des fichiers ne change ni le
+  manifest ni le reseau assemble;
+- verifier la conservation lossless des colonnes libres;
+- couvrir les diagnostics de fichiers ambigus ou manquants, doublons,
+  enrichissements orphelins et references non resolues;
+- utiliser les fixtures reduites Europe et Monde comme cas realistes apres les
+  fixtures analytiques minimales.
+
 Decision CSV:
 
 - PapaParse est retenu pour le module `domain/data`, car il est deja utilise par le projet historique;
@@ -826,7 +838,9 @@ Livrables:
 Critere de validation:
 
 - le precalcul tourne en environnement de test Node;
-- les sorties restent compatibles avec les snapshots.
+- le pipeline data complet est valide sur fixtures sans navigateur;
+- les contrats de buffers CPU restent couverts par les tests;
+- aucune dependance renderer n'entre dans `src/lib/domain`.
 
 ## Phase 4: Rendu Babylon.js
 

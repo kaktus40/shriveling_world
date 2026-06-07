@@ -1688,6 +1688,13 @@ BaseNetwork
   -> Babylon meshes
 ```
 
-Le framework WebGPU ne doit pas remplacer le precalcul metier. Il doit l'executer a partir de structures compactes, stables et documentees.
+Le framework WebGPU ne doit pas remplacer le precalcul metier. Il doit
+l'executer a partir de structures compactes, stables et documentees.
 
-La prochaine etape de migration doit donc etre la formalisation TypeScript de `PreparedDataset`, `StaticTownPrecompute` et `DynamicTownPrecomputeByYear`, en reprenant la logique mature de `toBabylon` avant de porter les passes en WGSL.
+`PreparedDataset`, `StaticTownPrecompute` et `DynamicTownPrecomputeByYear`
+disposent maintenant de references TypeScript CPU testees. La priorite active
+revient a M3.1: valider par tests d'integration le chemin complet
+`SourceFile[] -> DatasetManifest -> BaseNetwork -> PreparedDataset`, y compris
+l'independance a l'ordre des fichiers, la conservation lossless et les
+diagnostics. Les portages WebGL2/WebGPU reprendront ensuite ces contrats
+stabilises sans modifier le pipeline d'ingestion.

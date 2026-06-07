@@ -402,8 +402,12 @@ Priorite 1:
 
 Priorite 2:
 
-- tests `src/lib/domain/data` sur detection de tables et assemblage lossless;
-- tests d'integration sur fixtures reduites.
+- completer les tests `src/lib/domain/data` par des scenarios multi-fichiers;
+- tests d'integration sur fixtures reduites couvrant
+  `SourceFile[] -> DatasetManifest -> BaseNetwork -> PreparedDataset`;
+- permutation de l'ordre des fichiers avec resultats identiques;
+- conservation lossless des colonnes libres et des lignes orphelines;
+- diagnostics de manifest incomplet, ambigu ou contradictoire.
 
 Priorite 3:
 

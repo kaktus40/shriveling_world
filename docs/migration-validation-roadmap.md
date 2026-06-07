@@ -66,9 +66,9 @@ Utiliser les statuts suivants:
 | M1 | validated | Caracterisation initiale et fixtures |
 | M2 | validated | Migration SvelteKit/Vite minimale |
 | M2.1 | validated | Evaluation des hooks Rollup applicatifs |
-| M3 | todo | Extraction du domaine metier |
+| M3 | in_progress | Extraction du domaine metier |
 | M3.1 | in_progress | Inspection dataset et assemblage lossless du reseau |
-| M4 | todo | Architecture explicite de precalcul |
+| M4 | in_progress | Architecture explicite de precalcul |
 | M4.1 | validated | Socle de tests CPU et contrats de buffers |
 | M5 | deferred | Prototype comparatif de rendu Babylon.js / luma.gl |
 | M6 | todo | Framework WebGPU compute minimal |
@@ -668,7 +668,22 @@ Limites restantes:
 - le pipeline CSV complet reste a valider avec des tests d'integration sur fixtures;
 - les fixtures completes restent a raccorder aux tests d'integration de
   `PreparedDataset`;
-- la preparation dynamique annuelle reste a construire.
+- l'invariance du pipeline complet a l'ordre des fichiers doit etre testee
+  automatiquement, au-dela des caracterisations manuelles deja executees;
+- les diagnostics d'ambiguite, de fichier primaire manquant, de doublon,
+  d'enrichissement orphelin et de reference non resolue doivent etre couverts
+  par des tests d'integration;
+- le chemin complet `SourceFile[] -> DatasetManifest -> BaseNetwork ->
+  PreparedDataset` doit devenir le critere bloquant de validation de M3.1.
+
+Prochaine priorite active:
+
+1. ajouter les fixtures d'integration CSV minimales et realistes;
+2. tester la detection et l'assemblage independamment de l'ordre des fichiers;
+3. tester la conservation lossless et les diagnostics;
+4. tester la production de `PreparedDataset` depuis les fixtures;
+5. executer la caracterisation des datasets reduits puis renseigner la
+   validation finale de M3.1.
 
 Orientation validee pour le precalcul statique des villes:
 
@@ -844,13 +859,12 @@ Validation:
   - compilation TypeScript ciblee des fichiers `src/lib/domain/data/*.ts`;
   - `npm run build`.
 - Reste a faire:
-  - raccorder les scripts de caracterisation au module TypeScript ou ajouter un runner dedie;
-  - ajouter des tests unitaires ciblees sur `domain/data`;
+  - completer les tests d'integration de `domain/data` sur fixtures;
   - porter progressivement les consommateurs du `Merger`.
 
 ## M4: Architecture Explicite De Precalcul
 
-Statut: `todo`
+Statut: `in_progress`
 
 Objectif:
 
@@ -953,7 +967,8 @@ Validation:
   - produire l'equivalent WGSL de la bibliotheque de fonctions mathematiques partagees;
   - produire le buffer `cityNed2EcefMatrices` dans la phase de calcul WebGPU dediee;
   - portage WebGPU/WGSL de `boundaryAlgebre.frag`;
-  - integration avec `PreparedDataset` quand la phase de precalcul reseau sera portee.
+  - ajouter les tests d'integration garantissant qu'un changement d'annee ne
+    relance ni l'ingestion ni les invariants statiques.
 
 ## M4.1: Socle De Tests CPU Et Contrats De Buffers
 
