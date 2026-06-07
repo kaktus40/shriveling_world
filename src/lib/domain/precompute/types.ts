@@ -198,6 +198,11 @@ export interface RawConePrecompute extends ConeAlphaSampleBuffers {
  */
 export interface ConeIntersectionStaticInput extends CityInvariantBuffers, OverlapCandidateBuffers {}
 
+/** Static inputs additionally required by symmetric-ray ordered intersections. */
+export interface SymmetricConeIntersectionStaticInput
+	extends ConeIntersectionStaticInput,
+		CityPairInvariantBuffers {}
+
 /**
  * Exhaustive CPU reference output for cone/cone intersections.
  *
@@ -220,4 +225,20 @@ export interface ConeIntersectionOraclePrecompute {
 	winningFaceIndexes: Uint32Array;
 	/** Number of neighbor faces tested for every ray. */
 	testedFaceCounts: Uint32Array;
+}
+
+/**
+ * Exhaustive intersection output produced with symmetric-ray face ordering.
+ *
+ * The geometry remains identical to the oracle because every retained face is
+ * still tested. Visit orders characterize how quickly the preferred ordering
+ * discovers the final winning face before any pruning strategy is introduced.
+ */
+export interface SymmetricConeIntersectionPrecompute extends ConeIntersectionOraclePrecompute {
+	/**
+	 * One-based visit order of the final winning face across all neighbor faces.
+	 *
+	 * Rays without a cone intersection contain {@link UNUSED_INDEX}.
+	 */
+	winningFaceVisitOrders: Uint32Array;
 }

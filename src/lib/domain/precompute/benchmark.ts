@@ -14,12 +14,13 @@ import {
 	computeDynamicTownPrecomputeForYearCpu,
 } from './dynamic-town-cpu';
 import { computeConeAlphaSamplesCpu, computeRawConePrecomputeCpu } from './raw-cone-cpu';
-import { computeConeIntersectionOracleCpu } from './cone-intersection-cpu';
+import { computeConeIntersectionOracleCpu, computeConeIntersectionSymmetricOrderCpu } from './cone-intersection-cpu';
 import type {
 	ConeIntersectionStaticInput,
 	DynamicTownPrecompute,
 	RawConePrecompute,
 	RawConePrecomputeOptions,
+	SymmetricConeIntersectionStaticInput,
 } from './types';
 
 /** Stable names used to compare equivalent compute phases across backends. */
@@ -37,7 +38,7 @@ export type DynamicTownBenchmarkPhase = 'dynamic-year' | 'dynamic-all-years';
 export type RawConeBenchmarkPhase = 'raw-cone-alphas' | 'raw-cone-total';
 
 /** Stable cone-intersection phases used to compare oracle and accelerations. */
-export type ConeIntersectionBenchmarkPhase = 'cone-intersection-exhaustive';
+export type ConeIntersectionBenchmarkPhase = 'cone-intersection-exhaustive' | 'cone-intersection-symmetric-order';
 
 /** Stable phase names shared by current and future compute backends. */
 export type ComputeBenchmarkPhase =
@@ -137,10 +138,24 @@ export interface ConeIntersectionBenchmarkReport {
 	azimuthSampleCount: number;
 	/** Total number of neighbor faces tested by one execution. */
 	testedFaceCount: number;
+	/** Discovery-order statistics for final winning faces, when available. */
+	winningFaceVisitOrder?: ConeIntersectionVisitOrderStatistics;
 	/** Number of measured executions. */
 	measurementIterations: number;
 	/** Intersection strategy measurements. */
 	phases: ComputePhaseBenchmark[];
+}
+
+/** Distribution of one-based final winning-face visit orders. */
+export interface ConeIntersectionVisitOrderStatistics {
+	/** Number of rays for which a cone intersection was found. */
+	intersectionCount: number;
+	/** Arithmetic mean visit order. */
+	mean: number;
+	/** 95th percentile visit order. */
+	p95: number;
+	/** Latest observed visit order. */
+	max: number;
 }
 
 /**
@@ -285,6 +300,38 @@ export function benchmarkConeIntersectionOracleCpu(
 	};
 }
 
+/** Benchmarks exhaustive face tests ordered by the symmetric-ray heuristic. */
+export function benchmarkConeIntersectionSymmetricOrderCpu(
+	staticInput: SymmetricConeIntersectionStaticInput,
+	rawCones: RawConePrecompute,
+	benchmarkOptions: ComputeBenchmarkOptions = {},
+): ConeIntersectionBenchmarkReport {
+	const warmupIterations = normalizeIterationCount(benchmarkOptions.warmupIterations ?? 2, 'warmupIterations', true);
+	const measurementIterations = normalizeIterationCount(
+		benchmarkOptions.measurementIterations ?? 10,
+		'measurementIterations',
+		false,
+	);
+	const clock = benchmarkOptions.clock ?? (() => performance.now());
+	const reference = computeConeIntersectionSymmetricOrderCpu(staticInput, rawCones);
+	const winningOrders = Array.from(reference.winningFaceVisitOrders).filter((order) => order !== 0xffffffff);
+	const phases = [
+		measureCpuPhase('cone-intersection-symmetric-order', warmupIterations, measurementIterations, clock, () => {
+			computeConeIntersectionSymmetricOrderCpu(staticInput, rawCones);
+		}),
+	];
+
+	return {
+		profile: 'cpu',
+		cityCount: rawCones.cityCount,
+		azimuthSampleCount: rawCones.azimuthSampleCount,
+		testedFaceCount: reference.testedFaceCounts.reduce((sum, count) => sum + count, 0),
+		winningFaceVisitOrder: summarizeVisitOrders(winningOrders),
+		measurementIterations,
+		phases,
+	};
+}
+
 function measureCpuPhase(
 	phase: ComputeBenchmarkPhase,
 	warmupIterations: number,
@@ -324,6 +371,19 @@ export function summarizeBenchmarkSamples(samples: readonly number[]): ComputeBe
 function percentile(sortedSamples: readonly number[], ratio: number): number {
 	const index = Math.ceil(ratio * sortedSamples.length) - 1;
 	return sortedSamples[Math.max(0, index)];
+}
+
+function summarizeVisitOrders(orders: readonly number[]): ConeIntersectionVisitOrderStatistics | undefined {
+	if (orders.length === 0) {
+		return undefined;
+	}
+	const sorted = [...orders].sort((a, b) => a - b);
+	return {
+		intersectionCount: sorted.length,
+		mean: sorted.reduce((sum, order) => sum + order, 0) / sorted.length,
+		p95: percentile(sorted, 0.95),
+		max: sorted[sorted.length - 1],
+	};
 }
 
 function normalizeIterationCount(value: number, name: string, allowZero: boolean): number {

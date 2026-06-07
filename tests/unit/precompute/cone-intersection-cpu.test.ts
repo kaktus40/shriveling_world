@@ -5,10 +5,14 @@ import {
 	RAW_CONE_RIM_ECEF_STRIDE,
 	UNUSED_INDEX,
 	benchmarkConeIntersectionOracleCpu,
+	benchmarkConeIntersectionSymmetricOrderCpu,
+	buildSymmetricFaceTraversal,
 	computeConeIntersectionOracleCpu,
+	computeConeIntersectionSymmetricOrderCpu,
 	intersectRayTriangleDoubleSided,
 	type ConeIntersectionStaticInput,
 	type RawConePrecompute,
+	type SymmetricConeIntersectionStaticInput,
 } from '../../../src/lib/domain/precompute';
 
 test('double-sided ray triangle intersection accepts both windings and rejects invalid distances', () => {
@@ -96,7 +100,54 @@ test('exhaustive cone oracle benchmark reports timing and tested face count', ()
 	assert.equal(report.phases[0].wallClock.medianMilliseconds, 1);
 });
 
-function createStaticInput(): ConeIntersectionStaticInput {
+test('symmetric face traversal starts at phiB0 and follows the shortest direction toward gammaBA', () => {
+	assert.deepEqual(Array.from(buildSymmetricFaceTraversal(Math.PI, Math.PI * 1.25, 8)), [4, 5, 6, 7, 0, 1, 2, 3]);
+	assert.deepEqual(Array.from(buildSymmetricFaceTraversal(Math.PI, Math.PI * 0.75, 8)), [4, 3, 2, 1, 0, 7, 6, 5]);
+	assert.deepEqual(Array.from(buildSymmetricFaceTraversal(-Math.PI / 8, 0, 8)), [7, 0, 1, 2, 3, 4, 5, 6]);
+});
+
+test('symmetric-order intersection remains exhaustive and matches the oracle', () => {
+	const staticInput = createStaticInput();
+	const rawCones = createRawCones();
+	const oracle = computeConeIntersectionOracleCpu(staticInput, rawCones);
+	const ordered = computeConeIntersectionSymmetricOrderCpu(staticInput, rawCones);
+
+	assert.deepEqual(ordered.coneIntersectionDistanceMeters, oracle.coneIntersectionDistanceMeters);
+	assert.deepEqual(ordered.ciseledConeRimEcef, oracle.ciseledConeRimEcef);
+	assert.deepEqual(ordered.winningNeighborCityIndexes, oracle.winningNeighborCityIndexes);
+	assert.deepEqual(ordered.winningFaceIndexes, oracle.winningFaceIndexes);
+	assert.deepEqual(ordered.testedFaceCounts, oracle.testedFaceCounts);
+	assert.equal(ordered.winningFaceVisitOrders[0], 3);
+	assert.equal(ordered.winningFaceVisitOrders[1], UNUSED_INDEX);
+});
+
+test('symmetric-order intersection keeps deterministic diagnostics on a shared cone summit', () => {
+	const staticInput = createStaticInput();
+	const rawCones = createRawCones();
+	rawCones.rawConeRimEcef.set([10, 0, 0, 1], 0);
+	const oracle = computeConeIntersectionOracleCpu(staticInput, rawCones);
+	const ordered = computeConeIntersectionSymmetricOrderCpu(staticInput, rawCones);
+
+	assert.equal(oracle.winningFaceIndexes[0], 0);
+	assert.equal(ordered.winningFaceIndexes[0], 0);
+	assert.deepEqual(ordered.coneIntersectionDistanceMeters, oracle.coneIntersectionDistanceMeters);
+});
+
+test('symmetric-order benchmark reports winning face discovery order', () => {
+	let clockValue = 0;
+	const report = benchmarkConeIntersectionSymmetricOrderCpu(createStaticInput(), createRawCones(), {
+		warmupIterations: 0,
+		measurementIterations: 2,
+		clock: () => clockValue++,
+	});
+
+	assert.equal(report.testedFaceCount, 16);
+	assert.deepEqual(report.winningFaceVisitOrder, { intersectionCount: 1, mean: 3, p95: 3, max: 3 });
+	assert.equal(report.phases[0].phase, 'cone-intersection-symmetric-order');
+	assert.equal(report.phases[0].wallClock.medianMilliseconds, 1);
+});
+
+function createStaticInput(): SymmetricConeIntersectionStaticInput {
 	const cityNed2EcefMatrices = new Float32Array(2 * CITY_NED2ECEF_MATRIX_STRIDE);
 	for (let cityIndex = 0; cityIndex < 2; cityIndex += 1) {
 		const offset = cityIndex * CITY_NED2ECEF_MATRIX_STRIDE;
@@ -110,6 +161,14 @@ function createStaticInput(): ConeIntersectionStaticInput {
 	return {
 		cityCount: 2,
 		cityNed2EcefMatrices,
+		sectorCount: 4,
+		cityPairInvariants: new Float32Array([
+			0, 0, 0, 0,
+			0, Math.PI, 1, 0,
+			Math.PI, 0, 1, 0,
+			0, 0, 0, 0,
+		]),
+		cityPairSectorIndexes: new Uint32Array(4),
 		neighborLimit: 1,
 		overlapCandidates: new Uint32Array([1, UNUSED_INDEX]),
 		overlapCandidateCounts: new Uint32Array([1, 0]),

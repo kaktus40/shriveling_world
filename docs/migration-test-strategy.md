@@ -468,6 +468,12 @@ Reference CPU d'intersection deja couverte:
 - sorties de diagnostic: voisin gagnant, face gagnante et faces testees;
 - validation des tailles et index des buffers partages;
 - benchmark de la phase `cone-intersection-exhaustive`.
+- parcours symetrique exhaustif sans elimination de faces;
+- egalite stricte des distances et positions entre ordre symetrique et oracle;
+- choix deterministe du voisin et de la face sur une intersection partagee;
+- ordre de decouverte de la face gagnante;
+- benchmark `cone-intersection-symmetric-order` avec moyenne, p95 et maximum
+  de l'ordre de decouverte.
 
 Benchmarks obligatoires:
 

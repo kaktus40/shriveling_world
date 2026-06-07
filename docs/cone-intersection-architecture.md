@@ -422,6 +422,28 @@ production, mais doivent etre disponibles dans ses modes test et debug.
 `benchmarkConeIntersectionOracleCpu` mesure la phase stable
 `cone-intersection-exhaustive` et enregistre le nombre total de faces testees.
 
+## Parcours Symetrique Exhaustif Implemente
+
+`computeConeIntersectionSymmetricOrderCpu` caracterise l'ordre de recherche
+propose sans encore accelerer le calcul:
+
+1. lire `gammaAB` et `gammaBA` dans les invariants de paire existants;
+2. calculer `phiB0 = wrapPositive(gammaBA - wrapSigned(phiA - gammaAB))`;
+3. commencer par la face contenant `phiB0`;
+4. choisir le sens circulaire court allant vers `gammaBA`;
+5. poursuivre dans ce sens jusqu'a avoir teste toutes les faces.
+
+Cette fonction ne rejette aucune face. Ses distances et positions ciselees
+doivent donc etre identiques a celles de l'oracle exhaustif. En cas
+d'intersection exactement partagee, le voisin puis la face d'index le plus
+faible assurent un diagnostic deterministe independant de l'ordre de visite.
+
+La sortie supplementaire `winningFaceVisitOrders` contient l'ordre de visite
+auquel la face finalement gagnante a ete rencontree. Le benchmark
+`cone-intersection-symmetric-order` publie sa moyenne, son percentile 95 et
+son maximum. Ces mesures diront si l'ordre symetrique decouvre assez tot un
+petit `bestT` pour rendre une future BVH efficace.
+
 ## Ordre D'Implementation
 
 1. Produire les longueurs de cone par ville.
@@ -429,6 +451,7 @@ production, mais doivent etre disponibles dans ses modes test et debug.
 3. Implementer Moller-Trumbore double face en TypeScript. **Realise.**
 4. Implementer l'oracle exhaustif limite aux voisins statiques. **Realise.**
 5. Implementer et mesurer le rayon symetrique et le parcours prioritaire.
+   **Implementation CPU realisee; mesures sur datasets encore a produire.**
 6. Implementer et benchmarker l'intervalle angulaire.
 7. Implementer et benchmarker la BVH circulaire.
 8. Choisir le filtre de production selon conformite et performances.

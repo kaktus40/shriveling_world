@@ -1309,6 +1309,22 @@ gagnant, la face gagnante et le nombre de faces testees. Ces diagnostics
 permettront de comparer chaque optimisation future sans modifier le contrat
 consomme par le rendu.
 
+La premiere strategie de caracterisation est egalement implementee:
+
+```text
+computeConeIntersectionSymmetricOrderCpu(
+  staticInput: SymmetricConeIntersectionStaticInput,
+  rawCones: RawConePrecompute
+) -> SymmetricConeIntersectionPrecompute
+```
+
+Elle reutilise `gammaAB` et `gammaBA` depuis `cityPairInvariants`, calcule
+`phiB0`, puis teste toutes les faces dans l'ordre circulaire prioritaire allant
+de `phiB0` vers `gammaBA`. Aucune face n'est eliminee: les sorties geometriques
+doivent rester strictement conformes a l'oracle. `winningFaceVisitOrders`
+mesure uniquement la rapidite avec laquelle cet ordre decouvre le minimum
+final.
+
 ## Etape 9: Clipping Par Limites Geographiques
 
 Responsable principal: GPU, avec preparation CPU des limites.

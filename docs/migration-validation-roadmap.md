@@ -1197,6 +1197,11 @@ Travail realise:
 - sortie du bord cisele, de la distance minimale et des index de diagnostic;
 - comptage des faces testees par rayon;
 - benchmark stable `cone-intersection-exhaustive`;
+- parcours CPU exhaustif ordonne par le rayon symetrique `phiB0`;
+- reutilisation des azimuts `gammaAB` et `gammaBA` deja presents dans les
+  invariants de paire;
+- benchmark stable `cone-intersection-symmetric-order` et statistiques
+  d'ordre de decouverte de la face gagnante;
 - tests analytiques sans dependance a Babylon.js, SvelteKit ou WebGPU.
 
 Cas tests minimum:
