@@ -58,6 +58,9 @@ Utiliser les statuts suivants:
 - La suite Playwright expose au moins un smoke test de chargement applicatif.
 - Les routes `src/routes/test/test1`, `test2` et `test3` sont les pages de
   validation interactives officielles de la migration.
+- Toute nouvelle page de validation doit etre justifiee par jalon et ne doit
+  etre creee que si `test1/test2/test3`, les tests automatises, les benchmarks
+  et les diagnostics structures ne suffisent pas.
 - Toute passe WebGPU critique doit avoir une reference CPU ou une justification documentee.
 - L'interface utilisateur commune reste SvelteKit.
 - Les kernels GPU intensifs sont ecrits en WGSL portable.

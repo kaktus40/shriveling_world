@@ -58,6 +58,24 @@ Les tests doivent d'abord verifier les contrats de donnees:
 
 Les tests visuels ou de rendu viennent ensuite. Ils ne doivent pas etre la premiere ligne de defense.
 
+### Pages Interactives Avec Justification Explicite
+
+Les routes SvelteKit de validation ne doivent pas se multiplier par inertie.
+
+Pour chaque nouveau jalon, il faut d'abord evaluer si une page interactive
+apporte une valeur reelle supplementaire par rapport:
+
+- aux tests unitaires;
+- aux tests d'integration;
+- aux benchmarks;
+- aux diagnostics structures;
+- aux routes `test1`, `test2` et `test3` deja disponibles.
+
+Une nouvelle page n'est justifiee que si elle permet de voir, comparer ou
+piloter un etat intermediaire difficile a valider autrement, en particulier
+pour les profils CPU, WebGL2, WebGPU, les buffers compacts ou les ecarts de
+rendu.
+
 ### Caracterisation Et Validation Sont Separees
 
 La caracterisation enregistre ce que le code ou les datasets produisent actuellement.
