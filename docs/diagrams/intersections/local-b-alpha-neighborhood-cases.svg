@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+  <title id="title">Cas limites des zones alpha inferieur a roadAlpha dans le repere local de B</title>
+  <desc id="desc">Quatre vues de dessus montrent les zones rapides absentes, a gauche, a droite ou des deux cotes du rayon symetrique phiB0.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#203040"/></marker>
+    <style>
+      .title{font:700 25px Georgia,serif;fill:#203040}.case{font:700 20px Georgia,serif;fill:#203040}.label{font:16px Georgia,serif;fill:#405468}.note{font:15px Georgia,serif;fill:#405468}.circle{fill:#eef3f0;stroke:#9fb3aa;stroke-width:2}.road{fill:none;stroke:#9aa8ae;stroke-width:9;stroke-dasharray:8 7}.fast{fill:none;stroke:#d45b24;stroke-width:17;stroke-linecap:round}.corridor{fill:none;stroke:#e9b44c;stroke-width:15;stroke-linecap:round;opacity:.8}.ray{stroke:#203040;stroke-width:4;marker-end:url(#arrow)}.plane{stroke:#203040;stroke-width:3}.town{fill:#203040}.panel{fill:#fffaf0;stroke:#d6c7ad;stroke-width:2}
+    </style>
+  </defs>
+  <rect width="1200" height="900" fill="#f7f2e8"/>
+  <text x="42" y="48" class="title">Vue de dessus dans le repere NED local de B</text>
+  <text x="42" y="76" class="label">Orange: zone alpha &lt; roadAlpha. Jaune: couloir prioritaire phiB0 vers gammaBA.</text>
+
+  <g transform="translate(35 105)">
+    <rect width="545" height="350" rx="14" class="panel"/>
+    <text x="20" y="34" class="case">A. Aucun alpha rapide proche</text>
+    <circle cx="265" cy="185" r="125" class="circle"/><circle cx="265" cy="185" r="6" class="town"/>
+    <path d="M176 97 A125 125 0 0 0 140 185" class="corridor"/>
+    <circle cx="265" cy="185" r="125" class="road"/>
+    <line x1="265" y1="185" x2="176" y2="97" class="ray"/><text x="125" y="82" class="label">phiB0</text>
+    <line x1="265" y1="185" x2="140" y2="185" class="plane"/><text x="112" y="214" class="label">gammaBA</text>
+    <path d="M333 80 A125 125 0 0 1 383 145" class="fast"/>
+    <text x="325" y="62" class="label">zone rapide eloignee</text>
+    <text x="20" y="325" class="note">Priorite locale stable; la zone eloignee exige une borne avant rejet.</text>
+  </g>
+
+  <g transform="translate(620 105)">
+    <rect width="545" height="350" rx="14" class="panel"/>
+    <text x="20" y="34" class="case">B. Zone rapide du cote du couloir</text>
+    <circle cx="265" cy="185" r="125" class="circle"/><circle cx="265" cy="185" r="6" class="town"/>
+    <circle cx="265" cy="185" r="125" class="road"/>
+    <path d="M176 97 A125 125 0 0 0 140 185" class="corridor"/>
+    <path d="M185 89 A125 125 0 0 0 143 159" class="fast"/>
+    <line x1="265" y1="185" x2="176" y2="97" class="ray"/><text x="125" y="82" class="label">phiB0</text>
+    <line x1="265" y1="185" x2="140" y2="185" class="plane"/><text x="112" y="214" class="label">gammaBA</text>
+    <text x="320" y="105" class="label">alpha plus petit:</text><text x="320" y="128" class="label">portee horizontale accrue</text>
+    <text x="20" y="325" class="note">Etendre et prioriser le couloir vers toute la zone d'influence.</text>
+  </g>
+
+  <g transform="translate(35 490)">
+    <rect width="545" height="350" rx="14" class="panel"/>
+    <text x="20" y="34" class="case">C. Zone rapide du cote oppose proche</text>
+    <circle cx="265" cy="185" r="125" class="circle"/><circle cx="265" cy="185" r="6" class="town"/>
+    <circle cx="265" cy="185" r="125" class="road"/>
+    <path d="M176 97 A125 125 0 0 0 140 185" class="corridor"/>
+    <path d="M165 110 A125 125 0 0 1 235 64" class="fast"/>
+    <line x1="265" y1="185" x2="176" y2="97" class="ray"/><text x="125" y="82" class="label">phiB0</text>
+    <line x1="265" y1="185" x2="140" y2="185" class="plane"/><text x="112" y="214" class="label">gammaBA</text>
+    <text x="320" y="105" class="label">la zone rapide traverse</text><text x="320" y="128" class="label">le voisinage de phiB0</text>
+    <text x="20" y="325" class="note">Explorer aussi ce cote avant les longues zones Road regulieres.</text>
+  </g>
+
+  <g transform="translate(620 490)">
+    <rect width="545" height="350" rx="14" class="panel"/>
+    <text x="20" y="34" class="case">D. Zones rapides des deux cotes</text>
+    <circle cx="265" cy="185" r="125" class="circle"/><circle cx="265" cy="185" r="6" class="town"/>
+    <circle cx="265" cy="185" r="125" class="road"/>
+    <path d="M176 97 A125 125 0 0 0 140 185" class="corridor"/>
+    <path d="M185 89 A125 125 0 0 0 143 159" class="fast"/>
+    <path d="M165 110 A125 125 0 0 1 235 64" class="fast"/>
+    <line x1="265" y1="185" x2="176" y2="97" class="ray"/><text x="125" y="82" class="label">phiB0</text>
+    <line x1="265" y1="185" x2="140" y2="185" class="plane"/><text x="112" y="214" class="label">gammaBA</text>
+    <text x="320" y="105" class="label">deux minima locaux</text><text x="320" y="128" class="label">restent possibles</text>
+    <text x="20" y="325" class="note">Ordonner par borne d'entree; aucun sens unique n'est fiable.</text>
+  </g>
+</svg>

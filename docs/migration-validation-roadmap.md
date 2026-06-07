@@ -1181,6 +1181,9 @@ Travail attendu:
 - benchmarker le filtre par intervalle d'azimuts possible;
 - comparer les interpolations d'attenuation de `alpha`, `cos(alpha)` et
   `tan(alpha)` avant toute evolution du modele scientifique;
+- caracteriser la fourchette prioritaire formee du couloir symetrique et des
+  supports rapides `alpha < roadAlpha` proches ou chevauchants;
+- benchmarker plusieurs largeurs bilaterales de voisinage autour de `phiB0`;
 - distinguer conceptuellement intersection cone/cone et clipping frontieres,
   tout en evaluant leur fusion dans une meme passe WebGPU;
 - definir les buffers necessaires;

@@ -72,6 +72,64 @@ blockEntryT >= bestT
 Le parcours peut etre ordonne par probabilite, mais l'elimination repose
 uniquement sur cette borne geometrique.
 
+## Cas Limites Dans Le Repere Local De B
+
+![Cas limites autour du rayon symetrique](diagrams/intersections/local-b-alpha-neighborhood-cases.svg)
+
+Le contrat scientifique impose:
+
+```text
+alphaB(phi) <= roadAlpha
+```
+
+Une liaison terrestre plus rapide que Road produit strictement
+`alphaB(phi) < roadAlpha` dans sa zone d'influence. Pour une longueur de rayon
+fixe, sa projection horizontale vaut:
+
+```text
+horizontalLength = coneLengthMeters * cos(alphaB(phi))
+```
+
+Elle augmente donc quand alpha diminue. En vue de dessus, une zone rapide
+avance localement le bord de B et peut creer une intersection plus proche.
+
+Quatre cas doivent etre caracterises:
+
+1. aucune zone rapide proche de `phiB0` ou du couloir vers `gammaBA`;
+2. une zone rapide chevauche le couloir prioritaire;
+3. une zone rapide est proche de `phiB0` du cote oppose au couloir;
+4. des zones rapides existent des deux cotes.
+
+Dans le premier cas, l'ordre symetrique Road reste la meilleure priorite
+locale. Dans les deux cas unilateraux, le support complet de l'influence doit
+etre ajoute au debut de l'ordre de parcours. Dans le cas bilateral, aucun sens
+gauche/droite unique n'est fiable: les blocs doivent etre tries selon leur
+borne geometrique.
+
+## Fourchette De Recherche Candidate
+
+![Construction de la fenetre de recherche](diagrams/intersections/alpha-aware-search-window.svg)
+
+La fourchette prioritaire candidate est l'union de:
+
+- l'intervalle court `phiB0 -> gammaBA`;
+- les faces contenant ses deux bornes;
+- toutes les zones `alpha < roadAlpha` qui chevauchent cet intervalle;
+- les zones rapides voisines de `phiB0`, des deux cotes.
+
+Cette union definit un ordre de recherche, pas une elimination garantie. Les
+zones rapides eloignees et les longues portions Road peuvent etre regroupees
+en blocs. Elles ne sont ignorees que lorsque leur borne conservatrice respecte:
+
+```text
+blockEntryT >= bestT
+```
+
+Le parametre definissant le « voisinage » de `phiB0` ne doit pas etre choisi
+arbitrairement. Les benchmarks doivent mesurer plusieurs largeurs exprimees
+en nombre de faces et en radians, puis comparer le rang de decouverte du
+minimum avec l'oracle exhaustif.
+
 ## Cas A Generer Pour Le Benchmark CPU
 
 ### A. Cone Routier Regulier

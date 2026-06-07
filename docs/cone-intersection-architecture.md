@@ -25,6 +25,8 @@ Cas d'etude geometriques:
 - [rayon symetrique et zone prioritaire](diagrams/intersections/alpha-aware-symmetric-search.svg);
 - [alpha monotone et distance d'intersection](diagrams/intersections/alpha-versus-intersection-distance.svg);
 - [BVH circulaire alignee sur les attenuations](diagrams/intersections/alpha-aware-circular-bvh.svg).
+- [cas limites dans le repere local de B](diagrams/intersections/local-b-alpha-neighborhood-cases.svg);
+- [construction de la fourchette prioritaire](diagrams/intersections/alpha-aware-search-window.svg).
 
 ## Objectif
 
@@ -184,6 +186,61 @@ En consequence:
 - la variation d'alpha est une priorite de parcours;
 - elle peut resserrer une enveloppe geometrique conservatrice;
 - elle ne constitue pas un critere d'arret sans borne inferieure prouvee.
+
+### Cas Particulier Majoritaire: Alpha Road
+
+Le modele metier impose que Road soit le moyen terrestre de reference le plus
+lent. Les autres moyens proposes sont plus rapides, donc:
+
+```text
+alpha(phi) <= roadAlpha
+```
+
+La majorite des directions conservent `roadAlpha`. Les zones
+`alpha < roadAlpha` sont des supports rapides rares et explicites. Pour une
+longueur de rayon fixe:
+
+```text
+horizontalLength(phi) = coneLengthMeters * cos(alpha(phi))
+```
+
+Une diminution d'alpha augmente la portee horizontale du bord de B. Une zone
+rapide proche du rayon symetrique peut donc avancer localement la surface de B
+et merite une priorite superieure aux longues plages Road regulieres.
+
+Cette propriete permet de compacter le domaine circulaire de B en:
+
+- longues plages Road pouvant former de grands blocs;
+- supports rapides delimites par leurs zones d'attenuation;
+- faces de transition entre Road et support rapide.
+
+Elle ne permet pas de supprimer une zone rapide eloignee sans borne
+geometrique.
+
+### Fourchette Prioritaire Candidate
+
+La fourchette initiale candidate pour un couple `(rayon A, cone B)` est
+l'union de:
+
+1. l'intervalle court `phiB0 -> gammaBA`;
+2. les faces contenant les deux bornes;
+3. les supports rapides qui chevauchent cet intervalle;
+4. les supports rapides qui croisent un voisinage bilateral de `phiB0`.
+
+Les cas limites sont illustres dans:
+
+- `diagrams/intersections/local-b-alpha-neighborhood-cases.svg`;
+- `diagrams/intersections/alpha-aware-search-window.svg`.
+
+Le voisinage bilateral de `phiB0` est un parametre de caracterisation, exprime
+en radians ou en nombre de faces. Il ne doit pas devenir une constante metier
+sans benchmark. Lorsque des supports rapides existent des deux cotes, aucun
+sens gauche/droite unique n'est fiable. Les blocs doivent alors etre visites
+par borne `blockEntryT` croissante.
+
+La fourchette prioritaire reduit le rang probable de decouverte du minimum.
+Elle ne reduit le nombre de faces testees de maniere sure que lorsqu'elle est
+combinee a des blocs conservateurs respectant `blockEntryT >= bestT`.
 
 ## BVH Circulaire Consciente D'Alpha
 

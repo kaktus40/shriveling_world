@@ -453,6 +453,11 @@ Plan de tests des intersections a implementer:
   d'alpha;
 - comparaison des lois d'attenuation interpolant `alpha`, `cos(alpha)` et
   `tan(alpha)` sans modifier la loi de production avant validation;
+- cas sans support rapide dans le voisinage bilateral de `phiB0`;
+- support rapide uniquement du cote du couloir `phiB0 -> gammaBA`;
+- support rapide uniquement du cote oppose mais proche de `phiB0`;
+- supports rapides presents des deux cotes de `phiB0`;
+- support rapide eloigne produisant malgre tout le minimum global;
 - Moller-Trumbore double face sur sommets, arêtes et interieur des faces;
 - cas Float32 au passage `0/2 PI`;
 - longueurs globales et locales de cones;
@@ -493,6 +498,10 @@ Benchmarks obligatoires:
   effectivement observee de `t`;
 - nombre de minima locaux de `t` par intervalle monotone d'alpha;
 - comparaison de forme et de performance des trois lois d'attenuation.
+- sensibilite a la largeur du voisinage bilateral de `phiB0`, en radians et
+  en nombre de faces;
+- proportion des faces Road regroupees en blocs et proportion des supports
+  rapides ajoutes a la fourchette prioritaire;
 
 Priorite 4:
 
