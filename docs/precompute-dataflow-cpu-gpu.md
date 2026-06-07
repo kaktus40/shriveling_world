@@ -1325,6 +1325,28 @@ doivent rester strictement conformes a l'oracle. `winningFaceVisitOrders`
 mesure uniquement la rapidite avec laquelle cet ordre decouvre le minimum
 final.
 
+La strategie de caracterisation alpha-aware est maintenant implementee:
+
+```text
+computeConeIntersectionAlphaAwareOrderCpu(
+  staticInput: SymmetricConeIntersectionStaticInput,
+  rawCones: RawConePrecompute,
+  options: AlphaAwareConeIntersectionOptions
+) -> AlphaAwareConeIntersectionPrecompute
+```
+
+`roadAlphaRadians` est une entree explicite de l'annee. Les faces touchant un
+echantillon `alpha < roadAlpha` sont classees une seule fois par ville. Pour
+chaque rayon et chaque voisin, la fonction visite d'abord le couloir court
+`phiB0 -> gammaBA`, ses faces de bord et les faces rapides d'un voisinage
+bilateral configurable. Elle visite ensuite toutes les faces restantes.
+
+Cette passe reste donc exhaustive. Elle produit les memes resultats
+geometriques que l'oracle et ajoute uniquement des diagnostics permettant de
+mesurer la taille de la fourchette et la proportion de faces gagnantes qu'elle
+contient. La prochaine optimisation devra ajouter des blocs disposant d'une
+borne conservatrice avant de supprimer le moindre test rayon/triangle.
+
 ### Cache D'Instance Par Annee
 
 La sortie canonique reutilisable de l'etape cone/cone est la distance:

@@ -479,6 +479,15 @@ Reference CPU d'intersection deja couverte:
 - ordre de decouverte de la face gagnante;
 - benchmark `cone-intersection-symmetric-order` avec moyenne, p95 et maximum
   de l'ordre de decouverte.
+- classification circulaire des faces touchant un support
+  `alpha < roadAlpha`;
+- construction de la fourchette prioritaire alpha-aware avec couloir court,
+  faces de bord et voisinage bilateral configurable;
+- verification que chaque face apparait exactement une fois dans le parcours;
+- egalite stricte entre la strategie alpha-aware exhaustive et l'oracle;
+- diagnostics de taille de fourchette, faces rapides prioritaires et face
+  gagnante dans ou hors fourchette;
+- benchmark `cone-intersection-alpha-aware-order`.
 
 Benchmarks obligatoires:
 

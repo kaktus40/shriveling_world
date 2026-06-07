@@ -242,3 +242,33 @@ export interface SymmetricConeIntersectionPrecompute extends ConeIntersectionOra
 	 */
 	winningFaceVisitOrders: Uint32Array;
 }
+
+/** Options controlling the CPU alpha-aware priority-window characterization. */
+export interface AlphaAwareConeIntersectionOptions {
+	/** Alpha of the reference Road surface for the represented year, in radians. */
+	roadAlphaRadians: number;
+	/**
+	 * Number of faces inspected on both sides of `phiB0` for nearby fast supports.
+	 *
+	 * This parameter changes only visit priority. It never removes a face.
+	 */
+	bilateralNeighborhoodFaceCount: number;
+	/** Tolerance used when comparing sampled alpha values with Road alpha. */
+	alphaEpsilonRadians?: number;
+}
+
+/**
+ * Exhaustive intersection output produced with an alpha-aware priority window.
+ *
+ * Every retained face is still tested. The additional buffers characterize
+ * the size and usefulness of the priority window before conservative pruning
+ * is introduced.
+ */
+export interface AlphaAwareConeIntersectionPrecompute extends SymmetricConeIntersectionPrecompute {
+	/** Total number of priority-window faces accumulated across neighbors for each ray. */
+	priorityFaceCounts: Uint32Array;
+	/** Priority-window faces classified as touching a fast alpha sample. */
+	priorityFastFaceCounts: Uint32Array;
+	/** `1` when the final winning face belonged to its neighbor's priority window. */
+	winningFacePriorityFlags: Uint8Array;
+}

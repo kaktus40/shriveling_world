@@ -14,8 +14,13 @@ import {
 	computeDynamicTownPrecomputeForYearCpu,
 } from './dynamic-town-cpu';
 import { computeConeAlphaSamplesCpu, computeRawConePrecomputeCpu } from './raw-cone-cpu';
-import { computeConeIntersectionOracleCpu, computeConeIntersectionSymmetricOrderCpu } from './cone-intersection-cpu';
+import {
+	computeConeIntersectionAlphaAwareOrderCpu,
+	computeConeIntersectionOracleCpu,
+	computeConeIntersectionSymmetricOrderCpu,
+} from './cone-intersection-cpu';
 import type {
+	AlphaAwareConeIntersectionOptions,
 	ConeIntersectionStaticInput,
 	DynamicTownPrecompute,
 	RawConePrecompute,
@@ -38,7 +43,10 @@ export type DynamicTownBenchmarkPhase = 'dynamic-year' | 'dynamic-all-years';
 export type RawConeBenchmarkPhase = 'raw-cone-alphas' | 'raw-cone-total';
 
 /** Stable cone-intersection phases used to compare oracle and accelerations. */
-export type ConeIntersectionBenchmarkPhase = 'cone-intersection-exhaustive' | 'cone-intersection-symmetric-order';
+export type ConeIntersectionBenchmarkPhase =
+	| 'cone-intersection-exhaustive'
+	| 'cone-intersection-symmetric-order'
+	| 'cone-intersection-alpha-aware-order';
 
 /** Stable phase names shared by current and future compute backends. */
 export type ComputeBenchmarkPhase =
@@ -140,6 +148,12 @@ export interface ConeIntersectionBenchmarkReport {
 	testedFaceCount: number;
 	/** Discovery-order statistics for final winning faces, when available. */
 	winningFaceVisitOrder?: ConeIntersectionVisitOrderStatistics;
+	/** Number of priority faces accumulated across all rays and neighbors. */
+	priorityFaceCount?: number;
+	/** Priority faces touching at least one fast alpha sample. */
+	priorityFastFaceCount?: number;
+	/** Number of final winning faces found inside their priority window. */
+	priorityWinningFaceCount?: number;
 	/** Number of measured executions. */
 	measurementIterations: number;
 	/** Intersection strategy measurements. */
@@ -327,6 +341,42 @@ export function benchmarkConeIntersectionSymmetricOrderCpu(
 		azimuthSampleCount: rawCones.azimuthSampleCount,
 		testedFaceCount: reference.testedFaceCounts.reduce((sum, count) => sum + count, 0),
 		winningFaceVisitOrder: summarizeVisitOrders(winningOrders),
+		measurementIterations,
+		phases,
+	};
+}
+
+/** Benchmarks exhaustive face tests ordered by the alpha-aware priority window. */
+export function benchmarkConeIntersectionAlphaAwareOrderCpu(
+	staticInput: SymmetricConeIntersectionStaticInput,
+	rawCones: RawConePrecompute,
+	options: AlphaAwareConeIntersectionOptions,
+	benchmarkOptions: ComputeBenchmarkOptions = {},
+): ConeIntersectionBenchmarkReport {
+	const warmupIterations = normalizeIterationCount(benchmarkOptions.warmupIterations ?? 2, 'warmupIterations', true);
+	const measurementIterations = normalizeIterationCount(
+		benchmarkOptions.measurementIterations ?? 10,
+		'measurementIterations',
+		false,
+	);
+	const clock = benchmarkOptions.clock ?? (() => performance.now());
+	const reference = computeConeIntersectionAlphaAwareOrderCpu(staticInput, rawCones, options);
+	const winningOrders = Array.from(reference.winningFaceVisitOrders).filter((order) => order !== 0xffffffff);
+	const phases = [
+		measureCpuPhase('cone-intersection-alpha-aware-order', warmupIterations, measurementIterations, clock, () => {
+			computeConeIntersectionAlphaAwareOrderCpu(staticInput, rawCones, options);
+		}),
+	];
+
+	return {
+		profile: 'cpu',
+		cityCount: rawCones.cityCount,
+		azimuthSampleCount: rawCones.azimuthSampleCount,
+		testedFaceCount: reference.testedFaceCounts.reduce((sum, count) => sum + count, 0),
+		winningFaceVisitOrder: summarizeVisitOrders(winningOrders),
+		priorityFaceCount: reference.priorityFaceCounts.reduce((sum, count) => sum + count, 0),
+		priorityFastFaceCount: reference.priorityFastFaceCounts.reduce((sum, count) => sum + count, 0),
+		priorityWinningFaceCount: reference.winningFacePriorityFlags.reduce((sum, flag) => sum + flag, 0),
 		measurementIterations,
 		phases,
 	};

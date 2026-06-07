@@ -4,9 +4,13 @@ import {
 	CITY_NED2ECEF_MATRIX_STRIDE,
 	RAW_CONE_RIM_ECEF_STRIDE,
 	UNUSED_INDEX,
+	benchmarkConeIntersectionAlphaAwareOrderCpu,
 	benchmarkConeIntersectionOracleCpu,
 	benchmarkConeIntersectionSymmetricOrderCpu,
+	buildAlphaAwareFaceTraversal,
 	buildSymmetricFaceTraversal,
+	classifyFastConeFaces,
+	computeConeIntersectionAlphaAwareOrderCpu,
 	computeConeIntersectionOracleCpu,
 	computeConeIntersectionSymmetricOrderCpu,
 	intersectRayTriangleDoubleSided,
@@ -84,6 +88,10 @@ test('exhaustive cone oracle rejects malformed shared buffer contracts', () => {
 		() => computeConeIntersectionOracleCpu(staticInput, { ...rawCones, rawConeRimEcef: new Float32Array(4) }),
 		/rawConeRimEcef/,
 	);
+	assert.throws(
+		() => computeConeIntersectionOracleCpu(staticInput, { ...rawCones, coneAlphaRadians: new Float32Array(4) }),
+		/coneAlphaRadians/,
+	);
 });
 
 test('exhaustive cone oracle benchmark reports timing and tested face count', () => {
@@ -104,6 +112,24 @@ test('symmetric face traversal starts at phiB0 and follows the shortest directio
 	assert.deepEqual(Array.from(buildSymmetricFaceTraversal(Math.PI, Math.PI * 1.25, 8)), [4, 5, 6, 7, 0, 1, 2, 3]);
 	assert.deepEqual(Array.from(buildSymmetricFaceTraversal(Math.PI, Math.PI * 0.75, 8)), [4, 3, 2, 1, 0, 7, 6, 5]);
 	assert.deepEqual(Array.from(buildSymmetricFaceTraversal(-Math.PI / 8, 0, 8)), [7, 0, 1, 2, 3, 4, 5, 6]);
+});
+
+test('fast-face classification includes both faces touching a fast alpha sample', () => {
+	assert.deepEqual(Array.from(classifyFastConeFaces(new Float32Array([0.5, 0.5, 0.2, 0.5]), 0.5)), [0, 1, 1, 0]);
+	assert.deepEqual(Array.from(classifyFastConeFaces(new Float32Array([0.2, 0.5, 0.5, 0.5]), 0.5)), [1, 0, 0, 1]);
+});
+
+test('alpha-aware traversal prioritizes corridor boundaries and nearby fast supports without removing faces', () => {
+	const alphaRadians = new Float32Array([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.2]);
+	const traversal = buildAlphaAwareFaceTraversal(Math.PI, Math.PI * 1.25, alphaRadians, {
+		roadAlphaRadians: 0.5,
+		bilateralNeighborhoodFaceCount: 3,
+	});
+
+	assert.deepEqual(Array.from(traversal.faceIndexes), [4, 5, 3, 6, 7, 0, 1, 2]);
+	assert.equal(traversal.priorityFaceCount, 5);
+	assert.equal(traversal.priorityFastFaceCount, 2);
+	assert.equal(new Set(traversal.faceIndexes).size, alphaRadians.length);
 });
 
 test('symmetric-order intersection remains exhaustive and matches the oracle', () => {
@@ -144,6 +170,47 @@ test('symmetric-order benchmark reports winning face discovery order', () => {
 	assert.equal(report.testedFaceCount, 16);
 	assert.deepEqual(report.winningFaceVisitOrder, { intersectionCount: 1, mean: 3, p95: 3, max: 3 });
 	assert.equal(report.phases[0].phase, 'cone-intersection-symmetric-order');
+	assert.equal(report.phases[0].wallClock.medianMilliseconds, 1);
+});
+
+test('alpha-aware intersection remains exhaustive and reports priority-window diagnostics', () => {
+	const staticInput = createStaticInput();
+	const rawCones = createRawCones();
+	rawCones.coneAlphaRadians.fill(0.5);
+	rawCones.coneAlphaRadians[4] = 0.2;
+	const oracle = computeConeIntersectionOracleCpu(staticInput, rawCones);
+	const alphaAware = computeConeIntersectionAlphaAwareOrderCpu(staticInput, rawCones, {
+		roadAlphaRadians: 0.5,
+		bilateralNeighborhoodFaceCount: 2,
+	});
+
+	assert.deepEqual(alphaAware.coneIntersectionDistanceMeters, oracle.coneIntersectionDistanceMeters);
+	assert.deepEqual(alphaAware.ciseledConeRimEcef, oracle.ciseledConeRimEcef);
+	assert.deepEqual(alphaAware.winningNeighborCityIndexes, oracle.winningNeighborCityIndexes);
+	assert.deepEqual(alphaAware.winningFaceIndexes, oracle.winningFaceIndexes);
+	assert.deepEqual(alphaAware.testedFaceCounts, oracle.testedFaceCounts);
+	assert.equal(alphaAware.priorityFaceCounts[0], 4);
+	assert.equal(alphaAware.priorityFastFaceCounts[0], 2);
+	assert.equal(alphaAware.winningFacePriorityFlags[0], 1);
+});
+
+test('alpha-aware benchmark reports priority-window usefulness', () => {
+	let clockValue = 0;
+	const rawCones = createRawCones();
+	rawCones.coneAlphaRadians.fill(0.5);
+	rawCones.coneAlphaRadians[4] = 0.2;
+	const report = benchmarkConeIntersectionAlphaAwareOrderCpu(
+		createStaticInput(),
+		rawCones,
+		{ roadAlphaRadians: 0.5, bilateralNeighborhoodFaceCount: 1 },
+		{ warmupIterations: 0, measurementIterations: 2, clock: () => clockValue++ },
+	);
+
+	assert.equal(report.testedFaceCount, 16);
+	assert.equal(report.priorityFaceCount, 15);
+	assert.equal(report.priorityFastFaceCount, 7);
+	assert.equal(report.priorityWinningFaceCount, 0);
+	assert.equal(report.phases[0].phase, 'cone-intersection-alpha-aware-order');
 	assert.equal(report.phases[0].wallClock.medianMilliseconds, 1);
 });
 

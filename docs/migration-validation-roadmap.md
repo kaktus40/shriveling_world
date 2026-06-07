@@ -957,7 +957,7 @@ Validation:
 
 ## M4.1: Socle De Tests CPU Et Contrats De Buffers
 
-Statut: `todo`
+Statut: `validated`
 
 Objectif:
 
@@ -1163,7 +1163,7 @@ Validation:
 
 ## M8: Nouveau Pipeline D'Intersections
 
-Statut: `todo`
+Statut: `in_progress`
 
 Objectif:
 
@@ -1205,6 +1205,12 @@ Travail realise:
   invariants de paire;
 - benchmark stable `cone-intersection-symmetric-order` et statistiques
   d'ordre de decouverte de la face gagnante;
+- classification CPU des faces Road/rapides, calculee une fois par ville;
+- fourchette prioritaire CPU alpha-aware associant couloir court, faces de
+  bord et supports rapides dans un voisinage bilateral configurable;
+- parcours alpha-aware encore exhaustif et strictement conforme a l'oracle;
+- diagnostics de taille de fourchette et d'appartenance de la face gagnante;
+- benchmark stable `cone-intersection-alpha-aware-order`;
 - contrat de cache memoire d'instance par annee pour
   `coneIntersectionDistanceMeters`;
 - resolution angulaire fixe a `1 deg` et cache vide au changement de dataset;
@@ -1233,12 +1239,11 @@ Etat de reflexion valide avant implementation de la filtration:
 
 Prochaine implementation:
 
-1. construire les supports Road/rapides et leurs plages de faces sur CPU;
-2. produire la fourchette prioritaire alpha-aware pour chaque rayon/voisin;
-3. instrumenter ses statistiques sans eliminer les faces;
-4. ajouter les blocs conservateurs et mesurer le rejet reel;
-5. comparer chaque variante a l'oracle exhaustif;
-6. implementer ensuite le cache memoire d'instance par annee.
+1. benchmarker plusieurs largeurs bilaterales sur les datasets reduits;
+2. regrouper les longues plages Road et les supports rapides en blocs;
+3. ajouter des volumes englobants conservateurs et mesurer le rejet reel;
+4. comparer chaque variante a l'oracle exhaustif;
+5. implementer ensuite le cache memoire d'instance par annee.
 
 Cas tests minimum:
 
@@ -1266,7 +1271,18 @@ Critere d'acceptation:
 
 Validation:
 
-- A renseigner apres implementation.
+- Implementation intermediaire alpha-aware CPU validee:
+  - toutes les faces restent visitees exactement une fois;
+  - distances, positions ciselees, voisin et face gagnants identiques a
+    l'oracle sur les tests analytiques;
+  - largeur bilaterale explicitement configurable et instrumentee;
+  - aucune elimination de face avant introduction d'une borne conservatrice.
+- Validations executees:
+  - controle TypeScript strict limite aux modules migres;
+  - `npm test`;
+  - `npm run build`.
+- M8 reste `in_progress`: les blocs conservateurs, leur benchmark sur datasets
+  reduits et le cache annuel ne sont pas encore implementes.
 
 ## M9: Integration Interactive Complete
 
@@ -1417,4 +1433,4 @@ Entrees:
 - 2026-06-03 - M2.1 - validated - commit `23d2ff0` - audit des hooks Rollup et decisions de migration documentes.
 - 2026-06-03 - M2.1 - validated - commit `360638c` - strategie de validation WGSL documentee.
 - 2026-06-04 - M2 - validated - commit `ddeab9c` - shell SvelteKit/Vite, import WGSL et build datasets portes.
-- 2026-06-04 - M3.1 - validated - commit `465e71d` - scripts dataset raccordes au module TypeScript documente.
+- 2026-06-04 - M3.1 - in_progress - commit `465e71d` - scripts dataset raccordes au module TypeScript documente; pipeline CSV complet non valide.

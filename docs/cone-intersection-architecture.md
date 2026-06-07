@@ -242,6 +242,50 @@ La fourchette prioritaire reduit le rang probable de decouverte du minimum.
 Elle ne reduit le nombre de faces testees de maniere sure que lorsqu'elle est
 combinee a des blocs conservateurs respectant `blockEntryT >= bestT`.
 
+### Reference CPU Instrumentee
+
+La premiere reference CPU alpha-aware est implementee sans elimination de
+faces. Elle sert a mesurer la qualite de la fourchette avant d'introduire un
+filtre conservateur.
+
+Une face de B est classee rapide lorsque l'une de ses deux arêtes echantillonnees
+respecte:
+
+```text
+alpha < roadAlpha - alphaEpsilonRadians
+```
+
+Cette classification est calculee une seule fois par ville et par annee. Pour
+chaque couple `(rayon A, voisin B)`, l'ordre de visite contient ensuite:
+
+1. toutes les faces du couloir circulaire court `phiB0 -> gammaBA`;
+2. les deux faces exterieures touchant les bornes du couloir;
+3. les faces rapides situees dans un voisinage bilateral configurable de
+   `phiB0`;
+4. toutes les faces restantes dans l'ordre symetrique exhaustif.
+
+Les fonctions TypeScript de reference sont:
+
+- `classifyFastConeFaces`;
+- `buildAlphaAwareFaceTraversal`;
+- `computeConeIntersectionAlphaAwareOrderCpu`;
+- `benchmarkConeIntersectionAlphaAwareOrderCpu`.
+
+Les sorties de diagnostic par rayon sont:
+
+- `priorityFaceCounts`: somme des faces prioritaires de tous les voisins;
+- `priorityFastFaceCounts`: sous-ensemble prioritaire touchant un support
+  rapide;
+- `winningFacePriorityFlags`: indique si la face gagnante appartenait a la
+  fourchette de son voisin;
+- `winningFaceVisitOrders`: rang global de decouverte de la face gagnante.
+
+Cette reference teste toujours exactement autant de faces que l'oracle. Son
+benchmark mesure donc uniquement le cout et la pertinence de l'ordre
+alpha-aware. Une largeur bilaterale insuffisante peut laisser la face gagnante
+hors de la fourchette sans provoquer d'erreur geometrique, puisque la face est
+encore visitee dans la phase exhaustive restante.
+
 ## BVH Circulaire Consciente D'Alpha
 
 Le candidat prefere au BVH circulaire generique aligne ses feuilles et ses
