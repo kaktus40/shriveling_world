@@ -280,8 +280,19 @@
       "edgesByOrigin": 25,
       "edgesByDestination": 25
     },
-    "diagnosticsBySeverity": {},
-    "diagnosticSample": [],
+    "diagnosticsBySeverity": {
+      "warning": 1
+    },
+    "diagnosticSample": [
+      {
+        "severity": "warning",
+        "code": "unknown-file",
+        "file": "fixture-manifest.json",
+        "errors": [
+          "json file is not GeoJSON"
+        ]
+      }
+    ],
     "fieldSample": [
       {
         "sourceKind": "cities",

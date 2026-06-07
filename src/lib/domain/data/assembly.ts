@@ -132,7 +132,7 @@ export function assembleBaseNetwork(input: { files: SourceFile[]; manifest: Data
 	}
 
 	const sourceFilesByName = new Map(input.files.map((file) => [file.name, file]));
-	const diagnostics: DatasetDiagnostic[] = [];
+	const diagnostics: DatasetDiagnostic[] = [...input.manifest.diagnostics];
 	const sourceRecords: SourceRecord[] = [];
 
 	const addSourceRecords = (records: SourceRecordDraft[]): SourceRecord[] => {

@@ -199,6 +199,31 @@ export function inspectDatasetFiles(sourceFiles: SourceFile[]): InspectedDataset
 export function resolveDatasetManifest(inspectedFiles: InspectedDatasetFile[]): DatasetManifest {
 	const diagnostics: DatasetDiagnostic[] = [];
 	const primary = {} as Partial<DatasetManifest['primary']>;
+	const filesByOriginalName = new Map<string, InspectedDatasetFile[]>();
+
+	for (const file of inspectedFiles) {
+		const sameNameFiles = filesByOriginalName.get(file.originalName) ?? [];
+		sameNameFiles.push(file);
+		filesByOriginalName.set(file.originalName, sameNameFiles);
+		if (file.candidateKinds.length > 1) {
+			diagnostics.push({
+				severity: 'error',
+				code: 'ambiguous-file-schema',
+				file: file.originalName,
+				candidateKinds: file.candidateKinds,
+			});
+		}
+	}
+	for (const [fileName, sameNameFiles] of filesByOriginalName) {
+		if (sameNameFiles.length > 1) {
+			diagnostics.push({
+				severity: 'error',
+				code: 'duplicate-source-file-name',
+				file: fileName,
+				occurrences: sameNameFiles.length,
+			});
+		}
+	}
 
 	for (const kind of REQUIRED_PRIMARY_KINDS) {
 		const matches = inspectedFiles.filter((file) => file.kind === kind);
@@ -235,4 +260,3 @@ export function resolveDatasetManifest(inspectedFiles: InspectedDatasetFile[]): 
 		valid: diagnostics.every((diagnostic) => diagnostic.severity !== 'error'),
 	};
 }
-

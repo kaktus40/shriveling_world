@@ -278,10 +278,18 @@
       "edgesByDestination": 3
     },
     "diagnosticsBySeverity": {
-      "error": 5,
-      "warning": 1
+      "warning": 2,
+      "error": 5
     },
     "diagnosticSample": [
+      {
+        "severity": "warning",
+        "code": "unknown-file",
+        "file": "fixture-manifest.json",
+        "errors": [
+          "json file is not GeoJSON"
+        ]
+      },
       {
         "severity": "error",
         "code": "invalid-number-characteristic",

@@ -386,17 +386,18 @@ Implementation TypeScript `M3`:
 - le module ne depend pas de SvelteKit, Three.js, Babylon.js, WebGPU ou du DOM;
 - le module n'est pas encore branche dans le `Merger` historique.
 
-Priorite active `M3.1`:
+Validation `M3.1`:
 
-- valider par tests d'integration la chaine complete
+- les tests d'integration valident la chaine complete
   `SourceFile[] -> DatasetManifest -> BaseNetwork -> PreparedDataset`;
-- verifier automatiquement que l'ordre d'arrivee des fichiers ne change ni le
+- l'ordre d'arrivee des fichiers ne change ni le
   manifest ni le reseau assemble;
-- verifier la conservation lossless des colonnes libres;
-- couvrir les diagnostics de fichiers ambigus ou manquants, doublons,
+- les colonnes libres sont conservees sans perte;
+- les diagnostics couvrent les fichiers ambigus ou manquants, doublons,
   enrichissements orphelins et references non resolues;
-- utiliser les fixtures reduites Europe et Monde comme cas realistes apres les
-  fixtures analytiques minimales.
+- les fixtures reduites Europe et Monde completent les cas analytiques;
+- le branchement interactif et la suppression du `Merger` historique restent
+  hors du perimetre de M3.1.
 
 Decision CSV:
 

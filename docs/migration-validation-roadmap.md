@@ -67,7 +67,7 @@ Utiliser les statuts suivants:
 | M2 | validated | Migration SvelteKit/Vite minimale |
 | M2.1 | validated | Evaluation des hooks Rollup applicatifs |
 | M3 | in_progress | Extraction du domaine metier |
-| M3.1 | in_progress | Inspection dataset et assemblage lossless du reseau |
+| M3.1 | validated | Inspection dataset et assemblage lossless du reseau |
 | M4 | in_progress | Architecture explicite de precalcul |
 | M4.1 | validated | Socle de tests CPU et contrats de buffers |
 | M5 | deferred | Prototype comparatif de rendu Babylon.js / luma.gl |
@@ -459,7 +459,7 @@ Validation:
 
 ## M3.1: Inspection Dataset Et Assemblage Lossless Du Reseau
 
-Statut: `in_progress`
+Statut: `validated`
 
 Objectif:
 
@@ -467,10 +467,12 @@ Remplacer la detection fragile des fichiers par nom et preparer une aggregation 
 
 Note de cadrage:
 
-- ce jalon n'est pas valide dans son ensemble pour le traitement CSV complet;
-- des briques d'inspection et d'assemblage ont ete initiees et caracterisees;
-- le travail GeoJSON a ete priorise ensuite car le perimetre etait plus simple et plus stable;
-- la validation finale du pipeline CSV reste a reprendre explicitement avec des tests automatises dedies.
+- les briques d'inspection, d'assemblage et de preparation sont validees comme
+  pipeline de domaine independant;
+- le branchement du nouveau pipeline dans l'application interactive appartient
+  aux jalons d'extraction et d'integration suivants;
+- la validation M3.1 ne signifie pas que le `Merger` historique est deja
+  supprime.
 
 Contrat dataset:
 
@@ -617,10 +619,21 @@ Validation:
   - l'assembleur accepte une liste `{ name, text }[]`, donc il peut recevoir les fichiers dans un ordre non determine.
 - Validations executees:
   - `npm run characterize:datasets`;
+  - `npm run test:integration`;
+  - `npm test`;
   - `./node_modules/.bin/tsc --noEmit --ignoreConfig --strict --allowJs --moduleResolution bundler --module esnext --target es2022 scripts/*.ts src/lib/domain/data/*.ts`;
-  - verification de manifest identique entre ordre naturel et ordre inverse des fichiers pour `datasets/World_1M`;
-  - verification d'assemblage identique entre ordre naturel et ordre inverse des fichiers pour `datasets/World_1M`;
   - `npm run build`.
+- Tests d'integration automatises:
+  - chaine complete `SourceFile[] -> DatasetManifest -> BaseNetwork -> PreparedDataset`;
+  - egalite du manifest, du reseau lossless et des buffers prepares lorsque
+    l'ordre des fichiers est inverse;
+  - fixture analytique avec colonnes libres, enrichissement orphelin, arête
+    non resolue et fichier inconnu;
+  - fixtures reduites Europe et Monde;
+  - manifests incomplets, fichiers primaires multiples, schema ambigu et nom
+    de fichier source duplique;
+  - diagnostics de valeurs invalides, identifiants dupliques et references
+    metier absentes.
 - Diagnostics observes:
   - les datasets complets contiennent des arcs references vers des villes absentes du sous-ensemble de villes charge;
   - `population.csv` est correctement rattache comme `cityLinkedAttributes`, avec lignes orphelines conservees en diagnostics;
@@ -663,27 +676,11 @@ Validations executees:
 - `npm test`;
 - `./node_modules/.bin/tsc --noEmit --ignoreConfig --strict --moduleResolution bundler --module esnext --target es2022 src/lib/domain/data/*.ts src/lib/shared/*.ts`.
 
-Limites restantes:
+Limites restantes hors M3.1:
 
-- le pipeline CSV complet reste a valider avec des tests d'integration sur fixtures;
-- les fixtures completes restent a raccorder aux tests d'integration de
-  `PreparedDataset`;
-- l'invariance du pipeline complet a l'ordre des fichiers doit etre testee
-  automatiquement, au-dela des caracterisations manuelles deja executees;
-- les diagnostics d'ambiguite, de fichier primaire manquant, de doublon,
-  d'enrichissement orphelin et de reference non resolue doivent etre couverts
-  par des tests d'integration;
-- le chemin complet `SourceFile[] -> DatasetManifest -> BaseNetwork ->
-  PreparedDataset` doit devenir le critere bloquant de validation de M3.1.
-
-Prochaine priorite active:
-
-1. ajouter les fixtures d'integration CSV minimales et realistes;
-2. tester la detection et l'assemblage independamment de l'ordre des fichiers;
-3. tester la conservation lossless et les diagnostics;
-4. tester la production de `PreparedDataset` depuis les fixtures;
-5. executer la caracterisation des datasets reduits puis renseigner la
-   validation finale de M3.1.
+- brancher le pipeline de domaine dans l'application interactive;
+- retirer progressivement les consommateurs du `Merger` historique;
+- ajouter le moteur de mapping semantique et de requetes utilisateur.
 
 Orientation validee pour le precalcul statique des villes:
 
@@ -1028,7 +1025,8 @@ Validation:
 - Limites restantes:
   - les tests WebGPU ne sont pas encore actifs car le kernel WGSL de raycast n'existe pas;
   - la conformite CPU/GPU sera ajoutee dans `tests/conformance/cpu-gpu`;
-  - le jalon M3/M3.1 CSV reste a reprendre: les tests ajoutes ici ne valident que `src/lib/shared` et `src/lib/domain/geojson`.
+  - l'integration interactive du pipeline data valide par M3.1 reste a
+    traiter dans M3 et M9.
 
 ## M5: Prototype Comparatif Du Renderer
 
@@ -1449,3 +1447,4 @@ Entrees:
 - 2026-06-03 - M2.1 - validated - commit `360638c` - strategie de validation WGSL documentee.
 - 2026-06-04 - M2 - validated - commit `ddeab9c` - shell SvelteKit/Vite, import WGSL et build datasets portes.
 - 2026-06-04 - M3.1 - in_progress - commit `465e71d` - scripts dataset raccordes au module TypeScript documente; pipeline CSV complet non valide.
+- 2026-06-07 - M3.1 - validated - tests d'integration du pipeline lossless, invariance a l'ordre et diagnostics complets.

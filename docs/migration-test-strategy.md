@@ -402,12 +402,15 @@ Priorite 1:
 
 Priorite 2:
 
-- completer les tests `src/lib/domain/data` par des scenarios multi-fichiers;
-- tests d'integration sur fixtures reduites couvrant
-  `SourceFile[] -> DatasetManifest -> BaseNetwork -> PreparedDataset`;
-- permutation de l'ordre des fichiers avec resultats identiques;
+- suite `npm run test:integration` implementee pour M3.1;
+- chaine `SourceFile[] -> DatasetManifest -> BaseNetwork -> PreparedDataset`
+  couverte sur fixture analytique et fixtures reduites Europe/Monde;
+- permutation de l'ordre des fichiers avec manifest, reseau et buffers
+  prepares identiques;
 - conservation lossless des colonnes libres et des lignes orphelines;
-- diagnostics de manifest incomplet, ambigu ou contradictoire.
+- diagnostics de manifest incomplet, ambigu ou contradictoire;
+- diagnostics de noms sources dupliques, identifiants dupliques, valeurs
+  invalides et references absentes.
 
 Priorite 3:
 

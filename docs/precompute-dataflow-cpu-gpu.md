@@ -1692,9 +1692,9 @@ Le framework WebGPU ne doit pas remplacer le precalcul metier. Il doit
 l'executer a partir de structures compactes, stables et documentees.
 
 `PreparedDataset`, `StaticTownPrecompute` et `DynamicTownPrecomputeByYear`
-disposent maintenant de references TypeScript CPU testees. La priorite active
-revient a M3.1: valider par tests d'integration le chemin complet
+disposent maintenant de references TypeScript CPU testees. M3.1 valide par
+tests d'integration le chemin complet
 `SourceFile[] -> DatasetManifest -> BaseNetwork -> PreparedDataset`, y compris
 l'independance a l'ordre des fichiers, la conservation lossless et les
-diagnostics. Les portages WebGL2/WebGPU reprendront ensuite ces contrats
-stabilises sans modifier le pipeline d'ingestion.
+diagnostics. Les portages WebGL2/WebGPU reprendront ces contrats stabilises
+sans modifier le pipeline d'ingestion.
