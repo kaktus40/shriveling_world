@@ -1176,7 +1176,11 @@ Travail attendu:
 - formaliser le rayon symetrique `phiB0` entre deux villes;
 - prioriser le parcours de `phiB0` vers le plan A-B-centre Terre;
 - construire une BVH circulaire de blocs de faces exploitable par WebGPU;
+- aligner et benchmarker une variante de BVH circulaire sur les intervalles
+  monotones d'alpha et les limites d'attenuation;
 - benchmarker le filtre par intervalle d'azimuts possible;
+- comparer les interpolations d'attenuation de `alpha`, `cos(alpha)` et
+  `tan(alpha)` avant toute evolution du modele scientifique;
 - distinguer conceptuellement intersection cone/cone et clipping frontieres,
   tout en evaluant leur fusion dans une meme passe WebGPU;
 - definir les buffers necessaires;
@@ -1197,7 +1201,8 @@ Cas tests minimum:
 - cone complexe avec plusieurs minima locaux;
 - rayon passant sur une arête partagee par deux faces;
 - longueur globale et longueur locale de cone;
-- comparaison exhaustive, intervalle angulaire, heuristique et BVH circulaire.
+- comparaison exhaustive, intervalle angulaire, heuristique, BVH circulaire
+  fixe et BVH circulaire consciente d'alpha;
 
 Critere d'acceptation:
 

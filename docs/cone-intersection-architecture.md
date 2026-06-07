@@ -19,6 +19,13 @@ Schéma:
 
 ![Intersection des cones et reduction finale](diagrams/precompute/10-cone-intersection-strategy.png)
 
+Cas d'etude geometriques:
+
+- [heuristique droite/gauche consciente d'alpha](cone-intersection-alpha-aware-case-studies.md);
+- [rayon symetrique et zone prioritaire](diagrams/intersections/alpha-aware-symmetric-search.svg);
+- [alpha monotone et distance d'intersection](diagrams/intersections/alpha-versus-intersection-distance.svg);
+- [BVH circulaire alignee sur les attenuations](diagrams/intersections/alpha-aware-circular-bvh.svg).
+
 ## Objectif
 
 Pour chaque couple `(cityAIndex, azimuthSampleIndex)`, le pipeline cherche la
@@ -133,6 +140,107 @@ ne produiront pas une intersection plus courte:
 Un cone deforme peut presenter plusieurs minima locaux. Une variante empirique
 peut mesurer plusieurs augmentations consecutives et une marge de distance,
 mais elle ne peut etre retenue en production sans comparaison avec l'oracle.
+
+## Intervalles Monotones D'Alpha
+
+Le cone B n'est pas une surface inconnue au moment de rechercher
+l'intersection. Pour chaque rayon echantillonne, son azimut, son alpha et sa
+longueur sont deja disponibles dans les buffers du cone brut.
+
+La loi actuelle interpole alpha avec `smoothstep` entre deux influences. Elle
+est monotone sur chaque intervalle dont les deux influences restent
+inchangees. Le domaine circulaire de B peut donc etre decoupe aux points
+suivants:
+
+- azimuts des liaisons actives;
+- limites des zones d'attenuation;
+- changements de liaisons inferieure ou superieure selectionnee;
+- rayon symetrique `phiB0`;
+- direction `gammaBA` du plan `A-B-centre Terre`;
+- passage circulaire `0/2 PI`.
+
+Chaque intervalle porte au minimum:
+
+```ts
+interface AlphaMonotonicSpan {
+  azimuthMinRadians: number;
+  azimuthMaxRadians: number;
+  alphaMinRadians: number;
+  alphaMaxRadians: number;
+  alphaVariationSign: -1 | 0 | 1;
+  firstFaceIndex: number;
+  faceCount: number;
+}
+```
+
+La connaissance du signe de `d alpha / d phiB` permet de mieux ordonner les
+faces susceptibles de rapprocher la surface de B du rayon A. Elle ne permet
+pas, seule, de deduire le signe de `d t / d phiB`: la distance `t` depend
+aussi de l'ecart au rayon symetrique, des reperes NED relatifs, de la courbure
+terrestre, de l'orientation des faces et de la longueur finie du cone.
+
+En consequence:
+
+- la variation d'alpha est une priorite de parcours;
+- elle peut resserrer une enveloppe geometrique conservatrice;
+- elle ne constitue pas un critere d'arret sans borne inferieure prouvee.
+
+## BVH Circulaire Consciente D'Alpha
+
+Le candidat prefere au BVH circulaire generique aligne ses feuilles et ses
+blocs sur les intervalles monotones d'alpha. Un bloc porte:
+
+```ts
+interface AlphaAwareCircularBvhBlock {
+  azimuthMinRadians: number;
+  azimuthMaxRadians: number;
+  alphaMinRadians: number;
+  alphaMaxRadians: number;
+  firstFaceIndex: number;
+  faceCount: number;
+  boundingVolumeOffset: number;
+}
+```
+
+Les bornes d'azimut et d'alpha permettent de construire un volume englobant
+plus serre qu'un regroupement arbitraire de faces. Le parcours conserve
+l'ordre prioritaire `phiB0 -> gammaBA`, module par le sens de variation
+d'alpha. L'arret reste garanti uniquement lorsque:
+
+```text
+blockEntryT >= bestT
+```
+
+Cette structure doit etre comparee a une BVH circulaire a blocs de taille fixe
+pour verifier que le cout de construction et les divergences de parcours ne
+depassent pas le gain de filtrage.
+
+## Evaluation De La Loi D'Attenuation
+
+La loi historique interpole directement alpha:
+
+```text
+alpha(u) = mix(alpha0, alpha1, smoothstep(u))
+```
+
+Elle est continue, monotone entre les points de controle et reproduit le
+comportement actuel. Elle n'est toutefois pas la seule interpretation
+possible. Deux variantes seront caracterisees sans changer silencieusement le
+modele scientifique:
+
+```text
+vitesse normalisee:
+cos(alpha(u)) = mix(cos(alpha0), cos(alpha1), smoothstep(u))
+
+pente geometrique:
+tan(alpha(u)) = mix(tan(alpha0), tan(alpha1), smoothstep(u))
+```
+
+L'interpolation de `cos(alpha)` est directement liee au rapport
+`ambientSpeed / maximumSpeed`. L'interpolation de `tan(alpha)` agit sur la
+pente geometrique de la surface. Le choix final doit mesurer la continuite,
+la forme obtenue, la variation de `t`, le nombre de minima locaux et le cout
+CPU/GPU.
 
 ## Critere D'Arret Garanti: BVH Circulaire
 

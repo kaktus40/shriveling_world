@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 620" role="img" aria-labelledby="title desc">
+  <title id="title">Comparaison entre alpha monotone et distance d'intersection non monotone</title>
+  <desc id="desc">Deux graphes partagent l'axe azimut. Alpha varie monotonement alors que la distance t presente deux minima.</desc>
+  <defs>
+    <style>
+      .label{font:18px Georgia,serif;fill:#203040}.small{font:15px Georgia,serif;fill:#405468}.axis{stroke:#203040;stroke-width:2}.grid{stroke:#d8dedb;stroke-width:1}.alpha{fill:none;stroke:#14866d;stroke-width:6}.t{fill:none;stroke:#d45b24;stroke-width:6}.break{stroke:#7b8994;stroke-width:2;stroke-dasharray:7 6}
+    </style>
+  </defs>
+  <rect width="960" height="620" fill="#f7f2e8"/>
+  <text x="42" y="48" class="label" font-weight="bold">Alpha monotone ne garantit pas une distance t monotone</text>
+  <line x1="105" y1="275" x2="900" y2="275" class="axis"/><line x1="105" y1="95" x2="105" y2="275" class="axis"/>
+  <text x="48" y="125" class="label">alpha</text><text x="810" y="302" class="small">azimut phiB</text>
+  <line x1="380" y1="95" x2="380" y2="550" class="break"/><line x1="690" y1="95" x2="690" y2="550" class="break"/>
+  <text x="300" y="82" class="small">intervalle monotone d'attenuation</text>
+  <path d="M 120 235 C 245 225, 290 205, 380 180 S 570 115, 690 105 S 820 105, 890 105" class="alpha"/>
+  <text x="700" y="135" class="small" fill="#14866d">signe de d alpha / d phi connu</text>
+  <line x1="105" y1="550" x2="900" y2="550" class="axis"/><line x1="105" y1="350" x2="105" y2="550" class="axis"/>
+  <text x="55" y="380" class="label">t</text><text x="810" y="578" class="small">azimut phiB</text>
+  <path d="M 120 400 C 215 365, 285 505, 390 450 S 540 370, 620 485 S 760 440, 890 405" class="t"/>
+  <circle cx="300" cy="480" r="8" fill="#d45b24"/><circle cx="635" cy="478" r="8" fill="#d45b24"/>
+  <text x="205" y="525" class="small" fill="#d45b24">minimum local</text><text x="645" y="510" class="small" fill="#d45b24">minimum plus court possible</text>
+  <rect x="515" y="235" width="385" height="60" rx="8" fill="#fffaf0" stroke="#d6c7ad"/>
+  <text x="535" y="260" class="small">La geometrie relative, les faces et la longueur</text>
+  <text x="535" y="283" class="small">finie modifient t independamment d'alpha.</text>
+</svg>

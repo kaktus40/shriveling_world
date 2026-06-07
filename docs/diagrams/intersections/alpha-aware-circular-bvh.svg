@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 650" role="img" aria-labelledby="title desc">
+  <title id="title">BVH circulaire consciente des zones d'attenuation</title>
+  <desc id="desc">Un cone B decoupe en blocs circulaires alignes sur les changements d'influence et des blocs rejetes par leur borne d'entree.</desc>
+  <defs>
+    <style>
+      .label{font:18px Georgia,serif;fill:#203040}.small{font:15px Georgia,serif;fill:#405468}.edge{stroke:#203040;stroke-width:2}.span1{fill:#e9b44c}.span2{fill:#62a87c}.span3{fill:#d46b4c}.span4{fill:#8aa0aa}.reject{fill:#e2e6e5;stroke:#7b8994;stroke-width:2;stroke-dasharray:7 6}.visit{fill:#fff3d6;stroke:#d45b24;stroke-width:3}.ray{stroke:#203040;stroke-width:4}
+    </style>
+  </defs>
+  <rect width="960" height="650" fill="#f7f2e8"/>
+  <text x="42" y="48" class="label" font-weight="bold">BVH circulaire alignee sur les intervalles monotones d'alpha</text>
+  <circle cx="310" cy="340" r="205" fill="#eef3f0" stroke="#b5c5bf" stroke-width="2"/>
+  <path d="M310 340 L310 135 A205 205 0 0 1 502 269 Z" class="span1" opacity=".78"/>
+  <path d="M310 340 L502 269 A205 205 0 0 1 395 527 Z" class="span2" opacity=".78"/>
+  <path d="M310 340 L395 527 A205 205 0 0 1 115 403 Z" class="span3" opacity=".78"/>
+  <path d="M310 340 L115 403 A205 205 0 0 1 310 135 Z" class="span4" opacity=".78"/>
+  <circle cx="310" cy="340" r="12" fill="#203040"/>
+  <text x="286" y="375" class="label">B</text>
+  <text x="336" y="164" class="small">span 0</text><text x="430" y="400" class="small">span 1</text><text x="230" y="525" class="small">span 2</text><text x="125" y="270" class="small">span 3</text>
+  <line x1="45" y1="165" x2="430" y2="335" class="ray"/>
+  <text x="45" y="140" class="small">rayon de A</text>
+  <rect x="600" y="115" width="285" height="70" rx="10" class="visit"/><text x="620" y="145" class="label">span 1 visite</text><text x="620" y="170" class="small">decouvre bestT</text>
+  <rect x="600" y="225" width="285" height="70" rx="10" class="visit"/><text x="620" y="255" class="label">span 0 visite</text><text x="620" y="280" class="small">borne encore inferieure</text>
+  <rect x="600" y="335" width="285" height="70" rx="10" class="reject"/><text x="620" y="365" class="label">span 2 rejete</text><text x="620" y="390" class="small">blockEntryT &gt;= bestT</text>
+  <rect x="600" y="445" width="285" height="70" rx="10" class="reject"/><text x="620" y="475" class="label">span 3 rejete</text><text x="620" y="500" class="small">blockEntryT &gt;= bestT</text>
+  <text x="42" y="610" class="small">Les bornes azimut/alpha resserrent les volumes; seule la borne geometrique autorise l'arret.</text>
+</svg>

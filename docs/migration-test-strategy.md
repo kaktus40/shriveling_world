@@ -445,6 +445,14 @@ Plan de tests des intersections a implementer:
 - comparaison de l'heuristique droite/gauche avec l'oracle;
 - comparaison du filtre par intervalle d'azimuts avec l'oracle;
 - comparaison de la BVH circulaire avec l'oracle;
+- comparaison d'une BVH circulaire a blocs fixes avec une BVH alignee sur les
+  intervalles monotones d'alpha;
+- verification que le signe de variation d'alpha n'est jamais utilise seul
+  comme critere d'arret;
+- mesure des violations de monotonie de `t` sur chaque intervalle monotone
+  d'alpha;
+- comparaison des lois d'attenuation interpolant `alpha`, `cos(alpha)` et
+  `tan(alpha)` sans modifier la loi de production avant validation;
 - Moller-Trumbore double face sur sommets, arêtes et interieur des faces;
 - cas Float32 au passage `0/2 PI`;
 - longueurs globales et locales de cones;
@@ -462,6 +470,13 @@ Benchmarks obligatoires:
 - erreur maximale et p95 sur la distance `t`;
 - cout de l'ecriture de `ciseledConeRimEcef`;
 - cout de la fusion du clipping pays.
+- cout de construction des intervalles monotones d'alpha;
+- cout de construction des BVH fixe et consciente d'alpha;
+- position moyenne et p95 de la face gagnante dans l'ordre de parcours;
+- correlation entre le sens suggere par la variation d'alpha et la variation
+  effectivement observee de `t`;
+- nombre de minima locaux de `t` par intervalle monotone d'alpha;
+- comparaison de forme et de performance des trois lois d'attenuation.
 
 Priorite 4:
 
