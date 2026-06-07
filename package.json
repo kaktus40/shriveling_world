@@ -9,8 +9,8 @@
         "build": "npm run build:datasets && vite build",
         "preview": "vite preview",
         "build:datasets": "node scripts/build-datasets.mjs",
-        "test": "tsx --test tests/unit/**/*.test.ts",
-        "test:integration": "tsx --test tests/integration/**/*.test.ts",
+        "test": "vitest run tests/unit",
+        "test:integration": "vitest run tests/integration",
         "validate": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
         "fixtures:create": "tsx scripts/create-reduced-dataset-fixtures.ts",
         "characterize:datasets": "npm run fixtures:create && tsx scripts/characterize-datasets.ts"
@@ -84,6 +84,7 @@
         "typedoc": "^0.28.19",
         "typescript": "^6.0.3",
         "vite": "^8.0.16",
+        "vitest": "^4.1.8",
         "yargs": "^18.0.0"
     },
     "browserslist": [
