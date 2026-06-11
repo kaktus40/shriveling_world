@@ -9,9 +9,12 @@ import {
 import {
 	createDefaultComputeWorkflowRegistry,
 	selectComputeProfile,
+	createWebGl2WorkflowBackendDescriptor,
 	type ComputeBenchmarkReport,
 	type ComputeProfile,
 	type ComputeProfileSelection,
+	type ComputeWorkflowBackend,
+	type ComputeWorkflowBackendRegistry,
 	type ComputeWorkflowResult,
 } from '$lib/compute';
 import {
@@ -137,7 +140,7 @@ export async function runDatasetWorkspaceCompute(
 	workspace: DatasetWorkspaceSnapshot,
 	request: WorkspaceComputeRequest = {},
 ): Promise<DatasetWorkspaceCompute> {
-	const registry = createDefaultComputeWorkflowRegistry();
+	const registry = createWorkspaceComputeRegistry();
 	const selection = await selectComputeProfile(
 		{
 			preferred: request.profile,
@@ -146,7 +149,7 @@ export async function runDatasetWorkspaceCompute(
 		},
 		registry,
 	);
-	const backend = await registry.cpu.create();
+	const backend = await resolveSelectedBackend(registry, selection);
 	try {
 		const result = await backend.run(
 			{
@@ -176,6 +179,23 @@ export async function runDatasetWorkspaceCompute(
 	} finally {
 		await backend.dispose();
 	}
+}
+
+function createWorkspaceComputeRegistry(): ComputeWorkflowBackendRegistry {
+	return {
+		...createDefaultComputeWorkflowRegistry(),
+		webgl2: createWebGl2WorkflowBackendDescriptor(),
+	};
+}
+
+async function resolveSelectedBackend(
+	registry: ComputeWorkflowBackendRegistry,
+	selection: ComputeProfileSelection,
+): Promise<ComputeWorkflowBackend> {
+	if (selection.selected === 'webgl2' && registry.webgl2) {
+		return registry.webgl2.create();
+	}
+	return registry.cpu.create();
 }
 
 /**
