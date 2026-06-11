@@ -1648,6 +1648,11 @@ mesurer la taille de la fourchette et la proportion de faces gagnantes qu'elle
 contient. La prochaine optimisation devra ajouter des blocs disposant d'une
 borne conservatrice avant de supprimer le moindre test rayon/triangle.
 
+Le contrat de workflow expose deja un choix explicite de strategie
+(`oracle`, `symmetric-order`, `alpha-aware-order`,
+`alpha-aware-block-pruned`) afin que `/workspace` puisse benchmarker chaque
+variante sans modifier la chaine d'ingestion ou les buffers prepares.
+
 ### Cache D'Instance Par Annee
 
 La sortie canonique reutilisable de l'etape cone/cone est la distance:

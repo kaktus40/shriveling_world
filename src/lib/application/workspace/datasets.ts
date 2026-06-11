@@ -8,6 +8,7 @@ import {
 } from '$lib/domain/data';
 import {
 	createDefaultComputeWorkflowRegistry,
+	type ComputeConeIntersectionStrategy,
 	selectComputeProfile,
 	createWebGl2WorkflowBackendDescriptor,
 	createWebGpuWorkflowBackendDescriptor,
@@ -65,6 +66,7 @@ export interface WorkspaceComputeRequest {
 	forced?: ComputeProfile;
 	allowFallback?: boolean;
 	benchmark?: boolean;
+	coneIntersectionStrategy?: ComputeConeIntersectionStrategy;
 }
 
 /** Prepared transport mode exposed by the workspace route. */
@@ -175,7 +177,10 @@ export async function runDatasetWorkspaceCompute(
 					coneLengthMeters: coneOptions.coneLengthMeters,
 					attenuationRadians: coneOptions.attenuationRadians,
 				},
-				coneIntersection: { enabled: false },
+				coneIntersection: {
+					enabled: true,
+					strategy: request.coneIntersectionStrategy ?? 'oracle',
+				},
 			},
 			selection,
 		);

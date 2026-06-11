@@ -24,15 +24,21 @@ import {
 } from '../../domain/geojson';
 import {
 	computeConeIntersectionOracleCpu,
+	computeConeIntersectionAlphaAwareBlockPrunedCpu,
+	computeConeIntersectionAlphaAwareOrderCpu,
+	computeConeIntersectionSymmetricOrderCpu,
 	computeDynamicTownPrecomputeForYearCpu,
 	computeRawConePrecomputeCpu,
 	computeStaticTownPrecomputeCpu,
 	type ConeIntersectionOraclePrecompute,
+	type AlphaAwareBlockPrunedConeIntersectionOptions,
+	type AlphaAwareConeIntersectionOptions,
 	type DynamicTownPrecompute,
 	type RawConePrecompute,
 	type RawConePrecomputeOptions,
 	type StaticTownPrecompute,
 	type StaticTownPrecomputeOptions,
+	type SymmetricConeIntersectionStaticInput,
 } from '../../domain/precompute';
 import { EARTH_RADIUS_METERS } from '../../shared';
 import type {
@@ -46,6 +52,7 @@ import type {
 	ComputeWorkflowOptions,
 	ComputeWorkflowResult,
 	StageTiming,
+	ComputeConeIntersectionStrategy,
 } from '../core/types';
 import { measureStage, sumStageDurations } from '../core/timing';
 
@@ -157,15 +164,22 @@ export class CpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			timings.push(rawConeTiming.timing);
 		}
 
-		if (options.coneIntersection?.enabled !== false && rawCones) {
-			const coneTiming = measureStage(
+		if (options.coneIntersection?.enabled !== false && rawCones && dynamicTown) {
+			const coneIntersectionResult = measureStage(
 				'cone-intersections-precompute',
 				'interactive',
 				this.profile,
-				() => computeConeIntersectionOracleCpu(staticTown, rawCones as RawConePrecompute),
+				() =>
+					runConeIntersectionStage(
+						staticTown,
+						rawCones,
+						dynamicTown,
+						options.coneIntersection?.strategy ?? 'oracle',
+						options.coneIntersection,
+					),
 			);
-			coneIntersections = coneTiming.value;
-			timings.push(coneTiming.timing);
+			coneIntersections = coneIntersectionResult.value;
+			timings.push(coneIntersectionResult.timing);
 		}
 
 		const benchmark: ComputeBenchmarkReport = {
@@ -245,6 +259,64 @@ function resolveStaticTownOptions(
 	return {
 		sectorCount: override?.sectorCount ?? 360,
 		neighborLimit: override?.neighborLimit ?? Math.min(Math.max(preparedDataset.cityCount - 1, 0), 16),
+	};
+}
+
+function runConeIntersectionStage(
+	staticTown: StaticTownPrecompute,
+	rawCones: RawConePrecompute,
+	dynamicTown: DynamicTownPrecompute,
+	strategy: ComputeConeIntersectionStrategy,
+	options?: ComputeWorkflowOptions['coneIntersection'],
+): ConeIntersectionOraclePrecompute {
+	switch (strategy) {
+		case 'oracle':
+			return computeConeIntersectionOracleCpu(staticTown, rawCones);
+		case 'symmetric-order':
+			return computeConeIntersectionSymmetricOrderCpu(staticTown as SymmetricConeIntersectionStaticInput, rawCones);
+		case 'alpha-aware-order': {
+			const alphaAwareOptions = resolveAlphaAwareConeIntersectionOptions(dynamicTown, rawCones, options);
+			return computeConeIntersectionAlphaAwareOrderCpu(
+				staticTown as SymmetricConeIntersectionStaticInput,
+				rawCones,
+				alphaAwareOptions,
+			);
+		}
+		case 'alpha-aware-block-pruned': {
+			const alphaAwareOptions = resolveAlphaAwareBlockPrunedConeIntersectionOptions(dynamicTown, rawCones, options);
+			return computeConeIntersectionAlphaAwareBlockPrunedCpu(
+				staticTown as SymmetricConeIntersectionStaticInput,
+				rawCones,
+				alphaAwareOptions,
+			);
+		}
+		default:
+			return computeConeIntersectionOracleCpu(staticTown, rawCones);
+	}
+}
+
+function resolveAlphaAwareConeIntersectionOptions(
+	dynamicTown: DynamicTownPrecompute,
+	rawCones: RawConePrecompute,
+	override?: ComputeWorkflowOptions['coneIntersection'],
+): AlphaAwareConeIntersectionOptions {
+	return {
+		roadAlphaRadians: dynamicTown.roadAlphaRadians,
+		bilateralNeighborhoodFaceCount:
+			override?.alphaAware?.bilateralNeighborhoodFaceCount ?? Math.min(Math.max(rawCones.azimuthSampleCount, 1), 8),
+		alphaEpsilonRadians: override?.alphaAware?.alphaEpsilonRadians,
+	};
+}
+
+function resolveAlphaAwareBlockPrunedConeIntersectionOptions(
+	dynamicTown: DynamicTownPrecompute,
+	rawCones: RawConePrecompute,
+	override?: ComputeWorkflowOptions['coneIntersection'],
+): AlphaAwareBlockPrunedConeIntersectionOptions {
+	return {
+		...resolveAlphaAwareConeIntersectionOptions(dynamicTown, rawCones, override),
+		blockFaceCount: override?.alphaAware?.blockFaceCount ?? Math.min(Math.max(rawCones.azimuthSampleCount, 1), 4),
+		pruningEnabled: override?.alphaAware?.pruningEnabled,
 	};
 }
 

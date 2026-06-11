@@ -1300,7 +1300,8 @@ Etat reel observe ulterieurement:
   selection d'alpha des raw cones, tout en deleguant les autres etapes au CPU
   de reference;
 - l'ecran `/workspace` peut deja consommer le backend CPU de reference et
-  afficher la selection de profil ainsi que le benchmark par etape;
+  afficher la selection de profil, la strategie d'intersection cone/cone et
+  le benchmark par etape;
 - le backend WebGPU est maintenant branche sur le meme contrat, mais son
   deploiement reste secondaire par rapport au fallback WebGL2 stabilise;
 - l'orchestrateur de migration doit encore etre relie aux points d'entree de

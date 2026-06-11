@@ -12,17 +12,29 @@ import type {
 	SourceFile,
 } from '../../domain/data';
 import type {
+	AlphaAwareBlockPrunedConeIntersectionPrecompute,
+	AlphaAwareConeIntersectionPrecompute,
 	ConeIntersectionOraclePrecompute,
 	ConeShape,
+	AlphaAwareConeIntersectionOptions,
+	AlphaAwareBlockPrunedConeIntersectionOptions,
 	DynamicTownPrecompute,
 	RawConePrecompute,
 	RawConePrecomputeOptions,
+	SymmetricConeIntersectionPrecompute,
 	StaticTownPrecompute,
 	StaticTownPrecomputeOptions,
 } from '../../domain/precompute';
 
 /** Compute backends supported by the migration framework. */
 export type ComputeProfile = 'webgpu' | 'webgl2' | 'cpu';
+
+/** Available cone-intersection strategies supported by the compute workflow. */
+export type ComputeConeIntersectionStrategy =
+	| 'oracle'
+	| 'symmetric-order'
+	| 'alpha-aware-order'
+	| 'alpha-aware-block-pruned';
 
 /** Stable pipeline stage names used for benchmark comparison. */
 export type ComputeStage =
@@ -115,6 +127,9 @@ export interface ComputePrecomputeOptions {
 	readonly rawCone?: RawConePrecomputeOptions;
 	readonly coneIntersection?: {
 		readonly enabled?: boolean;
+		readonly strategy?: ComputeConeIntersectionStrategy;
+		readonly alphaAware?: Partial<AlphaAwareConeIntersectionOptions> &
+			Partial<Pick<AlphaAwareBlockPrunedConeIntersectionOptions, 'blockFaceCount' | 'pruningEnabled'>>;
 	};
 }
 
@@ -142,7 +157,11 @@ export interface ComputeWorkflowResult {
 	readonly staticTown?: StaticTownPrecompute;
 	readonly dynamicTown?: DynamicTownPrecompute;
 	readonly rawCones?: RawConePrecompute;
-	readonly coneIntersections?: ConeIntersectionOraclePrecompute;
+	readonly coneIntersections?:
+		| ConeIntersectionOraclePrecompute
+		| SymmetricConeIntersectionPrecompute
+		| AlphaAwareConeIntersectionPrecompute
+		| AlphaAwareBlockPrunedConeIntersectionPrecompute;
 	readonly diagnostics: readonly DatasetDiagnostic[];
 	readonly benchmark: ComputeBenchmarkReport;
 }

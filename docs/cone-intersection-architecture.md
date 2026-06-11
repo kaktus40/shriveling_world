@@ -271,6 +271,11 @@ desactiver pour comparer la memoire, le cout et le comportement exhaustif.
 Quand il est desactive, les blocs restent visites dans le meme ordre et la
 geometry doit rester strictement identique a l'oracle exhaustif.
 
+Le contrat applicatif expose deja cette strategie explicitement
+(`oracle`, `symmetric-order`, `alpha-aware-order`,
+`alpha-aware-block-pruned`) afin que `/workspace` puisse benchmarker chaque
+variante sans modifier les buffers d'ingestion ni le pipeline de preparation.
+
 Une face de B est classee rapide lorsque l'une de ses deux arêtes echantillonnees
 respecte:
 

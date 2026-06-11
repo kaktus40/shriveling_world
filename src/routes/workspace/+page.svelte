@@ -28,7 +28,7 @@
 	} from '$lib/application/workspace';
 	import type { DatasetDiagnostic, QueryableField } from '$lib/domain/data';
 	import type { QueryNode } from '$lib/domain/query';
-	import type { ComputeProfile } from '$lib/compute';
+	import type { ComputeConeIntersectionStrategy, ComputeProfile } from '$lib/compute';
 
 	export let data: {
 		datasets: string[];
@@ -46,6 +46,7 @@
 	let queryWorker: QueryWorkerClient | null = null;
 	let workspaceCompute: DatasetWorkspaceCompute | null = null;
 	let selectedComputeProfile: ComputeProfile = 'cpu';
+	let selectedConeIntersectionStrategy: ComputeConeIntersectionStrategy = 'oracle';
 	let selectedComputeDiagnosticProfile: ComputeProfile | 'all' = 'all';
 	let loading = false;
 	let computeLoading = false;
@@ -141,6 +142,7 @@
 				forced: selectedComputeProfile,
 				allowFallback: true,
 				benchmark: true,
+				coneIntersectionStrategy: selectedConeIntersectionStrategy,
 			});
 		} catch (error) {
 			workspaceCompute = null;
@@ -290,6 +292,19 @@
 		return profile.toUpperCase();
 	}
 
+	function computeStrategyLabel(strategy: ComputeConeIntersectionStrategy): string {
+		switch (strategy) {
+			case 'oracle':
+				return 'Oracle';
+			case 'symmetric-order':
+				return 'Symmetric order';
+			case 'alpha-aware-order':
+				return 'Alpha-aware order';
+			case 'alpha-aware-block-pruned':
+				return 'Alpha-aware block-pruned';
+		}
+	}
+
 	function computeDiagnosticCount(severity: 'error' | 'warning'): number {
 		return computeDiagnostics.filter((diagnostic) => diagnostic.severity === severity).length;
 	}
@@ -369,6 +384,16 @@
 		</select>
 	</label>
 
+	<label>
+		<span>Cone strategy</span>
+		<select bind:value={selectedConeIntersectionStrategy} on:change={() => void reloadCompute()}>
+			<option value="oracle">Oracle</option>
+			<option value="symmetric-order">Symmetric order</option>
+			<option value="alpha-aware-order">Alpha-aware order</option>
+			<option value="alpha-aware-block-pruned">Alpha-aware block-pruned</option>
+		</select>
+	</label>
+
 	<button on:click={() => void reloadWorkspace()} disabled={loading}>
 		{loading ? 'Loading...' : 'Reload workspace'}
 	</button>
@@ -419,6 +444,7 @@
 		<article class="panel">
 			<h2>Compute profile</h2>
 			<p><strong>Requested:</strong> {computeSummaryLabel(selectedComputeProfile)}</p>
+			<p><strong>Cone strategy:</strong> {computeStrategyLabel(selectedConeIntersectionStrategy)}</p>
 			<p>
 				<strong>Selected:</strong>
 				{workspaceCompute ? computeSummaryLabel(workspaceCompute.selection.selected) : 'none'}

@@ -81,7 +81,14 @@ test('cpu workflow benchmarks ingestion, geojson and precompute stages from sour
 			staticTown: { sectorCount: 8, neighborLimit: 1 },
 			dynamicYear: 1950,
 			rawCone: { shape: 'road', azimuthSampleCount: 8, coneLengthMeters: 100000 },
-			coneIntersection: { enabled: true },
+			coneIntersection: {
+				enabled: true,
+				strategy: 'alpha-aware-block-pruned',
+				alphaAware: {
+					blockFaceCount: 2,
+					pruningEnabled: true,
+				},
+			},
 		},
 	);
 
