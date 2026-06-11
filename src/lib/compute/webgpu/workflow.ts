@@ -1,6 +1,7 @@
 import rawConeAlphasShaderSource from '../kernels/raw-cone-alphas.wgsl?raw';
 import boundaryAlgebreShaderSource from '../kernels/boundary-algebre.wgsl?raw';
 import cityNed2EcefShaderSource from '../kernels/city-ned2ecef.wgsl?raw';
+import rayIntersectTriangleShaderSource from '../kernels/ray-intersect-triangle.wgsl?raw';
 import ciseledConesShaderSource from '../kernels/ciseled-cones.wgsl?raw';
 import {
 	createCpuWorkflowBackend,
@@ -144,7 +145,9 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		const device = await this.ensureDevice();
 		const cityMatrixModule = device.createShaderModule({ code: cityNed2EcefShaderSource });
 		const rawConeAlphaModule = device.createShaderModule({ code: rawConeAlphasShaderSource });
-		const ciseledConeModule = device.createShaderModule({ code: ciseledConesShaderSource });
+		const ciseledConeModule = device.createShaderModule({
+			code: `${rayIntersectTriangleShaderSource}\n${ciseledConesShaderSource}`,
+		});
 		const boundaryModule = device.createShaderModule({ code: boundaryAlgebreShaderSource });
 		this.#resources = {
 			buffers: [],

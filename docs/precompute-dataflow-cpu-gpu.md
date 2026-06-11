@@ -1392,7 +1392,7 @@ sans reproduire le nom de fichier a l'identique.
 | `finalCones.frag` | Finaliser la geometrie decoupee | cones ciseles, limites pays, acceptation du clipping | `FinalConeBuffer` | Non porte | WebGPU -> WebGL2 fallback -> CPU oracle | Cette passe applique la reduction finale et peut fusionner les minima cone/cone et cone/pays. |
 | `displayedCones.frag` | Transformer les cones finaux en donnees de rendu | `FinalConeBuffer`, conventions renderer | vertices, couleurs, attributs de dessin | Non porte | Rendu | Derniere passe avant Babylon ou un autre moteur de rendu. |
 | `curveMeshShader.ts` | Construire les courbes entre villes ou modes | points de controle, vitesses, annee, position sur la courbe | `CurveVertexBuffer` | Non porte | CPU -> WebGL2 -> WebGPU | Peut etre partagee entre CPU, WebGL2 et WebGPU. Elle echantillonne les courbes et n'est pas liee aux cones. |
-| `rayIntersectTriangle.glsl` | Primitive d'intersection rayon/triangle | rayon, triangle, seuils numeriques | `t`, hit flag, point d'intersection | Partiellement porte | CPU -> WebGL2 -> WebGPU | Ce n'est pas un passe autonome, mais une primitive partagee par les passes de coupe. |
+| `rayIntersectTriangle.glsl` | Primitive d'intersection rayon/triangle | rayon, triangle, seuils numeriques | `t`, hit flag, point d'intersection | Porte comme primitive WGSL partagee | CPU -> WebGL2 -> WebGPU | Ce n'est pas un passe autonome, mais une primitive partagee par les passes de coupe. |
 
 ### Lecture Pratique De L'Inventaire
 
