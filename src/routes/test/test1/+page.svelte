@@ -1,13 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type GeoJSON from 'geojson';
+	import { loadDatasetWorkspace, type DatasetWorkspaceSnapshot } from '$lib/application/workspace';
 	import {
-		extractGeoJsonFeatureCollections,
-		loadBundledDatasetFiles,
 		runBoundaryPipeline,
-		runDatasetPipeline,
 		type BoundaryPipelineResult,
-		type DatasetPipelineResult,
 	} from '$lib/application/validation';
 
 	export let data: {
@@ -18,9 +14,8 @@
 	let selectedGeoJsonFile = '';
 	let loading = false;
 	let errorMessage = '';
-	let pipeline: DatasetPipelineResult | null = null;
+	let workspace: DatasetWorkspaceSnapshot | null = null;
 	let boundary: BoundaryPipelineResult | null = null;
-	let geojsonEntries: Array<{ fileName: string; geojson: GeoJSON.FeatureCollection }> = [];
 
 	onMount(() => {
 		if (selectedDataset) {
@@ -37,16 +32,19 @@
 		errorMessage = '';
 
 		try {
-			const files = await loadBundledDatasetFiles(fetch, selectedDataset);
-			pipeline = runDatasetPipeline(files);
-			geojsonEntries = extractGeoJsonFeatureCollections(files);
-			selectedGeoJsonFile = geojsonEntries[0]?.fileName ?? '';
+			const loadedWorkspace = await loadDatasetWorkspace(fetch, selectedDataset);
+			workspace = loadedWorkspace;
+			selectedGeoJsonFile = loadedWorkspace.geojsonEntries[0]?.fileName ?? '';
 			boundary =
-				geojsonEntries.length > 0 ? runBoundaryPipeline(geojsonEntries[0].geojson, pipeline.preparedDataset) : null;
+				loadedWorkspace.geojsonEntries.length > 0
+					? runBoundaryPipeline(
+							loadedWorkspace.geojsonEntries[0].geojson,
+							loadedWorkspace.pipeline.preparedDataset,
+						)
+					: null;
 		} catch (error) {
-			pipeline = null;
+			workspace = null;
 			boundary = null;
-			geojsonEntries = [];
 			selectedGeoJsonFile = '';
 			errorMessage = error instanceof Error ? error.message : String(error);
 		} finally {
@@ -55,13 +53,13 @@
 	}
 
 	function updateBoundaryGeoJson(): void {
-		if (!pipeline || !selectedGeoJsonFile) {
+		if (!workspace || !selectedGeoJsonFile) {
 			boundary = null;
 			return;
 		}
 
-		const entry = geojsonEntries.find((candidate) => candidate.fileName === selectedGeoJsonFile);
-		boundary = entry ? runBoundaryPipeline(entry.geojson, pipeline.preparedDataset) : null;
+		const entry = workspace.geojsonEntries.find((candidate) => candidate.fileName === selectedGeoJsonFile);
+		boundary = entry ? runBoundaryPipeline(entry.geojson, workspace.pipeline.preparedDataset) : null;
 	}
 
 	function countValidBoundaryHits(result: BoundaryPipelineResult): number {
@@ -119,11 +117,11 @@
 		</select>
 	</label>
 
-	{#if geojsonEntries.length > 1}
+	{#if workspace && workspace.geojsonEntries.length > 1}
 		<label>
 			<span>GeoJSON source</span>
 			<select bind:value={selectedGeoJsonFile} on:change={updateBoundaryGeoJson}>
-				{#each geojsonEntries as entry}
+				{#each workspace.geojsonEntries as entry}
 					<option value={entry.fileName}>{entry.fileName}</option>
 				{/each}
 			</select>
@@ -142,13 +140,13 @@
 	</section>
 {/if}
 
-{#if pipeline}
+{#if workspace}
 	<section class="grid">
 		<article class="panel">
 			<h3>Inspection</h3>
-			<p>{pipeline.inspectedFiles.length} source files inspected.</p>
+			<p>{workspace.pipeline.inspectedFiles.length} source files inspected.</p>
 			<ul>
-				{#each pipeline.inspectedFiles as file}
+				{#each workspace.pipeline.inspectedFiles as file}
 					<li>{file.originalName}: <strong>{file.kind}</strong></li>
 				{/each}
 			</ul>
@@ -157,19 +155,19 @@
 		<article class="panel">
 			<h3>Manifest</h3>
 			<p>Primary tables: cities, transport network, transport modes, and transport mode speeds.</p>
-			<p>City linked tables: {pipeline.manifest.cityLinkedAttributes.length}</p>
-			<p>GeoJSON files: {pipeline.manifest.geojson.length}</p>
-			<p>Unknown files: {pipeline.manifest.unknown.length}</p>
+			<p>City linked tables: {workspace.pipeline.manifest.cityLinkedAttributes.length}</p>
+			<p>GeoJSON files: {workspace.pipeline.manifest.geojson.length}</p>
+			<p>Unknown files: {workspace.pipeline.manifest.unknown.length}</p>
 		</article>
 
 		<article class="panel">
 			<h3>Prepared dataset</h3>
-			<p>Cities: {pipeline.preparedDataset.cityCount}</p>
-			<p>Edges: {pipeline.preparedDataset.edgeCount}</p>
-			<p>Modes: {pipeline.preparedDataset.modeCount}</p>
+			<p>Cities: {workspace.pipeline.preparedDataset.cityCount}</p>
+			<p>Edges: {workspace.pipeline.preparedDataset.edgeCount}</p>
+			<p>Modes: {workspace.pipeline.preparedDataset.modeCount}</p>
 			<p>
-				Historical span: {pipeline.preparedDataset.speedTimeline.span.beginYear} to
-				{pipeline.preparedDataset.speedTimeline.span.endYear}
+				Historical span: {workspace.pipeline.preparedDataset.speedTimeline.span.beginYear} to
+				{workspace.pipeline.preparedDataset.speedTimeline.span.endYear}
 			</p>
 		</article>
 
@@ -188,7 +186,7 @@
 		<article class="panel">
 			<h3>Diagnostics</h3>
 			<h4>Base network + preparation</h4>
-			<pre>{stringify(pipeline.preparedDataset.diagnostics)}</pre>
+			<pre>{stringify(workspace.pipeline.preparedDataset.diagnostics)}</pre>
 			{#if boundary}
 				<h4>Boundary pipeline</h4>
 				<pre>{stringify(boundary.boundaryPrecompute.diagnostics)}</pre>
@@ -199,7 +197,7 @@
 
 		<article class="panel">
 			<h3>Queryable fields</h3>
-			<pre>{stringify(pipeline.baseNetwork.fields.slice(0, 24))}</pre>
+			<pre>{stringify(workspace.pipeline.baseNetwork.fields.slice(0, 24))}</pre>
 		</article>
 	</section>
 

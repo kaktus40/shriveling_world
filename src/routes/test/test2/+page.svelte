@@ -1,13 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type GeoJSON from 'geojson';
+	import { loadDatasetWorkspace, type DatasetWorkspaceSnapshot } from '$lib/application/workspace';
 	import {
-		extractGeoJsonFeatureCollections,
-		loadBundledDatasetFiles,
 		runBoundaryPipeline,
-		runDatasetPipeline,
 		type BoundaryPipelineResult,
-		type DatasetPipelineResult,
 	} from '$lib/application/validation';
 
 	export let data: {
@@ -19,9 +15,8 @@
 	let selectedContourIndex = 0;
 	let loading = false;
 	let errorMessage = '';
-	let pipeline: DatasetPipelineResult | null = null;
+	let workspace: DatasetWorkspaceSnapshot | null = null;
 	let boundary: BoundaryPipelineResult | null = null;
-	let geojsonEntries: Array<{ fileName: string; geojson: GeoJSON.FeatureCollection }> = [];
 
 	onMount(() => {
 		if (selectedDataset) {
@@ -38,17 +33,20 @@
 		errorMessage = '';
 
 		try {
-			const files = await loadBundledDatasetFiles(fetch, selectedDataset);
-			pipeline = runDatasetPipeline(files);
-			geojsonEntries = extractGeoJsonFeatureCollections(files);
-			selectedGeoJsonFile = geojsonEntries[0]?.fileName ?? '';
+			const loadedWorkspace = await loadDatasetWorkspace(fetch, selectedDataset);
+			workspace = loadedWorkspace;
+			selectedGeoJsonFile = loadedWorkspace.geojsonEntries[0]?.fileName ?? '';
 			boundary =
-				geojsonEntries.length > 0 ? runBoundaryPipeline(geojsonEntries[0].geojson, pipeline.preparedDataset) : null;
+				loadedWorkspace.geojsonEntries.length > 0
+					? runBoundaryPipeline(
+							loadedWorkspace.geojsonEntries[0].geojson,
+							loadedWorkspace.pipeline.preparedDataset,
+						)
+					: null;
 			selectedContourIndex = 0;
 		} catch (error) {
-			pipeline = null;
+			workspace = null;
 			boundary = null;
-			geojsonEntries = [];
 			selectedGeoJsonFile = '';
 			errorMessage = error instanceof Error ? error.message : String(error);
 		} finally {
@@ -57,13 +55,13 @@
 	}
 
 	function updateBoundaryGeoJson(): void {
-		if (!pipeline || !selectedGeoJsonFile) {
+		if (!workspace || !selectedGeoJsonFile) {
 			boundary = null;
 			return;
 		}
 
-		const entry = geojsonEntries.find((candidate) => candidate.fileName === selectedGeoJsonFile);
-		boundary = entry ? runBoundaryPipeline(entry.geojson, pipeline.preparedDataset) : null;
+		const entry = workspace.geojsonEntries.find((candidate) => candidate.fileName === selectedGeoJsonFile);
+		boundary = entry ? runBoundaryPipeline(entry.geojson, workspace.pipeline.preparedDataset) : null;
 		selectedContourIndex = 0;
 	}
 
@@ -118,11 +116,11 @@
 		</select>
 	</label>
 
-	{#if geojsonEntries.length > 1}
+	{#if workspace && workspace.geojsonEntries.length > 1}
 		<label>
 			<span>GeoJSON source</span>
 			<select bind:value={selectedGeoJsonFile} on:change={updateBoundaryGeoJson}>
-				{#each geojsonEntries as entry}
+				{#each workspace.geojsonEntries as entry}
 					<option value={entry.fileName}>{entry.fileName}</option>
 				{/each}
 			</select>

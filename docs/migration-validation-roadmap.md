@@ -879,6 +879,12 @@ Validation:
   - `src/routes/test/+layout.ts`, `test1`, `test2` et `test3` consomment
     desormais le domaine via cette couche applicative au lieu d'un helper sous
     `src/lib/testing`.
+  - un `workspace` applicatif commun a ete ajoute dans
+    `src/lib/application/workspace/`;
+  - `src/routes/+layout.ts` charge desormais le catalogue datasets partage pour
+    les ecrans applicatifs futurs;
+  - `src/routes/+page.svelte` n'est plus un simple smoke shell et consomme ce
+    `workspace` commun pour charger un dataset et exposer son resume.
 - Validations executees:
   - compilation TypeScript ciblee des fichiers `src/lib/domain/data/*.ts`;
   - `npm run build`.
@@ -890,6 +896,8 @@ Validation:
   - `tests/integration/data-pipeline.test.ts` passe;
   - `npm test`, `npm run test:integration`, `npm run build` et
     `npm run validate` passent apres extraction de l'orchestration applicative;
+  - `npm run test:e2e` passe apres branchement du `workspace` partage sur le
+    shell racine et les routes de validation;
   - la dette M3 ne porte plus sur l'assemblage lossless, mais sur
     l'integration applicative et l'extraction complete du domaine.
 

@@ -1,13 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { PI } from '$lib/shared';
+	import { loadDatasetWorkspace, type DatasetWorkspaceSnapshot } from '$lib/application/workspace';
 	import {
 		createDefaultConePipelineOptions,
-		loadBundledDatasetFiles,
 		runConePipeline,
-		runDatasetPipeline,
 		type ConePipelineResult,
-		type DatasetPipelineResult,
 	} from '$lib/application/validation';
 	import type { ConeShape } from '$lib/domain/precompute';
 
@@ -19,7 +17,7 @@
 	let selectedDataset = data.datasets[0] ?? '';
 	let loading = false;
 	let errorMessage = '';
-	let pipeline: DatasetPipelineResult | null = null;
+	let workspace: DatasetWorkspaceSnapshot | null = null;
 	let conePipeline: ConePipelineResult | null = null;
 	let selectedCityIndex = 0;
 	let selectedYear = 0;
@@ -45,9 +43,8 @@
 		errorMessage = '';
 
 		try {
-			const files = await loadBundledDatasetFiles(fetch, selectedDataset);
-			pipeline = runDatasetPipeline(files);
-			const defaults = createDefaultConePipelineOptions(pipeline.preparedDataset);
+			workspace = await loadDatasetWorkspace(fetch, selectedDataset);
+			const defaults = createDefaultConePipelineOptions(workspace.pipeline.preparedDataset);
 			selectedYear = defaults.year;
 			selectedShape = defaults.shape;
 			sectorCount = defaults.sectorCount;
@@ -58,7 +55,7 @@
 			selectedCityIndex = 0;
 			runConeStages();
 		} catch (error) {
-			pipeline = null;
+			workspace = null;
 			conePipeline = null;
 			errorMessage = error instanceof Error ? error.message : String(error);
 		} finally {
@@ -67,12 +64,12 @@
 	}
 
 	function runConeStages(): void {
-		if (!pipeline) {
+		if (!workspace) {
 			return;
 		}
 
 		try {
-			conePipeline = runConePipeline(pipeline.preparedDataset, {
+			conePipeline = runConePipeline(workspace.pipeline.preparedDataset, {
 				year: selectedYear,
 				shape: selectedShape,
 				sectorCount,
@@ -175,14 +172,14 @@
 		</select>
 	</label>
 
-	{#if pipeline}
+	{#if workspace}
 		<label>
 			<span>Year</span>
 			<input
 				type="number"
 				bind:value={selectedYear}
-				min={pipeline.preparedDataset.speedTimeline.span.beginYear}
-				max={pipeline.preparedDataset.speedTimeline.span.endYear}
+				min={workspace.pipeline.preparedDataset.speedTimeline.span.beginYear}
+				max={workspace.pipeline.preparedDataset.speedTimeline.span.endYear}
 				step="1"
 			/>
 		</label>
@@ -198,7 +195,7 @@
 
 		<label>
 			<span>Neighbor limit</span>
-			<input type="number" bind:value={neighborLimit} min="0" max={Math.max(pipeline.preparedDataset.cityCount - 1, 0)} step="1" />
+			<input type="number" bind:value={neighborLimit} min="0" max={Math.max(workspace.pipeline.preparedDataset.cityCount - 1, 0)} step="1" />
 		</label>
 
 		<label>
@@ -222,7 +219,7 @@
 		</label>
 	{/if}
 
-	<button on:click={runConeStages} disabled={!pipeline || loading}>
+	<button on:click={runConeStages} disabled={!workspace || loading}>
 		{loading ? 'Loading...' : 'Run CPU stages'}
 	</button>
 </section>
@@ -347,7 +344,7 @@
 
 	<section class="panel">
 		<h3>Prepared diagnostics</h3>
-		<pre>{stringify(pipeline?.preparedDataset.diagnostics ?? [])}</pre>
+		<pre>{stringify(workspace?.pipeline.preparedDataset.diagnostics ?? [])}</pre>
 	</section>
 {/if}
 
