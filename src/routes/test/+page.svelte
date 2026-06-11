@@ -88,9 +88,9 @@
 
 	.card {
 		padding: 1.2rem;
-		border: 1px solid rgba(28, 36, 40, 0.14);
+		border: 1px solid rgba(141, 168, 178, 0.2);
 		border-radius: 1rem;
-		background: rgba(255, 255, 255, 0.82);
+		background: rgba(14, 21, 28, 0.8);
 	}
 
 	.card h3 {

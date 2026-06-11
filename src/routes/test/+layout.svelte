@@ -62,25 +62,26 @@
 	}
 
 	.test-shell {
-		--ink: #1c2428;
-		--muted: #51636d;
-		--panel: rgba(255, 255, 255, 0.82);
-		--line: rgba(28, 36, 40, 0.14);
-		--accent: #0d6f73;
+		--ink: #d7e2e4;
+		--muted: #8ea3aa;
+		--panel: rgba(14, 21, 28, 0.78);
+		--line: rgba(141, 168, 178, 0.2);
+		--accent: #8ae0dc;
 		display: grid;
 		grid-template-columns: minmax(18rem, 24rem) 1fr;
 		min-height: 100vh;
 		color: var(--ink);
 		background:
-			radial-gradient(circle at top left, rgba(13, 111, 115, 0.18), transparent 22rem),
-			linear-gradient(180deg, #edf4f3 0%, #f7f2ea 100%);
+			radial-gradient(circle at top left, rgba(13, 111, 115, 0.22), transparent 22rem),
+			radial-gradient(circle at top right, rgba(96, 76, 160, 0.16), transparent 24rem),
+			linear-gradient(180deg, #0c1117 0%, #111a23 100%);
 	}
 
 	.sidebar {
 		padding: 2rem 1.5rem;
 		border-right: 1px solid var(--line);
-		background: rgba(246, 251, 250, 0.76);
-		backdrop-filter: blur(10px);
+		background: rgba(11, 17, 24, 0.82);
+		backdrop-filter: blur(14px);
 	}
 
 	.content {
@@ -127,7 +128,7 @@
 
 	.nav-entry:hover {
 		transform: translateY(-1px);
-		border-color: rgba(13, 111, 115, 0.36);
+		border-color: rgba(138, 224, 220, 0.42);
 	}
 
 	.nav-entry span,

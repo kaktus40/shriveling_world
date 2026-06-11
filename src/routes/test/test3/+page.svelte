@@ -351,8 +351,8 @@
 <style>
 	.page-head,
 	.panel {
-		background: rgba(255, 255, 255, 0.84);
-		border: 1px solid rgba(28, 36, 40, 0.14);
+		background: rgba(14, 21, 28, 0.8);
+		border: 1px solid rgba(141, 168, 178, 0.2);
 		border-radius: 1rem;
 	}
 
@@ -367,7 +367,7 @@
 		font-size: 0.74rem;
 		letter-spacing: 0.18em;
 		text-transform: uppercase;
-		color: #0d6f73;
+		color: #8ae0dc;
 	}
 
 	.controls {
@@ -387,9 +387,10 @@
 	select,
 	button {
 		padding: 0.7rem 0.8rem;
-		border: 1px solid rgba(28, 36, 40, 0.2);
+		border: 1px solid rgba(141, 168, 178, 0.22);
 		border-radius: 0.8rem;
-		background: white;
+		background: rgba(9, 14, 20, 0.92);
+		color: #d7e2e4;
 	}
 
 	button {
@@ -405,8 +406,8 @@
 	}
 
 	.error {
-		border-color: rgba(145, 24, 24, 0.28);
-		background: rgba(170, 44, 44, 0.08);
+		border-color: rgba(227, 114, 91, 0.34);
+		background: rgba(52, 21, 17, 0.82);
 	}
 
 	pre {
@@ -424,7 +425,11 @@
 	th,
 	td {
 		padding: 0.55rem 0.4rem;
-		border-bottom: 1px solid rgba(28, 36, 40, 0.08);
+		border-bottom: 1px solid rgba(141, 168, 178, 0.12);
 		text-align: left;
+	}
+
+	th {
+		color: #9fb1b7;
 	}
 </style>

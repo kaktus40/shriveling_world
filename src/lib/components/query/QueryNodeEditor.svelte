@@ -267,9 +267,9 @@
 <style>
 	.query-node {
 		padding: 0.9rem 1rem;
-		border: 1px solid rgba(28, 36, 40, 0.14);
+		border: 1px solid rgba(138, 168, 178, 0.18);
 		border-radius: 1rem;
-		background: rgba(255, 255, 255, 0.78);
+		background: rgba(12, 19, 26, 0.8);
 	}
 
 	.group {
@@ -298,13 +298,13 @@
 		font-weight: 700;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
-		background: rgba(13, 111, 115, 0.12);
-		color: #0d6f73;
+		background: rgba(138, 224, 220, 0.12);
+		color: #8ae0dc;
 	}
 
 	.leaf-chip {
-		background: rgba(88, 104, 120, 0.12);
-		color: #4b5b67;
+		background: rgba(158, 168, 178, 0.12);
+		color: #c2ccd2;
 	}
 
 	.field-label {
@@ -336,7 +336,7 @@
 	label span {
 		font-size: 0.78rem;
 		font-weight: 700;
-		color: #51636d;
+		color: #9fb1b7;
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 	}
@@ -346,9 +346,10 @@
 	button {
 		min-height: 2.35rem;
 		padding: 0.4rem 0.65rem;
-		border: 1px solid rgba(28, 36, 40, 0.2);
+		border: 1px solid rgba(138, 168, 178, 0.22);
 		border-radius: 0.75rem;
-		background: white;
+		background: rgba(9, 14, 20, 0.92);
+		color: #d7e2e4;
 	}
 
 	button {
@@ -357,14 +358,14 @@
 	}
 
 	button.danger {
-		border-color: rgba(176, 95, 75, 0.3);
-		color: #9b4c39;
-		background: rgba(255, 245, 241, 0.95);
+		border-color: rgba(227, 114, 91, 0.36);
+		color: #ffb6a7;
+		background: rgba(52, 21, 17, 0.9);
 	}
 
 	.empty-note {
 		margin: 0;
-		color: #51636d;
+		color: #9fb1b7;
 		font-style: italic;
 	}
 

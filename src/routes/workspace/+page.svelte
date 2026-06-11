@@ -502,8 +502,8 @@
 <style>
 	.page-head,
 	.panel {
-		background: rgba(255, 255, 255, 0.84);
-		border: 1px solid rgba(28, 36, 40, 0.14);
+		background: rgba(12, 19, 26, 0.8);
+		border: 1px solid rgba(138, 168, 178, 0.2);
 		border-radius: 1rem;
 	}
 
@@ -522,7 +522,7 @@
 		font-size: 0.74rem;
 		letter-spacing: 0.18em;
 		text-transform: uppercase;
-		color: #0d6f73;
+		color: #8ae0dc;
 	}
 
 	.lede {
@@ -545,9 +545,10 @@
 	select,
 	button {
 		padding: 0.7rem 0.8rem;
-		border: 1px solid rgba(28, 36, 40, 0.2);
+		border: 1px solid rgba(138, 168, 178, 0.22);
 		border-radius: 0.8rem;
-		background: white;
+		background: rgba(9, 14, 20, 0.9);
+		color: #d7e2e4;
 	}
 
 	button {
@@ -557,7 +558,7 @@
 
 	.nav-link {
 		align-self: end;
-		color: #0d6f73;
+		color: #8ae0dc;
 		font-weight: 700;
 	}
 
@@ -577,21 +578,24 @@
 	th,
 	td {
 		padding: 0.45rem 0.35rem;
-		border-bottom: 1px solid rgba(28, 36, 40, 0.1);
+		border-bottom: 1px solid rgba(138, 168, 178, 0.12);
 		text-align: left;
 		font-size: 0.95rem;
+	}
+
+	th {
+		color: #9fb1b7;
 	}
 
 	th {
 		font-size: 0.82rem;
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
-		color: #51636d;
 	}
 
 	.error {
-		border-color: #b05f4b;
-		background: rgba(255, 243, 239, 0.84);
+		border-color: rgba(227, 114, 91, 0.34);
+		background: rgba(52, 21, 17, 0.84);
 	}
 
 	.inline-error {
@@ -606,18 +610,18 @@
 	.diagnostic-card {
 		padding: 0.7rem 0.8rem;
 		border-radius: 0.8rem;
-		border: 1px solid rgba(28, 36, 40, 0.14);
-		background: rgba(255, 255, 255, 0.92);
+		border: 1px solid rgba(138, 168, 178, 0.18);
+		background: rgba(9, 14, 20, 0.88);
 	}
 
 	.diagnostic-card.warning {
-		border-color: rgba(175, 128, 54, 0.3);
-		background: rgba(255, 248, 230, 0.95);
+		border-color: rgba(175, 128, 54, 0.34);
+		background: rgba(43, 32, 13, 0.9);
 	}
 
 	.diagnostic-card.error {
-		border-color: rgba(176, 95, 75, 0.3);
-		background: rgba(255, 243, 239, 0.95);
+		border-color: rgba(227, 114, 91, 0.34);
+		background: rgba(52, 21, 17, 0.9);
 	}
 
 	pre {
@@ -659,6 +663,10 @@
 
 	.query-column h3 {
 		margin: 0;
+	}
+
+	pre {
+		color: #d7e2e4;
 	}
 
 	@media (max-width: 960px) {

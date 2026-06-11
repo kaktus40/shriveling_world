@@ -59,20 +59,14 @@
 </main>
 
 <style>
-	:global(body) {
-		margin: 0;
-		font-family: Georgia, 'Times New Roman', serif;
-		background: #f2efe7;
-		color: #1f2a24;
-	}
-
 	main {
 		min-height: 100vh;
 		gap: 2rem;
 		padding: 3rem;
 		background:
-			radial-gradient(circle at top left, rgba(13, 111, 115, 0.12), transparent 24rem),
-			linear-gradient(180deg, #f2efe7 0%, #ecefe8 100%);
+			radial-gradient(circle at top left, rgba(13, 111, 115, 0.18), transparent 24rem),
+			radial-gradient(circle at top right, rgba(119, 92, 176, 0.14), transparent 26rem),
+			linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
 	}
 
 	section {
@@ -83,7 +77,7 @@
 		font-size: 0.8rem;
 		letter-spacing: 0.16em;
 		text-transform: uppercase;
-		color: #71644d;
+		color: #8dd8d5;
 	}
 
 	h1 {
@@ -98,8 +92,9 @@
 
 	.checks {
 		padding: 1.5rem;
-		border: 1px solid #c8b99b;
-		background: rgba(255, 255, 255, 0.45);
+		border: 1px solid rgba(138, 174, 188, 0.22);
+		background: rgba(12, 19, 26, 0.72);
+		backdrop-filter: blur(14px);
 	}
 
 	.nav-grid {
@@ -110,14 +105,15 @@
 
 	.panel {
 		padding: 1.2rem;
-		border: 1px solid #c8b99b;
-		background: rgba(255, 255, 255, 0.62);
+		border: 1px solid rgba(138, 174, 188, 0.22);
+		background: rgba(12, 19, 26, 0.72);
+		backdrop-filter: blur(14px);
 	}
 
 	.cta {
 		display: inline-block;
 		margin-top: 0.75rem;
-		color: #0d6f73;
+		color: #88e0dc;
 		font-weight: 700;
 	}
 </style>
