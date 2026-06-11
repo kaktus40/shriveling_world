@@ -237,6 +237,27 @@ export interface ConeIntersectionOraclePrecompute {
 }
 
 /**
+ * Final cone reduction output after optional country clipping.
+ *
+ * The geometry is already ready to display and remains independent of any
+ * renderer-specific projection or style pass.
+ */
+export interface FinalConePrecompute {
+	/** Number of represented cities. */
+	cityCount: number;
+	/** Number of uniformly spaced azimuth samples per city. */
+	azimuthSampleCount: number;
+	/**
+	 * Final 3D cone geometry ready for rendering, as aligned `vec4<f32>` values
+	 * in meters.
+	 *
+	 * The buffer remains independent of the renderer. It is already in the
+	 * 3D frame expected by the next visual stage.
+	 */
+	finalConeGeometryEcef: Float32Array;
+}
+
+/**
  * Exhaustive intersection output produced with symmetric-ray face ordering.
  *
  * The geometry remains identical to the oracle because every retained face is

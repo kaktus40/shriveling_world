@@ -30,6 +30,6 @@ endif
 
 |Sorties WebGPU|
 :ecrire ciseledConeRimEcef;
-:ecrire finalConeRimEcef;
+:ecrire finalConeGeometryEcef;
 stop
 @enduml

@@ -27,6 +27,7 @@ import {
 	computeConeIntersectionAlphaAwareBlockPrunedCpu,
 	computeConeIntersectionAlphaAwareOrderCpu,
 	computeConeIntersectionSymmetricOrderCpu,
+	computeFinalConePrecomputeCpu,
 	computeDynamicTownPrecomputeForYearCpu,
 	computeRawConePrecomputeCpu,
 	computeStaticTownPrecomputeCpu,
@@ -34,6 +35,7 @@ import {
 	type AlphaAwareBlockPrunedConeIntersectionOptions,
 	type AlphaAwareConeIntersectionOptions,
 	type DynamicTownPrecompute,
+	type FinalConePrecompute,
 	type RawConePrecompute,
 	type RawConePrecomputeOptions,
 	type StaticTownPrecompute,
@@ -59,6 +61,7 @@ import { measureStage, sumStageDurations } from '../core/timing';
 interface GeojsonRunBuffer {
 	fileName: string;
 	geojson: GeoJSON.FeatureCollection;
+	finalCones?: FinalConePrecompute;
 }
 
 /** CPU reference backend for the whole migration workflow. */
@@ -116,7 +119,7 @@ export class CpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		timings.push(preparedTiming);
 		diagnostics.push(...preparedDataset.diagnostics);
 
-		const geojsonRuns = geojsonSources.map((source) => {
+		let geojsonRuns = geojsonSources.map((source) => {
 			const geojsonRun = runBoundaryWorkflow(
 				source.fileName,
 				source.geojson,
@@ -180,6 +183,22 @@ export class CpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			);
 			coneIntersections = coneIntersectionResult.value;
 			timings.push(coneIntersectionResult.timing);
+		}
+
+		if (coneIntersections) {
+			geojsonRuns = geojsonRuns.map((geojsonRun) => {
+				const finalConesTiming = measureStage(
+					'final-cones-precompute',
+					'precompute',
+					this.profile,
+					() => computeFinalConePrecomputeCpu(coneIntersections, geojsonRun.boundaryRaycast, EARTH_RADIUS_METERS),
+				);
+				timings.push(finalConesTiming.timing);
+				return {
+					...geojsonRun,
+					finalCones: finalConesTiming.value,
+				};
+			});
 		}
 
 		const benchmark: ComputeBenchmarkReport = {

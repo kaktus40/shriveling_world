@@ -459,12 +459,13 @@ Le profil WebGPU peut produire simultanement:
 ```ts
 interface FinalConeComputeOutputs {
   ciseledConeRimEcef: Float32Array;
-  finalConeRimEcef: Float32Array;
+  finalConeGeometryEcef: Float32Array;
 }
 ```
 
 `ciseledConeRimEcef` applique uniquement la reduction cone/cone.
-`finalConeRimEcef` applique ensuite le minimum avec les limites pays.
+`finalConeGeometryEcef` applique ensuite le minimum avec les limites pays et
+fournit la geometrie 3D finale prete a etre affichee.
 
 ## Cache Memoire Des Distances Ciselees
 

@@ -19,6 +19,7 @@ import type {
 	AlphaAwareConeIntersectionOptions,
 	AlphaAwareBlockPrunedConeIntersectionOptions,
 	DynamicTownPrecompute,
+	FinalConePrecompute,
 	RawConePrecompute,
 	RawConePrecomputeOptions,
 	SymmetricConeIntersectionPrecompute,
@@ -49,6 +50,7 @@ export type ComputeStage =
 	| 'dynamic-town-precompute'
 	| 'raw-cones-precompute'
 	| 'cone-intersections-precompute'
+	| 'final-cones-precompute'
 	| 'total';
 
 /** Phase family used to classify benchmark timings. */
@@ -145,6 +147,7 @@ export interface ComputeBoundaryRunResult {
 	readonly geojson: GeoJSON.FeatureCollection;
 	readonly boundaryPrecompute: BoundaryPrecompute;
 	readonly boundaryRaycast: BoundaryRaycastResult;
+	readonly finalCones?: FinalConePrecompute;
 }
 
 /** Result of the complete compute workflow. */

@@ -1409,8 +1409,7 @@ sans reproduire le nom de fichier a l'identique.
 | `countryMeshShader.frag` | Convertir les contours pays en maillage affichable | polygones GeoJSON, contours triangules, couches basse/haute | vertices, normales, uvs, indexes, mesh pays | Non porte | Rendu | Passe de rendu, utile pour valider les donnees GeoJSON et le maillage des pays. |
 | `rawCones.frag` | Generer les cones bruts avant toute intersection | villes statiques, villes dynamiques, alphas, longueurs, intervalles d'azimut | `RawConeBuffer` | Porte | CPU -> WebGL2 -> WebGPU | Une invocation correspond a un couple `(ville, azimut)`. La selection d'alpha est la partie la plus parallele et la plus interessante a accelerer. |
 | `ciseledCones.frag` | Cisailler les cones bruts sur les cones voisins et les supports choisis | `RawConeBuffer`, voisins statiques, BVH circulaire, invariants de paires | `CiseledConeBuffer`, diagnostics de coupe, `t` retenus | Porte | CPU -> WebGL2 -> WebGPU | Passe critique de filtrage. Elle garde la valeur minimale utile sans changer le contrat geometrique. |
-| `finalCones.frag` | Finaliser la geometrie decoupee | cones ciseles, limites pays, acceptation du clipping | `FinalConeBuffer` | Non porte | WebGPU -> WebGL2 fallback -> CPU oracle | Cette passe applique la reduction finale et peut fusionner les minima cone/cone et cone/pays. |
-| `displayedCones.frag` | Transformer les cones finaux en donnees de rendu | `FinalConeBuffer`, conventions renderer | vertices, couleurs, attributs de dessin | Non porte | Rendu | Derniere passe avant Babylon ou un autre moteur de rendu. |
+| `finalCones.frag` | Finaliser la geometrie decoupee et emettre la geometrie finale 3D | cones ciseles, limites pays, acceptation du clipping | `FinalConeGeometryBuffer` | Non porte | WebGPU -> WebGL2 fallback -> CPU oracle | Cette passe fusionne la reduction finale et l'emission de la geometrie prete a afficher. `displayedCones` est desormais fusionne dans cette passe. |
 | `curveMeshShader.ts` | Construire les courbes entre villes ou modes | points de controle, vitesses, annee, position sur la courbe | `CurveVertexBuffer` | Non porte | CPU -> WebGL2 -> WebGPU | Peut etre partagee entre CPU, WebGL2 et WebGPU. Elle echantillonne les courbes et n'est pas liee aux cones. |
 | `rayIntersectTriangle.glsl` | Primitive d'intersection rayon/triangle | rayon, triangle, seuils numeriques | `t`, hit flag, point d'intersection | Porte comme primitive partagee GLSL/WGSL | CPU -> WebGL2 -> WebGPU | Ce n'est pas un passe autonome, mais une primitive partagee par les passes de coupe. |
 
@@ -1423,10 +1422,9 @@ Pour les profils GPU, l'ordre de responsabilite attendu est:
 3. `boundaryAlgebre` etablit les limites geographiques exploitables;
 4. `rawCones` fabrique la geometrie brute massivement parallele;
 5. `ciseledCones` retire les parties invalides ou trop longues, avec un portage WebGL2 fallback et un portage WebGPU oracle;
-6. `finalCones` applique la reduction finale et le clipping pays;
-7. `displayedCones` convertit la geometrie pour le moteur de rendu;
-8. `curveMeshShader` prepare les courbes de representation;
-9. `rayIntersectTriangle` fournit le test de base commun aux coupes.
+6. `finalCones` applique la reduction finale, integre le clipping pays et emet la geometrie 3D prete a afficher, independamment du moteur de rendu;
+7. `curveMeshShader` prepare les courbes de representation;
+8. `rayIntersectTriangle` fournit le test de base commun aux coupes.
 
 Sur le profil CPU, les memes responsabilites existent sous forme de fonctions
 de reference. Cela permet de mesurer le temps par etape, puis de verifier que
@@ -1773,7 +1771,8 @@ finalT = min(coneIntersectionT, countryBoundaryT)
 ```
 
 Le shader peut ecrire simultanement `ciseledConeRimEcef` pour les tests et
-diagnostics, puis `finalConeRimEcef` pour le rendu.
+diagnostics, puis `finalConeGeometryEcef` pour la geometrie finale prete a
+etre affichee.
 
 ## Etape 10: Generation Des Courbes
 
