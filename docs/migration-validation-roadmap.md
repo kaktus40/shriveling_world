@@ -55,7 +55,8 @@ Utiliser les statuts suivants:
 - La cible de runner pour la migration est `Vitest` pour les tests unitaires,
   d'integration et de conformance CPU, avec `Playwright` pour les tests E2E et
   de rendu.
-- La suite Playwright expose au moins un smoke test de chargement applicatif.
+- La suite Playwright doit exposer au moins un smoke test de chargement
+  applicatif avant validation de l'integration interactive complete.
 - Les routes `src/routes/test/test1`, `test2` et `test3` sont les pages de
   validation interactives officielles de la migration.
 - Toute nouvelle page de validation doit etre justifiee par jalon et ne doit
@@ -309,11 +310,18 @@ Validation:
 - `src/service-worker.ts` Sapper a ete supprime pour eviter la dependance obsolete `@sapper/service-worker`.
 - `npm run validate` reste rouge: `svelte-check` remonte 233 erreurs et 10 warnings dans le code legacy Sapper/Three encore present.
 - Ces erreurs ne bloquent pas M2 parce que le shell SvelteKit minimal ne depend pas encore de ce code legacy. Elles doivent etre traitees par suppression ou portage progressif pendant M3-M8, pas masquees par un assouplissement TypeScript global.
+- Verification ulterieure sur le worktree de migration:
+  - `npm run build` passe;
+  - `npm run validate` passe;
+  - `npm run test:e2e` echoue encore car le serveur declare dans
+    `playwright.config.ts` ne demarre pas.
 
 Resultat:
 
 - M2 valide sur le critere build applicatif.
 - Dette explicitement ouverte: validation stricte du code legacy non portee.
+- Dette additionnelle constatee: smoke E2E Playwright non fonctionnel a ce
+  stade.
 
 Mise a jour npm:
 
@@ -868,8 +876,12 @@ Validation:
   - compilation TypeScript ciblee des fichiers `src/lib/domain/data/*.ts`;
   - `npm run build`.
 - Reste a faire:
-  - completer les tests d'integration de `domain/data` sur fixtures;
-  - porter progressivement les consommateurs du `Merger`.
+  - porter progressivement les consommateurs du `Merger`;
+  - finaliser le branchement interactif des nouveaux modules de domaine.
+- Verification ulterieure sur le worktree de migration:
+  - `tests/integration/data-pipeline.test.ts` passe;
+  - la dette M3 ne porte plus sur l'assemblage lossless, mais sur
+    l'integration applicative et l'extraction complete du domaine.
 
 ## M4: Architecture Explicite De Precalcul
 
@@ -978,6 +990,11 @@ Validation:
   - portage WebGPU/WGSL de `boundaryAlgebre.frag`;
   - ajouter les tests d'integration garantissant qu'un changement d'annee ne
     relance ni l'ingestion ni les invariants statiques.
+- Verification ulterieure sur le worktree de migration:
+  - le precalcul CPU statique, dynamique, `rawCones` et intersections CPU est
+    bien present dans `src/lib/domain/precompute`;
+  - la frontiere precalcul / integration interactive reste toutefois
+    incomplete, ce qui confirme le statut `in_progress` de M4.
 
 ## M4.1: Socle De Tests CPU Et Contrats De Buffers
 
@@ -1040,6 +1057,11 @@ Validation:
     reference CPU des limites par villes;
   - `src/routes/test/test2/+page.svelte` inspecte contours, triangulation pays,
     associations ville -> contour et diagnostics GeoJSON.
+- Verification ulterieure sur le worktree de migration:
+  - `npm test` passe avec `68/68` tests;
+  - `npm run test:integration` passe avec `5/5` tests;
+  - `src/routes/test/test3/+page.svelte` existe bien comme page de validation
+    interactive officielle du pipeline CPU des cones.
 - Limites restantes:
   - les tests WebGPU ne sont pas encore actifs car le kernel WGSL de raycast n'existe pas;
   - la conformite CPU/GPU sera ajoutee dans `tests/conformance/cpu-gpu`;
@@ -1157,6 +1179,17 @@ Critere d'acceptation:
 Validation:
 
 - A renseigner apres implementation.
+
+Etat reel observe ulterieurement:
+
+- un shader de smoke existe deja dans `src/lib/compute/kernels/smoke.wgsl`;
+- l'import WGSL via Vite est deja prouve dans le shell applicatif;
+- aucun framework compute WebGPU minimal exploitable n'est encore integre au
+  domaine ou a l'orchestration applicative.
+
+Conclusion:
+
+- `M6` reste `todo`, mais avec un amorcage technique deja present.
 
 ## M7: Portage WGSL Des Passes Existantes
 
@@ -1318,6 +1351,12 @@ Validation:
     compacts charges depuis l'application.
 - M8 reste `in_progress`: les blocs conservateurs, leur benchmark sur datasets
   reduits et le cache annuel ne sont pas encore implementes.
+- Etat reel observe ulterieurement:
+  - un prototype non route de laboratoire heuristique existe dans
+    `src/lib/testing/ray-range-heuristics.ts`;
+  - ce helper est actuellement purement CPU, sans dependance Babylon.js dans le
+    code de migration;
+  - une couverture unitaire minimale doit preceder tout branchement interactif.
 
 ## M9: Integration Interactive Complete
 
@@ -1358,6 +1397,18 @@ Validation:
 
 - A renseigner apres implementation.
 
+Etat reel observe ulterieurement:
+
+- les pages `test1`, `test2` et `test3` existent et servent deja de validation
+  interactive CPU;
+- aucune integration Babylon.js complete n'est encore branchee;
+- le smoke Playwright existe dans `tests/e2e/home.spec.ts`, mais son execution
+  echoue actuellement car le serveur Playwright ne demarre pas.
+
+Conclusion:
+
+- `M9` reste `todo`.
+
 ## M9.1: Packaging Client Lourd Tauri
 
 Statut: `todo`
@@ -1365,6 +1416,30 @@ Statut: `todo`
 Objectif:
 
 Produire un client lourd Linux/Windows en reutilisant l'interface SvelteKit et le pipeline de calcul existant.
+
+## Audit Recent Du Worktree De Migration
+
+Etat constate lors de l'audit initial:
+
+- `package-lock.json` etait desynchronise par rapport au socle reel de
+  dependances migrees;
+- `src/lib/testing/ray-range-heuristics.ts` avait ete ajoute comme helper CPU
+  non route pour le laboratoire heuristique;
+- `tests/unit/precompute/ray-range-heuristics.test.ts` couvrait deja ce helper
+  localement;
+- `npm run test:e2e` echouait toujours parce que le `webServer` Playwright ne
+  demarrait pas.
+
+Resolution retenue:
+
+1. resynchroniser `package-lock.json` avec `package.json` sans introduire de
+   dependance de rendu prematuree;
+2. conserver le helper heuristique dans `M8` tant qu'aucune route dediee n'est
+   justifiee;
+3. garder la couverture CPU unitaire minimale comme precondition a toute
+   integration SvelteKit/Babylon;
+4. maintenir la dette Playwright ouverte dans `M2` et `M9` jusqu'a correction
+   effective du `webServer`.
 
 Decision d'architecture:
 
