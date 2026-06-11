@@ -88,6 +88,14 @@ test('cpu workflow benchmarks ingestion, geojson and precompute stages from sour
 	expect(result.selection.selected).toBe('cpu');
 	expect(result.inspectedFiles.map((file) => file.kind)).toContain('geojson');
 	expect(result.baseNetwork.cities).toHaveLength(2);
+	expect(result.preparedDataset).toBeDefined();
+	if (!result.preparedDataset) {
+		throw new Error('preparedDataset should be defined');
+	}
+	expect(result.staticTown).toBeDefined();
+	if (!result.staticTown) {
+		throw new Error('staticTown should be defined');
+	}
 	expect(result.preparedDataset.cityCount).toBe(2);
 	expect(result.geojsonRuns).toHaveLength(1);
 	expect(result.geojsonRuns[0].boundaryPrecompute.cityContourIndexes).toHaveLength(2);

@@ -5,11 +5,13 @@ import {
 	RAW_CONE_RIM_ECEF_STRIDE,
 	UNUSED_INDEX,
 	benchmarkConeIntersectionAlphaAwareOrderCpu,
+	benchmarkConeIntersectionAlphaAwareBlockPrunedCpu,
 	benchmarkConeIntersectionOracleCpu,
 	benchmarkConeIntersectionSymmetricOrderCpu,
 	buildAlphaAwareFaceTraversal,
 	buildSymmetricFaceTraversal,
 	classifyFastConeFaces,
+	computeConeIntersectionAlphaAwareBlockPrunedCpu,
 	computeConeIntersectionAlphaAwareOrderCpu,
 	computeConeIntersectionOracleCpu,
 	computeConeIntersectionSymmetricOrderCpu,
@@ -126,7 +128,7 @@ test('alpha-aware traversal prioritizes corridor boundaries and nearby fast supp
 		bilateralNeighborhoodFaceCount: 3,
 	});
 
-	assert.deepEqual(Array.from(traversal.faceIndexes), [4, 5, 3, 6, 7, 0, 1, 2]);
+	assert.deepEqual(Array.from(traversal.faceIndexes), [4, 5, 3, 6, 7, 2, 1, 0]);
 	assert.equal(traversal.priorityFaceCount, 5);
 	assert.equal(traversal.priorityFastFaceCount, 2);
 	assert.equal(new Set(traversal.faceIndexes).size, alphaRadians.length);
@@ -214,6 +216,59 @@ test('alpha-aware benchmark reports priority-window usefulness', () => {
 	assert.equal(report.phases[0].wallClock.medianMilliseconds, 1);
 });
 
+test('alpha-aware block pruning remains exhaustive and rejects conservative blocks', () => {
+	const staticInput = createBlockPrunedStaticInput();
+	const rawCones = createBlockPrunedRawCones();
+	const oracle = computeConeIntersectionOracleCpu(staticInput, rawCones);
+	const blockPruned = computeConeIntersectionAlphaAwareBlockPrunedCpu(staticInput, rawCones, {
+		roadAlphaRadians: 0.5,
+		bilateralNeighborhoodFaceCount: 1,
+		blockFaceCount: 1,
+	});
+
+	assert.deepEqual(blockPruned.coneIntersectionDistanceMeters, oracle.coneIntersectionDistanceMeters);
+	assert.deepEqual(blockPruned.ciseledConeRimEcef, oracle.ciseledConeRimEcef);
+	assert.deepEqual(blockPruned.winningNeighborCityIndexes, oracle.winningNeighborCityIndexes);
+	assert.deepEqual(blockPruned.winningFaceIndexes, oracle.winningFaceIndexes);
+	assertClose(blockPruned.ciseledConeRimEcef[0], oracle.ciseledConeRimEcef[0]);
+});
+
+test('alpha-aware block pruning benchmark reports block rejection statistics', () => {
+	let clockValue = 0;
+	const report = benchmarkConeIntersectionAlphaAwareBlockPrunedCpu(
+		createBlockPrunedStaticInput(),
+		createBlockPrunedRawCones(),
+		{ roadAlphaRadians: 0.5, bilateralNeighborhoodFaceCount: 1, blockFaceCount: 1 },
+		{ warmupIterations: 0, measurementIterations: 2, clock: () => clockValue++ },
+	);
+
+	assert.equal(report.profile, 'cpu');
+	assert.equal(typeof report.blockCount, 'number');
+	assert.equal(typeof report.prunedBlockCount, 'number');
+	assert.ok((report.blockCount ?? 0) >= (report.prunedBlockCount ?? 0));
+	assert.equal(report.phases[0].phase, 'cone-intersection-alpha-aware-block-pruned');
+	assert.equal(report.phases[0].wallClock.medianMilliseconds, 1);
+});
+
+test('alpha-aware block pruning can be disabled without changing geometry', () => {
+	const staticInput = createBlockPrunedStaticInput();
+	const rawCones = createBlockPrunedRawCones();
+	const oracle = computeConeIntersectionOracleCpu(staticInput, rawCones);
+	const exhaustiveBlocks = computeConeIntersectionAlphaAwareBlockPrunedCpu(staticInput, rawCones, {
+		roadAlphaRadians: 0.5,
+		bilateralNeighborhoodFaceCount: 1,
+		blockFaceCount: 1,
+		pruningEnabled: false,
+	});
+
+	assert.deepEqual(exhaustiveBlocks.coneIntersectionDistanceMeters, oracle.coneIntersectionDistanceMeters);
+	assert.deepEqual(exhaustiveBlocks.ciseledConeRimEcef, oracle.ciseledConeRimEcef);
+	assert.deepEqual(exhaustiveBlocks.winningNeighborCityIndexes, oracle.winningNeighborCityIndexes);
+	assert.deepEqual(exhaustiveBlocks.winningFaceIndexes, oracle.winningFaceIndexes);
+	assert.deepEqual(exhaustiveBlocks.testedFaceCounts, oracle.testedFaceCounts);
+	assert.equal(exhaustiveBlocks.prunedBlockCounts.reduce((sum, count) => sum + count, 0), 0);
+});
+
 function createStaticInput(): SymmetricConeIntersectionStaticInput {
 	const cityNed2EcefMatrices = new Float32Array(2 * CITY_NED2ECEF_MATRIX_STRIDE);
 	for (let cityIndex = 0; cityIndex < 2; cityIndex += 1) {
@@ -252,6 +307,55 @@ function createRawCones(): RawConePrecompute {
 		[5, 0, 2, 1],
 		[5, -2, 0, 1],
 		[5, 0, -2, 1],
+	].flat();
+	return {
+		cityCount: 2,
+		azimuthSampleCount: 4,
+		shape: 'road',
+		coneLengthMeters: 10,
+		coneAlphaRadians: new Float32Array(8),
+		rawConeRimEcef: new Float32Array(rimPoints),
+	};
+}
+
+function createBlockPrunedStaticInput(): SymmetricConeIntersectionStaticInput {
+	const cityNed2EcefMatrices = new Float32Array(2 * CITY_NED2ECEF_MATRIX_STRIDE);
+	for (let cityIndex = 0; cityIndex < 2; cityIndex += 1) {
+		const offset = cityIndex * CITY_NED2ECEF_MATRIX_STRIDE;
+		cityNed2EcefMatrices[offset] = 1;
+		cityNed2EcefMatrices[offset + 5] = 1;
+		cityNed2EcefMatrices[offset + 10] = 1;
+		cityNed2EcefMatrices[offset + 15] = 1;
+	}
+	cityNed2EcefMatrices[CITY_NED2ECEF_MATRIX_STRIDE + 12] = 5;
+
+	return {
+		cityCount: 2,
+		cityNed2EcefMatrices,
+		sectorCount: 4,
+		cityPairInvariants: new Float32Array([
+			0, 0, 0, 0,
+			Math.PI, Math.PI, 1, 0,
+			Math.PI, Math.PI, 1, 0,
+			0, 0, 0, 0,
+		]),
+		cityPairSectorIndexes: new Uint32Array(4),
+		neighborLimit: 1,
+		overlapCandidates: new Uint32Array([1, UNUSED_INDEX]),
+		overlapCandidateCounts: new Uint32Array([1, 0]),
+	};
+}
+
+function createBlockPrunedRawCones(): RawConePrecompute {
+	const rimPoints = [
+		[10, 0, 0, 1],
+		[10, 0, 0, 1],
+		[10, 0, 0, 1],
+		[10, 0, 0, 1],
+		[5, 2, 0, 1],
+		[5, 0, 2, 1],
+		[7, 1, 0, 1],
+		[7, -2, 0, 1],
 	].flat();
 	return {
 		cityCount: 2,

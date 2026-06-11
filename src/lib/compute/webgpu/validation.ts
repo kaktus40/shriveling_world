@@ -18,7 +18,8 @@ export async function readBackFloat32Buffer(
 	encoder.copyBufferToBuffer(buffer, 0, readback, 0, length * Float32Array.BYTES_PER_ELEMENT);
 	device.queue.submit([encoder.finish()]);
 
-	await readback.mapAsync(GPUMapMode.READ);
+	const mapReadUsage = getMapReadUsage(device);
+	await readback.mapAsync(mapReadUsage);
 	const mapped = readback.getMappedRange();
 	const output = new Float32Array(mapped.slice(0));
 	readback.unmap();

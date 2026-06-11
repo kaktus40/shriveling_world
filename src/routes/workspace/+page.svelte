@@ -54,8 +54,8 @@
 	let computeError = '';
 	let queryError = '';
 	let queryRunTimer: ReturnType<typeof setTimeout> | null = null;
-	let computeDiagnostics: DatasetDiagnostic[] = [];
-	let filteredComputeDiagnostics: DatasetDiagnostic[] = [];
+	let computeDiagnostics: readonly DatasetDiagnostic[] = [];
+	let filteredComputeDiagnostics: readonly DatasetDiagnostic[] = [];
 	let computeDiagnosticCounts = {
 		all: 0,
 		cpu: 0,

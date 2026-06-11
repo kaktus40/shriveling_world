@@ -1,4 +1,5 @@
 import type { ComputeGpuBufferContract } from '../gpu';
+import type { ConeShape } from '../../domain/precompute';
 
 /** WebGL2 resources required by the city NED-to-ECEF fallback pass. */
 export interface WebGl2CityNed2EcefDispatchResources {
@@ -48,6 +49,39 @@ export interface WebGl2BoundaryAlgebreDispatchResources {
 	readonly ecefOutputContract: ComputeGpuBufferContract;
 }
 
+/** Input bundle required by the raw-cone alpha WebGL2 pass. */
+export interface WebGl2RawConeAlphaDispatchInput {
+	readonly cityLinkOffsets: Uint32Array;
+	readonly cityLinkCounts: Uint32Array;
+	readonly cityLinkAzimuthRadians: Float32Array;
+	readonly cityLinkAlphaRadians: Float32Array;
+	readonly cityFastestTerrestrialAlphaRadians: Float32Array;
+	readonly cityCount: number;
+	readonly azimuthSampleCount: number;
+	readonly roadAlphaRadians: number;
+	readonly attenuationRadians: number;
+	readonly shape: ConeShape;
+}
+
+/** WebGL2 resources required by the raw-cone alpha fallback pass. */
+export interface WebGl2RawConeAlphaDispatchResources {
+	readonly vertexArray: WebGLVertexArrayObject;
+	readonly program: WebGLProgram;
+	readonly cityLinkOffsetsTexture: WebGLTexture;
+	readonly cityLinkCountsTexture: WebGLTexture;
+	readonly cityLinkAzimuthTexture: WebGLTexture;
+	readonly cityLinkAlphaTexture: WebGLTexture;
+	readonly cityFastestTerrestrialAlphaTexture: WebGLTexture;
+	readonly outputBuffer: WebGLBuffer;
+	readonly uniformLocation: WebGLUniformLocation;
+	readonly cityLinkOffsetsContract: ComputeGpuBufferContract;
+	readonly cityLinkCountsContract: ComputeGpuBufferContract;
+	readonly cityLinkAzimuthContract: ComputeGpuBufferContract;
+	readonly cityLinkAlphaContract: ComputeGpuBufferContract;
+	readonly cityFastestTerrestrialAlphaContract: ComputeGpuBufferContract;
+	readonly outputContract: ComputeGpuBufferContract;
+}
+
 /** Compiles the WebGL2 transform-feedback program for city NED-to-ECEF matrices. */
 export function createCityNed2EcefProgram(
 	gl: WebGL2RenderingContext,
@@ -87,6 +121,28 @@ export function createBoundaryAlgebreProgram(
 		const message = gl.getProgramInfoLog(program) ?? 'unknown WebGL2 link error';
 		gl.deleteProgram(program);
 		throw new Error(`WebGL2 boundary raycast program link failed: ${message}`);
+	}
+	gl.deleteShader(vertexShader);
+	return program;
+}
+
+/** Compiles the WebGL2 transform-feedback program for raw-cone alpha sampling. */
+export function createRawConeAlphasProgram(
+	gl: WebGL2RenderingContext,
+	vertexShaderSource: string,
+): WebGLProgram {
+	const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+	const program = gl.createProgram();
+	if (!program) {
+		throw new Error('WebGL2 raw-cone alpha program creation failed');
+	}
+	gl.attachShader(program, vertexShader);
+	gl.transformFeedbackVaryings(program, ['tf_coneAlphaRadians'], gl.SEPARATE_ATTRIBS);
+	gl.linkProgram(program);
+	if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+		const message = gl.getProgramInfoLog(program) ?? 'unknown WebGL2 link error';
+		gl.deleteProgram(program);
+		throw new Error(`WebGL2 raw-cone alpha program link failed: ${message}`);
 	}
 	gl.deleteShader(vertexShader);
 	return program;
@@ -314,6 +370,133 @@ export function createBoundaryAlgebreDispatchResources(
 	};
 }
 
+/** Creates the GPU allocations required by the raw-cone alpha fallback pass. */
+export function createRawConeAlphasDispatchResources(
+	gl: WebGL2RenderingContext,
+	program: WebGLProgram,
+	input: WebGl2RawConeAlphaDispatchInput,
+): WebGl2RawConeAlphaDispatchResources {
+	const vertexArray = gl.createVertexArray();
+	const outputBuffer = gl.createBuffer();
+	const uniformLocation = gl.getUniformLocation(program, 'u_uniforms');
+	if (!vertexArray || !outputBuffer || !uniformLocation) {
+		throw new Error('WebGL2 raw-cone alpha resource allocation failed');
+	}
+
+	const cityLinkOffsetsTexture = createIntTexture2D(
+		gl,
+		gl.R32UI,
+		gl.RED_INTEGER,
+		gl.UNSIGNED_INT,
+		Math.max(input.cityCount, 1),
+		1,
+		input.cityLinkOffsets.length > 0 ? input.cityLinkOffsets : new Uint32Array(Math.max(input.cityCount, 1)),
+	);
+	const cityLinkCountsTexture = createIntTexture2D(
+		gl,
+		gl.R32UI,
+		gl.RED_INTEGER,
+		gl.UNSIGNED_INT,
+		Math.max(input.cityCount, 1),
+		1,
+		input.cityLinkCounts.length > 0 ? input.cityLinkCounts : new Uint32Array(Math.max(input.cityCount, 1)),
+	);
+	const cityLinkAzimuthTexture = createFloatTexture2D(
+		gl,
+		gl.R32F,
+		gl.RED,
+		Math.max(input.cityLinkAzimuthRadians.length, 1),
+		1,
+		input.cityLinkAzimuthRadians.length > 0
+			? input.cityLinkAzimuthRadians
+			: new Float32Array(Math.max(input.cityLinkAzimuthRadians.length, 1)),
+	);
+	const cityLinkAlphaTexture = createFloatTexture2D(
+		gl,
+		gl.R32F,
+		gl.RED,
+		Math.max(input.cityLinkAlphaRadians.length, 1),
+		1,
+		input.cityLinkAlphaRadians.length > 0
+			? input.cityLinkAlphaRadians
+			: new Float32Array(Math.max(input.cityLinkAlphaRadians.length, 1)),
+	);
+	const cityFastestTerrestrialAlphaTexture = createFloatTexture2D(
+		gl,
+		gl.R32F,
+		gl.RED,
+		Math.max(input.cityFastestTerrestrialAlphaRadians.length, 1),
+		1,
+		input.cityFastestTerrestrialAlphaRadians.length > 0
+			? input.cityFastestTerrestrialAlphaRadians
+			: new Float32Array(Math.max(input.cityFastestTerrestrialAlphaRadians.length, 1)),
+	);
+
+	gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, outputBuffer);
+	gl.bufferData(gl.TRANSFORM_FEEDBACK_BUFFER, Math.max(input.cityCount * input.azimuthSampleCount, 1) * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_COPY);
+	gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, null);
+	gl.bindVertexArray(vertexArray);
+	gl.bindVertexArray(null);
+
+	return {
+		vertexArray,
+		program,
+		cityLinkOffsetsTexture,
+		cityLinkCountsTexture,
+		cityLinkAzimuthTexture,
+		cityLinkAlphaTexture,
+		cityFastestTerrestrialAlphaTexture,
+		outputBuffer,
+		uniformLocation,
+		cityLinkOffsetsContract: {
+			name: 'cityLinkOffsets',
+			elementType: 'uint32',
+			strideBytes: Uint32Array.BYTES_PER_ELEMENT,
+			count: input.cityCount,
+			notes: ['First compact link offset for every city, sampled as a R32UI texture'],
+		},
+		cityLinkCountsContract: {
+			name: 'cityLinkCounts',
+			elementType: 'uint32',
+			strideBytes: Uint32Array.BYTES_PER_ELEMENT,
+			count: input.cityCount,
+			notes: ['Number of compact links retained for every city, sampled as a R32UI texture'],
+		},
+		cityLinkAzimuthContract: {
+			name: 'cityLinkAzimuthRadians',
+			elementType: 'float32',
+			strideBytes: Float32Array.BYTES_PER_ELEMENT,
+			count: input.cityLinkAzimuthRadians.length,
+			angularUnit: 'radians',
+			notes: ['Forward azimuth of each compact link, sampled as a R32F texture'],
+		},
+		cityLinkAlphaContract: {
+			name: 'cityLinkAlphaRadians',
+			elementType: 'float32',
+			strideBytes: Float32Array.BYTES_PER_ELEMENT,
+			count: input.cityLinkAlphaRadians.length,
+			angularUnit: 'radians',
+			notes: ['Selected terrestrial alpha of each compact link, sampled as a R32F texture'],
+		},
+		cityFastestTerrestrialAlphaContract: {
+			name: 'cityFastestTerrestrialAlphaRadians',
+			elementType: 'float32',
+			strideBytes: Float32Array.BYTES_PER_ELEMENT,
+			count: input.cityCount,
+			angularUnit: 'radians',
+			notes: ['Minimum terrestrial alpha per city, sampled as a R32F texture'],
+		},
+		outputContract: {
+			name: 'coneAlphaRadians',
+			elementType: 'float32',
+			strideBytes: Float32Array.BYTES_PER_ELEMENT,
+			count: input.cityCount * input.azimuthSampleCount,
+			angularUnit: 'radians',
+			notes: ['Selected alpha per city and azimuth sample captured with transform feedback'],
+		},
+	};
+}
+
 function createFloatTexture2D(
 	gl: WebGL2RenderingContext,
 	internalFormat: number,
@@ -332,7 +515,7 @@ function createIntTexture2D(
 	type: number,
 	width: number,
 	height: number,
-	data: Int32Array,
+	data: ArrayBufferView,
 ): WebGLTexture {
 	return createTexture2D(gl, internalFormat, width, height, format, type, data);
 }
@@ -374,4 +557,14 @@ function compileShader(gl: WebGL2RenderingContext, type: number, source: string)
 		throw new Error(`WebGL2 shader compile failed: ${message}`);
 	}
 	return shader;
+}
+
+function shapeToCode(shape: ConeShape): number {
+	if (shape === 'road') {
+		return 0;
+	}
+	if (shape === 'fastest-terrestrial') {
+		return 1;
+	}
+	return 2;
 }

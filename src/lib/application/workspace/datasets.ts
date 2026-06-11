@@ -20,6 +20,7 @@ import {
 } from '$lib/compute';
 import {
 	extractGeoJsonFeatureCollections,
+	createDefaultConePipelineOptions,
 	loadBundledDatasetFiles,
 	loadBundledDatasetNames,
 	runDatasetPipeline,
@@ -152,6 +153,7 @@ export async function runDatasetWorkspaceCompute(
 	);
 	const backend = await resolveSelectedBackend(registry, selection);
 	try {
+		const coneOptions = createDefaultConePipelineOptions(workspace.pipeline.preparedDataset);
 		const result = await backend.run(
 			{
 				sourceFiles: workspace.files,
@@ -167,7 +169,12 @@ export async function runDatasetWorkspaceCompute(
 				boundaryRaycast: { azimuthSampleCount: 360 },
 				staticTown: { sectorCount: 360, neighborLimit: Math.min(Math.max(workspace.pipeline.preparedDataset.cityCount - 1, 0), 16) },
 				dynamicYear: workspace.pipeline.preparedDataset.speedTimeline.span.beginYear,
-				rawCone: undefined,
+				rawCone: {
+					shape: coneOptions.shape,
+					azimuthSampleCount: coneOptions.azimuthSampleCount,
+					coneLengthMeters: coneOptions.coneLengthMeters,
+					attenuationRadians: coneOptions.attenuationRadians,
+				},
 				coneIntersection: { enabled: false },
 			},
 			selection,

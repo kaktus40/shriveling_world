@@ -79,11 +79,11 @@ function createFakeDevice(): { device: WebGpuWorkflowBackendOptions['device']; c
 	const queue = {
 		submit: () => {},
 		writeBuffer: () => {},
-	} as GPUQueue;
+	} as unknown as GPUQueue;
 
 	const pipeline = {
 		getBindGroupLayout: () => ({} as GPUBindGroupLayout),
-	} as GPUComputePipeline;
+	} as unknown as GPUComputePipeline;
 
 	const device = {
 		queue,

@@ -1,3 +1,4 @@
+import rawConeAlphasVertexShaderSource from '../kernels/raw-cone-alphas-webgl2.vert?raw';
 import cityNed2EcefVertexShaderSource from '../kernels/city-ned2ecef-webgl2.vert?raw';
 import boundaryAlgebreVertexShaderSource from '../kernels/boundary-algebre-webgl2.vert?raw';
 import {
@@ -9,7 +10,10 @@ import {
 	createBoundaryAlgebreProgram,
 	createCityNed2EcefDispatchResources,
 	createCityNed2EcefProgram,
+	createRawConeAlphasDispatchResources,
+	createRawConeAlphasProgram,
 	type WebGl2BoundaryAlgebreDispatchResources,
+	type WebGl2RawConeAlphaDispatchResources,
 } from './buffers';
 import {
 	compareFloat32Buffers,
@@ -29,6 +33,7 @@ import type {
 import { measureAsyncStage } from '../core/timing';
 import { EARTH_RADIUS_METERS } from '../../shared';
 import { buildAzimuthIntervals, packAzimuthIntervals } from '../../domain/geojson';
+import type { ConeShape } from '../../domain/precompute';
 import type { DatasetDiagnostic } from '../../domain/data';
 import type { WebGl2ComputeContext, WebGl2ComputeResources } from './types';
 
@@ -85,6 +90,12 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 			compareDiagnostics.push(...cityMatrixPass.diagnostics);
 		}
 
+		if (result.rawCones) {
+			const rawConeAlphaPass = await this.runRawConeAlphaPass(result);
+			extraTimings.push(rawConeAlphaPass.timing);
+			compareDiagnostics.push(...rawConeAlphaPass.diagnostics);
+		}
+
 		for (const geojsonRun of result.geojsonRuns) {
 			const boundaryPass = await this.runBoundaryRaycastPass(result, geojsonRun);
 			extraTimings.push(boundaryPass.timing);
@@ -130,6 +141,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		}
 		const gl = this.ensureGl();
 		const program = createCityNed2EcefProgram(gl, cityNed2EcefVertexShaderSource);
+		const rawConeAlphaProgram = createRawConeAlphasProgram(gl, rawConeAlphasVertexShaderSource);
 		const boundaryProgram = createBoundaryAlgebreProgram(gl, boundaryAlgebreVertexShaderSource);
 		this.#resources = {
 			buffers: [],
@@ -153,12 +165,22 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 						workgroupSize: [1, 1, 1],
 						notes: ['First operational WebGL2 GeoJSON fallback pass: boundary raycast via transform feedback.'],
 					},
+					{
+						name: 'raw-cone-alphas',
+						stage: 'raw-cones-precompute',
+						profile: 'webgl2',
+						inputs: [],
+						outputs: [],
+						workgroupSize: [1, 1, 1],
+						notes: ['First operational WebGL2 raw-cone pass: select cone alphas with transform feedback.'],
+					},
 				],
 			},
 			programCache: new Map([['city-ned2ecef', program]]),
 			framebufferCache: new Map(),
 		};
 		this.#resources.programCache?.set('boundary-algebre', boundaryProgram);
+		this.#resources.programCache?.set('raw-cone-alphas', rawConeAlphaProgram);
 		return this.#resources;
 	}
 
@@ -380,6 +402,117 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 
 		return { timing, diagnostics };
 	}
+
+	private async runRawConeAlphaPass(result: ComputeWorkflowResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
+		const rawCones = result.rawCones;
+		const dynamicTown = result.dynamicTown;
+		if (!rawCones || !dynamicTown) {
+			return {
+				timing: {
+					stage: 'raw-cones-precompute',
+					scope: 'precompute',
+					profile: 'webgl2',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+				diagnostics: [],
+			};
+		}
+
+		const cityCount = rawCones.cityCount;
+		const azimuthSampleCount = rawCones.azimuthSampleCount;
+		if (cityCount <= 0 || azimuthSampleCount <= 0) {
+			return {
+				timing: {
+					stage: 'raw-cones-precompute',
+					scope: 'precompute',
+					profile: 'webgl2',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+				diagnostics: [],
+			};
+		}
+
+		const gl = this.ensureGl();
+		const resources = await this.ensureResources();
+		const program = resources.programCache?.get('raw-cone-alphas');
+		if (!program) {
+			throw new Error('WebGL2 raw-cone alpha program is not available');
+		}
+
+		const dispatchResources = createRawConeAlphasDispatchResources(
+			gl,
+			program,
+			{
+				cityLinkOffsets: dynamicTown.cityLinkOffsets,
+				cityLinkCounts: dynamicTown.cityLinkCounts,
+				cityLinkAzimuthRadians: dynamicTown.cityLinkAzimuthRadians,
+				cityLinkAlphaRadians: dynamicTown.cityLinkAlphaRadians,
+				cityFastestTerrestrialAlphaRadians: dynamicTown.cityFastestTerrestrialAlphaRadians,
+				cityCount,
+				azimuthSampleCount,
+				roadAlphaRadians: dynamicTown.roadAlphaRadians,
+				attenuationRadians: rawCones.attenuationRadians ?? 0,
+				shape: rawCones.shape,
+			},
+		);
+		const transformFeedback = gl.createTransformFeedback();
+		if (!transformFeedback) {
+			throw new Error('WebGL2 transform feedback allocation failed');
+		}
+
+		const { timing } = await measureAsyncStage(
+			'raw-cones-precompute',
+			'precompute',
+			'webgl2',
+			async () => {
+				gl.useProgram(program);
+				gl.uniform4f(
+					dispatchResources.uniformLocation,
+					dynamicTown.roadAlphaRadians,
+					rawCones.attenuationRadians ?? 0,
+					shapeToCode(rawCones.shape),
+					azimuthSampleCount,
+				);
+				bindRawConeAlphaTextures(gl, dispatchResources);
+				gl.bindVertexArray(dispatchResources.vertexArray);
+				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, dispatchResources.outputBuffer);
+				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
+				gl.enable(gl.RASTERIZER_DISCARD);
+				gl.beginTransformFeedback(gl.POINTS);
+				gl.drawArraysInstanced(gl.POINTS, 0, 1, cityCount * azimuthSampleCount);
+				gl.endTransformFeedback();
+				gl.disable(gl.RASTERIZER_DISCARD);
+				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+				gl.bindVertexArray(null);
+				gl.finish();
+				return undefined;
+			},
+		);
+
+		const diagnostics: DatasetDiagnostic[] = [];
+		const alphaReadback = readBackFloat32Buffer(
+			gl,
+			gl.TRANSFORM_FEEDBACK_BUFFER,
+			dispatchResources.outputBuffer,
+			cityCount * azimuthSampleCount,
+		);
+		if (alphaReadback) {
+			diagnostics.push(
+				...compareFloat32Buffers(
+					'webgl2-raw-cone-alpha',
+					rawCones.coneAlphaRadians,
+					alphaReadback,
+				),
+			);
+		}
+
+		return { timing, diagnostics };
+	}
 }
 
 /** Returns the WebGL2 capability snapshot. */
@@ -438,7 +571,10 @@ function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport, extraTimings: 
 	};
 }
 
-function tagDiagnostics<T extends { profile?: string }>(diagnostics: readonly T[], profile: string): T[] {
+function tagDiagnostics<T extends { severity: 'warning' | 'error'; code: string; profile?: string }>(
+	diagnostics: readonly T[],
+	profile: string,
+): T[] {
 	return diagnostics.map((diagnostic) =>
 		diagnostic.profile === profile ? diagnostic : { ...diagnostic, profile },
 	);
@@ -487,6 +623,59 @@ function bindBoundaryTextures(
 	gl.activeTexture(gl.TEXTURE5);
 	gl.bindTexture(gl.TEXTURE_2D, resources.azimuthIntervalsTexture);
 	gl.uniform1i(azimuthIntervalsLocation, 5);
+}
+
+function bindRawConeAlphaTextures(
+	gl: WebGL2RenderingContext,
+	resources: WebGl2RawConeAlphaDispatchResources,
+): void {
+	gl.activeTexture(gl.TEXTURE0);
+	gl.bindTexture(gl.TEXTURE_2D, resources.cityLinkOffsetsTexture);
+	const cityLinkOffsetsLocation = gl.getUniformLocation(resources.program, 'u_cityLinkOffsets');
+	const cityLinkCountsLocation = gl.getUniformLocation(resources.program, 'u_cityLinkCounts');
+	const cityLinkAzimuthLocation = gl.getUniformLocation(resources.program, 'u_cityLinkAzimuthRadians');
+	const cityLinkAlphaLocation = gl.getUniformLocation(resources.program, 'u_cityLinkAlphaRadians');
+	const cityFastestTerrestrialAlphaLocation = gl.getUniformLocation(
+		resources.program,
+		'u_cityFastestTerrestrialAlphaRadians',
+	);
+	if (
+		!cityLinkOffsetsLocation ||
+		!cityLinkCountsLocation ||
+		!cityLinkAzimuthLocation ||
+		!cityLinkAlphaLocation ||
+		!cityFastestTerrestrialAlphaLocation
+	) {
+		throw new Error('WebGL2 raw-cone alpha uniform lookup failed');
+	}
+
+	gl.activeTexture(gl.TEXTURE1);
+	gl.bindTexture(gl.TEXTURE_2D, resources.cityLinkCountsTexture);
+	gl.uniform1i(cityLinkCountsLocation, 1);
+
+	gl.activeTexture(gl.TEXTURE2);
+	gl.bindTexture(gl.TEXTURE_2D, resources.cityLinkAzimuthTexture);
+	gl.uniform1i(cityLinkAzimuthLocation, 2);
+
+	gl.activeTexture(gl.TEXTURE3);
+	gl.bindTexture(gl.TEXTURE_2D, resources.cityLinkAlphaTexture);
+	gl.uniform1i(cityLinkAlphaLocation, 3);
+
+	gl.activeTexture(gl.TEXTURE4);
+	gl.bindTexture(gl.TEXTURE_2D, resources.cityFastestTerrestrialAlphaTexture);
+	gl.uniform1i(cityFastestTerrestrialAlphaLocation, 4);
+
+	gl.uniform1i(cityLinkOffsetsLocation, 0);
+}
+
+function shapeToCode(shape: ConeShape): number {
+	if (shape === 'road') {
+		return 0;
+	}
+	if (shape === 'fastest-terrestrial') {
+		return 1;
+	}
+	return 2;
 }
 
 function probeWebGl2Context(canvas?: WebGl2CanvasLike | null): WebGL2RenderingContext | null {

@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import {
 	RAW_CONE_RIM_ECEF_STRIDE,
+	buildRawConeLocalNedDirection,
 	RawConeRimView,
 	benchmarkRawConePrecomputeCpu,
 	computeConeAlphaSamplesCpu,
 	computeRawConePrecomputeCpu,
 	computeStaticTownPrecomputeCpu,
+	getRawConeAzimuthRadians,
 	type DynamicTownPrecompute,
 } from '../../../src/lib/domain/precompute';
 import { EARTH_RADIUS_METERS, PI } from '../../../src/lib/shared';
@@ -91,6 +93,18 @@ test('complex raw cone retains the minimum alpha when distinct links share one d
 	});
 
 	assertClose(complex.coneAlphaRadians[0], 0.2);
+});
+
+test('raw cone azimuth sample zero is the local north bearing while the ray still carries alpha-dependent down', () => {
+	const azimuthSampleCount = 8;
+	const alphaRadians = 0.5;
+	assertClose(getRawConeAzimuthRadians(0, azimuthSampleCount), 0);
+	assertClose(getRawConeAzimuthRadians(1, azimuthSampleCount), PI / 4);
+
+	const [northMeters, eastMeters, downMeters] = buildRawConeLocalNedDirection(0, alphaRadians, 1000);
+	assertClose(northMeters, 1000 * Math.cos(alphaRadians));
+	assertClose(eastMeters, 0);
+	assertClose(downMeters, 1000 * Math.sin(alphaRadians));
 });
 
 test('raw cone CPU transforms local NED rays into aligned ECEF rim points in meters', () => {

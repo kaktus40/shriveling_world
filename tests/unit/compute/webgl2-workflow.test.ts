@@ -105,11 +105,11 @@ cityCodeOri,cityCodeDes,transportModeCode,eYearBegin,eYearEnd
 	};
 }
 
-function createFakeCanvas(): WebGl2WorkflowBackendOptions['canvas'] {
+function createFakeCanvas(): NonNullable<WebGl2WorkflowBackendOptions['canvas']> {
 	const gl = createFakeGl();
 	return {
 		getContext: (kind: string) => (kind === 'webgl2' ? gl : null),
-	} as unknown as WebGl2WorkflowBackendOptions['canvas'];
+	} as unknown as NonNullable<WebGl2WorkflowBackendOptions['canvas']>;
 }
 
 function createFakeGl(): WebGL2RenderingContext & { calls: { drawCalls: number; instancedDrawCalls: number } } {

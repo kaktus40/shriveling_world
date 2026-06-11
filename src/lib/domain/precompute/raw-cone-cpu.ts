@@ -28,7 +28,7 @@ export function computeConeAlphaSamplesCpu(
 
 	for (let cityIndex = 0; cityIndex < cityCount; cityIndex += 1) {
 		for (let sampleIndex = 0; sampleIndex < options.azimuthSampleCount; sampleIndex += 1) {
-			const azimuthRadians = (sampleIndex * TWO_PI) / options.azimuthSampleCount;
+			const azimuthRadians = getRawConeAzimuthRadians(sampleIndex, options.azimuthSampleCount);
 			const alphaOffset = cityIndex * options.azimuthSampleCount + sampleIndex;
 			coneAlphaRadians[alphaOffset] = selectConeAlpha(dynamicTown, cityIndex, azimuthRadians, options);
 		}
@@ -66,11 +66,12 @@ export function computeRawConePrecomputeCpu(
 		for (let sampleIndex = 0; sampleIndex < alphaSamples.azimuthSampleCount; sampleIndex += 1) {
 			const sampleOffset = cityIndex * alphaSamples.azimuthSampleCount + sampleIndex;
 			const alphaRadians = alphaSamples.coneAlphaRadians[sampleOffset];
-			const azimuthRadians = (sampleIndex * TWO_PI) / alphaSamples.azimuthSampleCount;
-			const horizontalLength = options.coneLengthMeters * Math.cos(alphaRadians);
-			const northMeters = horizontalLength * Math.cos(azimuthRadians);
-			const eastMeters = horizontalLength * Math.sin(azimuthRadians);
-			const downMeters = options.coneLengthMeters * Math.sin(alphaRadians);
+			const azimuthRadians = getRawConeAzimuthRadians(sampleIndex, alphaSamples.azimuthSampleCount);
+			const [northMeters, eastMeters, downMeters] = buildRawConeLocalNedDirection(
+				azimuthRadians,
+				alphaRadians,
+				options.coneLengthMeters,
+			);
 			const outputOffset = sampleOffset * RAW_CONE_RIM_ECEF_STRIDE;
 
 			rawConeRimEcef[outputOffset] =
@@ -92,7 +93,54 @@ export function computeRawConePrecomputeCpu(
 		}
 	}
 
-	return { ...alphaSamples, shape: options.shape, coneLengthMeters: options.coneLengthMeters, rawConeRimEcef };
+	return {
+		...alphaSamples,
+		shape: options.shape,
+		coneLengthMeters: options.coneLengthMeters,
+		attenuationRadians: options.attenuationRadians,
+		rawConeRimEcef,
+	};
+}
+
+/**
+ * Returns the canonical azimuth of one raw-cone sample.
+ *
+ * Sample `0` is aligned with local north in the city's NED frame and the
+ * samples then rotate toward local east.
+ */
+export function getRawConeAzimuthRadians(sampleIndex: number, azimuthSampleCount: number): number {
+	if (!Number.isSafeInteger(sampleIndex) || sampleIndex < 0 || sampleIndex >= azimuthSampleCount) {
+		throw new RangeError('sampleIndex must be a valid raw-cone azimuth sample index');
+	}
+	if (!Number.isSafeInteger(azimuthSampleCount) || azimuthSampleCount < 3) {
+		throw new RangeError('azimuthSampleCount must be a safe integer greater than or equal to 3');
+	}
+	return (sampleIndex * TWO_PI) / azimuthSampleCount;
+}
+
+/**
+ * Builds one local raw-cone direction in the city's NED frame.
+ *
+ * Azimuth 0 is the local north bearing in the horizontal plane. The returned
+ * vector still carries the alpha-dependent downward component of the cone.
+ */
+export function buildRawConeLocalNedDirection(
+	azimuthRadians: number,
+	alphaRadians: number,
+	coneLengthMeters: number,
+): readonly [northMeters: number, eastMeters: number, downMeters: number] {
+	if (!Number.isFinite(azimuthRadians) || !Number.isFinite(alphaRadians) || !Number.isFinite(coneLengthMeters)) {
+		throw new RangeError('azimuthRadians, alphaRadians, and coneLengthMeters must be finite');
+	}
+	if (coneLengthMeters <= 0) {
+		throw new RangeError('coneLengthMeters must be strictly positive');
+	}
+	const horizontalLength = coneLengthMeters * Math.cos(alphaRadians);
+	return [
+		horizontalLength * Math.cos(azimuthRadians),
+		horizontalLength * Math.sin(azimuthRadians),
+		coneLengthMeters * Math.sin(alphaRadians),
+	];
 }
 
 function selectConeAlpha(

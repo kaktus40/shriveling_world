@@ -66,11 +66,14 @@ Pour chaque bloc, une enveloppe conservatrice fournit une borne inferieure
 `blockEntryT`. Le bloc peut etre ignore sans perdre d'intersection lorsque:
 
 ```text
-blockEntryT >= bestT
+blockEntryT > bestT + epsilon
 ```
 
 Le parcours peut etre ordonne par probabilite, mais l'elimination repose
 uniquement sur cette borne geometrique.
+
+La variante CPU conservatrice associe deja cette borne a des blocs contigus
+pour mesurer le taux de rejection sans diverger de l'oracle exhaustif.
 
 ## Cas Limites Dans Le Repere Local De B
 
@@ -122,7 +125,7 @@ zones rapides eloignees et les longues portions Road peuvent etre regroupees
 en blocs. Elles ne sont ignorees que lorsque leur borne conservatrice respecte:
 
 ```text
-blockEntryT >= bestT
+blockEntryT > bestT + epsilon
 ```
 
 Le parametre definissant le « voisinage » de `phiB0` ne doit pas etre choisi

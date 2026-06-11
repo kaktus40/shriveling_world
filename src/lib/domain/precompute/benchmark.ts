@@ -15,11 +15,13 @@ import {
 } from './dynamic-town-cpu';
 import { computeConeAlphaSamplesCpu, computeRawConePrecomputeCpu } from './raw-cone-cpu';
 import {
+	computeConeIntersectionAlphaAwareBlockPrunedCpu,
 	computeConeIntersectionAlphaAwareOrderCpu,
 	computeConeIntersectionOracleCpu,
 	computeConeIntersectionSymmetricOrderCpu,
 } from './cone-intersection-cpu';
 import type {
+	AlphaAwareBlockPrunedConeIntersectionOptions,
 	AlphaAwareConeIntersectionOptions,
 	ConeIntersectionStaticInput,
 	DynamicTownPrecompute,
@@ -46,7 +48,8 @@ export type RawConeBenchmarkPhase = 'raw-cone-alphas' | 'raw-cone-total';
 export type ConeIntersectionBenchmarkPhase =
 	| 'cone-intersection-exhaustive'
 	| 'cone-intersection-symmetric-order'
-	| 'cone-intersection-alpha-aware-order';
+	| 'cone-intersection-alpha-aware-order'
+	| 'cone-intersection-alpha-aware-block-pruned';
 
 /** Stable phase names shared by current and future compute backends. */
 export type ComputeBenchmarkPhase =
@@ -154,6 +157,10 @@ export interface ConeIntersectionBenchmarkReport {
 	priorityFastFaceCount?: number;
 	/** Number of final winning faces found inside their priority window. */
 	priorityWinningFaceCount?: number;
+	/** Total number of conservative blocks visited by the pruning strategy. */
+	blockCount?: number;
+	/** Total number of conservative blocks rejected by the pruning strategy. */
+	prunedBlockCount?: number;
 	/** Number of measured executions. */
 	measurementIterations: number;
 	/** Intersection strategy measurements. */
@@ -377,6 +384,44 @@ export function benchmarkConeIntersectionAlphaAwareOrderCpu(
 		priorityFaceCount: reference.priorityFaceCounts.reduce((sum, count) => sum + count, 0),
 		priorityFastFaceCount: reference.priorityFastFaceCounts.reduce((sum, count) => sum + count, 0),
 		priorityWinningFaceCount: reference.winningFacePriorityFlags.reduce((sum, flag) => sum + flag, 0),
+		measurementIterations,
+		phases,
+	};
+}
+
+/** Benchmarks exhaustive face tests ordered by conservative alpha-aware blocks. */
+export function benchmarkConeIntersectionAlphaAwareBlockPrunedCpu(
+	staticInput: SymmetricConeIntersectionStaticInput,
+	rawCones: RawConePrecompute,
+	options: AlphaAwareBlockPrunedConeIntersectionOptions,
+	benchmarkOptions: ComputeBenchmarkOptions = {},
+): ConeIntersectionBenchmarkReport {
+	const warmupIterations = normalizeIterationCount(benchmarkOptions.warmupIterations ?? 2, 'warmupIterations', true);
+	const measurementIterations = normalizeIterationCount(
+		benchmarkOptions.measurementIterations ?? 10,
+		'measurementIterations',
+		false,
+	);
+	const clock = benchmarkOptions.clock ?? (() => performance.now());
+	const reference = computeConeIntersectionAlphaAwareBlockPrunedCpu(staticInput, rawCones, options);
+	const winningOrders = Array.from(reference.winningFaceVisitOrders).filter((order) => order !== 0xffffffff);
+	const phases = [
+		measureCpuPhase('cone-intersection-alpha-aware-block-pruned', warmupIterations, measurementIterations, clock, () => {
+			computeConeIntersectionAlphaAwareBlockPrunedCpu(staticInput, rawCones, options);
+		}),
+	];
+
+	return {
+		profile: 'cpu',
+		cityCount: rawCones.cityCount,
+		azimuthSampleCount: rawCones.azimuthSampleCount,
+		testedFaceCount: reference.testedFaceCounts.reduce((sum, count) => sum + count, 0),
+		winningFaceVisitOrder: summarizeVisitOrders(winningOrders),
+		priorityFaceCount: reference.priorityFaceCounts.reduce((sum, count) => sum + count, 0),
+		priorityFastFaceCount: reference.priorityFastFaceCounts.reduce((sum, count) => sum + count, 0),
+		priorityWinningFaceCount: reference.winningFacePriorityFlags.reduce((sum, flag) => sum + flag, 0),
+		blockCount: reference.blockCounts.reduce((sum, count) => sum + count, 0),
+		prunedBlockCount: reference.prunedBlockCounts.reduce((sum, count) => sum + count, 0),
 		measurementIterations,
 		phases,
 	};

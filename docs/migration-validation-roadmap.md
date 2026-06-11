@@ -1296,7 +1296,9 @@ Etat reel observe ulterieurement:
   `boundary-algebre` en transform feedback, comparaison runtime optionnelle
   des buffers relus et delegation du reste au CPU de reference;
 - un premier squelette WebGPU existe deja avec compilation du premier kernel
-  metier `city-ned2ecef` et delegation temporaire au CPU de reference;
+  metier `city-ned2ecef`, du raycast GeoJSON `boundary-algebre` et de la
+  selection d'alpha des raw cones, tout en deleguant les autres etapes au CPU
+  de reference;
 - l'ecran `/workspace` peut deja consommer le backend CPU de reference et
   afficher la selection de profil ainsi que le benchmark par etape;
 - le backend WebGPU est maintenant branche sur le meme contrat, mais son
@@ -1306,15 +1308,17 @@ Etat reel observe ulterieurement:
 
 Conclusion:
 
-- `M6` est `in_progress`, avec le socle CPU et le selecteur deja en place.
+- `M6` est `in_progress`, avec le socle CPU, le selecteur et les premiers
+  kernels WebGL2/WebGPU deja en place.
 
 ## M7: Portage WGSL / Backend WebGPU Des Passes Existantes
 
-Statut: `todo`
+Statut: `in_progress`
 
 Objectif:
 
-Porter les calculs intensifs historiques vers le backend WebGPU/WGSL.
+Porter les calculs intensifs historiques vers le backend WebGPU/WGSL, puis
+aligner les fallback WebGL2 sur le meme contrat quand cela reste pertinent.
 
 Passes prioritaires:
 
@@ -1330,6 +1334,7 @@ Travail attendu:
 - remplacer les textures de donnees par des storage buffers;
 - expliciter les uniforms dans des structs WGSL;
 - brancher les passes sur l'orchestrateur de M6;
+- porter la selection d'alpha des raw cones;
 - ajouter des tests de comparaison avec les snapshots M1;
 - mesurer les performances;
 - garder le backend CPU comme oracle et le backend WebGL2 comme fallback.
@@ -1340,6 +1345,8 @@ Critere d'acceptation:
 - les passes interactives peuvent etre lancees sans reconstruire le precalcul;
 - le backend WebGPU s'integre dans la chaine de fallback sans modifier les
   contrats de buffers;
+- la selection d'alpha des raw cones est benchmarkee sur le meme contrat que
+  la reference CPU;
 - les readbacks CPU ne sont utilises que pour tests/debug.
 
 Validation:
@@ -1394,8 +1401,11 @@ Travail realise:
 - fourchette prioritaire CPU alpha-aware associant couloir court, faces de
   bord et supports rapides dans un voisinage bilateral configurable;
 - parcours alpha-aware encore exhaustif et strictement conforme a l'oracle;
+- reference CPU conservatrice qui groupe les faces en blocs et rejette un
+  bloc uniquement lorsque `blockEntryT > bestT + epsilon`;
 - diagnostics de taille de fourchette et d'appartenance de la face gagnante;
 - benchmark stable `cone-intersection-alpha-aware-order`;
+- benchmark stable `cone-intersection-alpha-aware-block-pruned`;
 - contrat de cache memoire d'instance par annee pour
   `coneIntersectionDistanceMeters`;
 - resolution angulaire fixe a `1 deg` et cache vide au changement de dataset;
@@ -1412,11 +1422,13 @@ Etat de reflexion valide avant implementation de la filtration:
   fourchette prioritaire;
 - la fourchette candidate unit le couloir `phiB0 -> gammaBA`, ses faces de
   bord et les supports rapides proches ou chevauchants;
-- les longues plages Road et les supports rapides eloignes seront regroupes
-  en blocs conservateurs;
-- aucune face ou bloc ne sera elimine uniquement par l'heuristique;
+- les longues plages Road et les supports rapides eloignes sont regroupes en
+  blocs conservateurs;
+- la reference CPU conserve exactement l'oracle en rejettant un bloc
+  seulement lorsque sa borne `blockEntryT` ne peut plus battre `bestT`
+  au-dela d'une tolerance numerique;
 - le rejet de production exige une borne geometrique
-  `blockEntryT >= bestT`;
+  `blockEntryT > bestT + epsilon`;
 - toutes les strategies, parametres de voisinage et combinaisons de filtres
   seront benchmarkes sans cache contre l'oracle;
 - le cache d'instance par annee sera mesure separement et ne stockera que

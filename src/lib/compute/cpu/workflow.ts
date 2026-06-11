@@ -185,10 +185,10 @@ export class CpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			dynamicTown,
 			rawCones,
 			coneIntersections,
-			diagnostics: [
-				...tagDiagnostics(diagnostics, this.profile),
-				...tagDiagnostics(boundaryDiagnostics, this.profile),
-			],
+		diagnostics: [
+			...tagDiagnostics(diagnostics, this.profile),
+			...tagDiagnostics(boundaryDiagnostics, this.profile),
+		],
 			benchmark,
 		};
 	}
@@ -272,7 +272,10 @@ function resolveGeojsonSources(
 	});
 }
 
-function tagDiagnostics<T extends { profile?: string }>(diagnostics: readonly T[], profile: string): T[] {
+function tagDiagnostics<T extends { severity: 'warning' | 'error'; code: string; profile?: string }>(
+	diagnostics: readonly T[],
+	profile: string,
+): T[] {
 	return diagnostics.map((diagnostic) =>
 		diagnostic.profile === profile ? diagnostic : { ...diagnostic, profile },
 	);

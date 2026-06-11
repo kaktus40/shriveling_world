@@ -1,3 +1,4 @@
+import rawConeAlphasShaderSource from '../kernels/raw-cone-alphas.wgsl?raw';
 import boundaryAlgebreShaderSource from '../kernels/boundary-algebre.wgsl?raw';
 import cityNed2EcefShaderSource from '../kernels/city-ned2ecef.wgsl?raw';
 import {
@@ -7,6 +8,7 @@ import {
 import {
 	createBoundaryAlgebreDispatchResources,
 	createCityNed2EcefDispatchResources,
+	createRawConeAlphaDispatchResources,
 } from './buffers';
 import {
 	compareFloat32Buffers,
@@ -75,6 +77,12 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			compareDiagnostics.push(...cityMatrixPass.diagnostics);
 		}
 
+		if (result.rawCones) {
+			const rawConeAlphaPass = await this.runRawConeAlphaPass(context, result);
+			extraTimings.push(rawConeAlphaPass.timing);
+			compareDiagnostics.push(...rawConeAlphaPass.diagnostics);
+		}
+
 		for (const geojsonRun of result.geojsonRuns) {
 			const boundaryPass = await this.runBoundaryRaycastPass(context, result, geojsonRun);
 			extraTimings.push(boundaryPass.timing);
@@ -127,6 +135,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		}
 		const device = await this.ensureDevice();
 		const cityMatrixModule = device.createShaderModule({ code: cityNed2EcefShaderSource });
+		const rawConeAlphaModule = device.createShaderModule({ code: rawConeAlphasShaderSource });
 		const boundaryModule = device.createShaderModule({ code: boundaryAlgebreShaderSource });
 		this.#resources = {
 			buffers: [],
@@ -150,10 +159,20 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 						workgroupSize: [1, 1, 1],
 						notes: ['First real WGSL GeoJSON kernel: raycast the retained contours against azimuth samples.'],
 					},
+					{
+						name: 'raw-cone-alphas',
+						stage: 'raw-cones-precompute',
+						profile: 'webgpu',
+						inputs: [],
+						outputs: [],
+						workgroupSize: [1, 1, 1],
+						notes: ['First real WGSL raw-cone kernel: select cone alphas per city and azimuth sample.'],
+					},
 				],
 			},
 			shaderModuleCache: new Map([
 				['city-ned2ecef', cityMatrixModule],
+				['raw-cone-alphas', rawConeAlphaModule],
 				['boundary-algebre', boundaryModule],
 			]),
 			pipelineCache: new Map(),
@@ -246,6 +265,117 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 					'webgpu-city-matrices',
 					result.staticTown?.cityNed2EcefMatrices ?? new Float32Array(cityCount * 16),
 					cityMatricesReadback,
+				),
+			);
+		}
+
+		return { timing, diagnostics };
+	}
+
+	private async runRawConeAlphaPass(
+		context: WebGpuComputeContext,
+		result: ComputeWorkflowResult,
+	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
+		const rawCones = result.rawCones;
+		const dynamicTown = result.dynamicTown;
+		if (!rawCones || !dynamicTown) {
+			return {
+				timing: {
+					stage: 'raw-cones-precompute',
+					scope: 'precompute',
+					profile: 'webgpu',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+				diagnostics: [],
+			};
+		}
+
+		const cityCount = rawCones.cityCount;
+		const azimuthSampleCount = rawCones.azimuthSampleCount;
+		if (cityCount <= 0 || azimuthSampleCount <= 0) {
+			return {
+				timing: {
+					stage: 'raw-cones-precompute',
+					scope: 'precompute',
+					profile: 'webgpu',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+				diagnostics: [],
+			};
+		}
+
+		const usage = getGpuBufferUsage();
+		const resources = createRawConeAlphaDispatchResources(
+			context.device,
+			usage,
+			{
+				cityLinkOffsets: dynamicTown.cityLinkOffsets,
+				cityLinkCounts: dynamicTown.cityLinkCounts,
+				cityLinkAzimuthRadians: dynamicTown.cityLinkAzimuthRadians,
+				cityLinkAlphaRadians: dynamicTown.cityLinkAlphaRadians,
+				cityFastestTerrestrialAlphaRadians: dynamicTown.cityFastestTerrestrialAlphaRadians,
+				cityCount,
+				azimuthSampleCount,
+				roadAlphaRadians: dynamicTown.roadAlphaRadians,
+				attenuationRadians: rawCones.attenuationRadians ?? 0,
+				shape: rawCones.shape,
+			},
+		);
+		const resourcesCache = await this.ensureResources();
+		const pipeline = await context.device.createComputePipelineAsync({
+			layout: 'auto',
+			compute: {
+				module:
+					resourcesCache.shaderModuleCache?.get('raw-cone-alphas') ??
+					context.device.createShaderModule({ code: rawConeAlphasShaderSource }),
+				entryPoint: 'main',
+			},
+		});
+		const bindGroup = context.device.createBindGroup({
+			layout: pipeline.getBindGroupLayout(0),
+			entries: [
+				{ binding: 0, resource: { buffer: resources.cityLinkOffsets.buffer } },
+				{ binding: 1, resource: { buffer: resources.cityLinkCounts.buffer } },
+				{ binding: 2, resource: { buffer: resources.cityLinkAzimuthRadians.buffer } },
+				{ binding: 3, resource: { buffer: resources.cityLinkAlphaRadians.buffer } },
+				{ binding: 4, resource: { buffer: resources.cityFastestTerrestrialAlphaRadians.buffer } },
+				{ binding: 5, resource: { buffer: resources.uniform.buffer } },
+				{ binding: 6, resource: { buffer: resources.coneAlphaRadians.buffer } },
+			],
+		});
+
+		const { timing } = await measureAsyncStage(
+			'raw-cones-precompute',
+			'precompute',
+			'webgpu',
+			async () => {
+				const encoder = context.device.createCommandEncoder();
+				const pass = encoder.beginComputePass();
+				pass.setPipeline(pipeline);
+				pass.setBindGroup(0, bindGroup);
+				pass.dispatchWorkgroups(azimuthSampleCount, cityCount, 1);
+				pass.end();
+				context.queue.submit([encoder.finish()]);
+				return undefined;
+			},
+		);
+
+		const diagnostics: DatasetDiagnostic[] = [];
+		const alphaReadback = await readBackFloat32Buffer(
+			context.device,
+			resources.coneAlphaRadians.buffer,
+			cityCount * azimuthSampleCount,
+		);
+		if (alphaReadback) {
+			diagnostics.push(
+				...compareFloat32Buffers(
+					'webgpu-raw-cone-alpha',
+					rawCones.coneAlphaRadians,
+					alphaReadback,
 				),
 			);
 		}
@@ -430,7 +560,10 @@ function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport, extraTimings: 
 	};
 }
 
-function tagDiagnostics<T extends { profile?: string }>(diagnostics: readonly T[], profile: string): T[] {
+function tagDiagnostics<T extends { severity: 'warning' | 'error'; code: string; profile?: string }>(
+	diagnostics: readonly T[],
+	profile: string,
+): T[] {
 	return diagnostics.map((diagnostic) =>
 		diagnostic.profile === profile ? diagnostic : { ...diagnostic, profile },
 	);
@@ -448,6 +581,7 @@ function getGpuBufferUsage(): {
 	readonly COPY_DST: number;
 	readonly COPY_SRC: number;
 	readonly UNIFORM: number;
+	readonly MAP_READ: number;
 } {
 	const usage = (globalThis as typeof globalThis & {
 		GPUBufferUsage?: {
@@ -455,6 +589,7 @@ function getGpuBufferUsage(): {
 			COPY_DST: number;
 			COPY_SRC: number;
 			UNIFORM: number;
+			MAP_READ: number;
 		};
 	}).GPUBufferUsage;
 	return (

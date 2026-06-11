@@ -1387,7 +1387,7 @@ sans reproduire le nom de fichier a l'identique.
 | `city.frag` / passe `static-town` | Preparer les invariants fixes des villes | positions ville, N-vectors, couplages de villes, resolutions d'azimut | `cityNed2EcefMatrices`, invariants de paires, index de villes | Cette passe fixe les structures reutilisees ensuite par tous les profils. |
 | `boundaryAlgebre.frag` | Identifier la limite geographique valide pour une ville et un azimut | `u_towns`, `u_countries`, limites GeoJSON, azimuts echantillonnes | limites cartographiques, limites ECEF, index de contour associe | Elle remplace la logique de raycast pays et prepare les contours pour la decoupe suivante. |
 | `countryMeshShader.frag` | Convertir les contours pays en maillage affichable | polygones GeoJSON, contours triangules, couches basse/haute | vertices, normales, uvs, indexes, mesh pays | Passe de rendu, mais utile pour valider les donnees GeoJSON et le maillage des pays. |
-| `rawCones.frag` | Generer les cones bruts avant toute intersection | villes statiques, villes dynamiques, alphas, longueurs, intervalles d'azimut | `RawConeBuffer` | Une invocation correspond a un couple `(ville, azimut)`. C'est la passe la plus parallele. |
+| `rawCones.frag` | Generer les cones bruts avant toute intersection | villes statiques, villes dynamiques, alphas, longueurs, intervalles d'azimut | `RawConeBuffer` | Une invocation correspond a un couple `(ville, azimut)`. La selection d'alpha est la partie la plus parallele et la plus interessante a accelerer. |
 | `ciseledCones.frag` | Cisailler les cones bruts sur les cones voisins et les supports choisis | `RawConeBuffer`, voisins statiques, BVH circulaire, invariants de paires | `CiseledConeBuffer`, diagnostics de coupe, `t` retenus | Passe critique de filtrage. Elle garde la valeur minimale utile sans changer le contrat geometrique. |
 | `finalCones.frag` | Finaliser la geometrie decoupee | cones ciseles, limites pays, acceptation du clipping | `FinalConeBuffer` | Cette passe applique la reduction finale et peut fusionner les minima cone/cone et cone/pays. |
 | `displayedCones.frag` | Transformer les cones finaux en donnees de rendu | `FinalConeBuffer`, conventions renderer | vertices, couleurs, attributs de dessin | Derniere passe avant Babylon ou un autre moteur de rendu. |
@@ -1466,6 +1466,19 @@ interface RawConePrecompute {
 - l'attenuation complexe reproduit les deux voisins circulaires, le retour a
   Road et l'interpolation `smoothstep` du shader historique;
 - les bornes angulaires utilisent une tolerance compatible Float32.
+
+### Convention d'azimut des raw cones
+
+Le contrat des raw cones suit le repere NED local de chaque ville:
+
+- `sampleIndex = 0` correspond au cap nord local dans le plan horizontal;
+- l'azimut augmente ensuite vers l'est;
+- la direction complete du rayon reste inclinee par l'alpha courant;
+- la composante verticale locale reste donc active meme pour `sampleIndex = 0`.
+
+Autrement dit, le rayon de sample zero n'est pas un rayon purement horizontal:
+il porte toujours la composante `downMeters` issue de l'alpha. Cette
+convention est commune au CPU, au WebGL2 et au WebGPU.
 
 ```plantuml
 @startuml

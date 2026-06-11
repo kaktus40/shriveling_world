@@ -2,6 +2,8 @@ import {
 	CITY_NED2ECEF_MATRIX_STRIDE,
 	CITY_PAIR_INVARIANT_STRIDE,
 	UNUSED_INDEX,
+	type AlphaAwareBlockPrunedConeIntersectionOptions,
+	type AlphaAwareBlockPrunedConeIntersectionPrecompute,
 	type AlphaAwareConeIntersectionOptions,
 	type AlphaAwareConeIntersectionPrecompute,
 	type ConeIntersectionOraclePrecompute,
@@ -10,7 +12,7 @@ import {
 	type SymmetricConeIntersectionPrecompute,
 	type SymmetricConeIntersectionStaticInput,
 } from './types';
-import { RAW_CONE_RIM_ECEF_STRIDE } from './raw-cone-cpu';
+import { RAW_CONE_RIM_ECEF_STRIDE, getRawConeAzimuthRadians } from './raw-cone-cpu';
 import { PI, TWO_PI } from '../../shared';
 
 /** Default algebraic tolerance used to reject parallel or degenerate faces. */
@@ -230,6 +232,52 @@ export function buildSymmetricFaceTraversal(
 	return traversal;
 }
 
+/**
+ * Returns every face index once, alternating around the symmetric ray.
+ *
+ * The first direction follows the shortest signed route from `phiB0` toward
+ * `gammaBA`. The traversal then alternates on both sides of `phiB0` so the
+ * priority zone remains centered while still being exhaustive.
+ */
+export function buildAlternatingFaceTraversal(
+	phiB0Radians: number,
+	gammaBARadians: number,
+	azimuthSampleCount: number,
+): Uint32Array {
+	if (
+		!Number.isFinite(phiB0Radians) ||
+		!Number.isFinite(gammaBARadians) ||
+		!Number.isSafeInteger(azimuthSampleCount) ||
+		azimuthSampleCount < 3
+	) {
+		throw new RangeError('alternating traversal requires finite angles and at least three azimuth samples');
+	}
+	const sampleStepRadians = TWO_PI / azimuthSampleCount;
+	const normalizedPhiB0 = wrapPositive(phiB0Radians);
+	const startFaceIndex = Math.min(Math.floor(normalizedPhiB0 / sampleStepRadians), azimuthSampleCount - 1);
+	const direction = wrapSigned(gammaBARadians - normalizedPhiB0) < 0 ? -1 : 1;
+	const traversal = new Uint32Array(azimuthSampleCount);
+	let outputIndex = 0;
+	traversal[outputIndex] = startFaceIndex;
+	outputIndex += 1;
+	for (let offset = 1; outputIndex < azimuthSampleCount; offset += 1) {
+		const forwardFaceIndex = positiveModulo(startFaceIndex + direction * offset, azimuthSampleCount);
+		if (forwardFaceIndex !== startFaceIndex) {
+			traversal[outputIndex] = forwardFaceIndex;
+			outputIndex += 1;
+		}
+		if (outputIndex >= azimuthSampleCount) {
+			break;
+		}
+		const backwardFaceIndex = positiveModulo(startFaceIndex - direction * offset, azimuthSampleCount);
+		if (backwardFaceIndex !== startFaceIndex && backwardFaceIndex !== forwardFaceIndex) {
+			traversal[outputIndex] = backwardFaceIndex;
+			outputIndex += 1;
+		}
+	}
+	return traversal;
+}
+
 /** Characterization of one exhaustive alpha-aware face traversal. */
 export interface AlphaAwareFaceTraversal {
 	/** Every face exactly once, with priority-window faces first. */
@@ -277,7 +325,8 @@ export function classifyFastConeFaces(
  * - the two exterior faces touching the corridor boundaries;
  * - fast faces in the bilateral neighborhood of `phiB0`.
  *
- * Remaining faces follow symmetric order. No face is removed.
+ * Remaining faces follow an alternating left/right order around `phiB0`.
+ * No face is removed.
  */
 export function buildAlphaAwareFaceTraversal(
 	phiB0Radians: number,
@@ -350,7 +399,7 @@ function buildAlphaAwareFaceTraversalFromFastFaces(
 	const traversal = new Uint32Array(faceCount);
 	traversal.set(priority);
 	let outputIndex = priority.length;
-	for (const faceIndex of buildSymmetricFaceTraversal(phiB0Radians, gammaBARadians, faceCount)) {
+	for (const faceIndex of buildAlternatingFaceTraversal(phiB0Radians, gammaBARadians, faceCount)) {
 		if (selected[faceIndex] === 0) {
 			traversal[outputIndex] = faceIndex;
 			outputIndex += 1;
@@ -404,7 +453,7 @@ export function computeConeIntersectionSymmetricOrderCpu(
 		for (let sampleIndex = 0; sampleIndex < azimuthSampleCount; sampleIndex += 1) {
 			const rayIndex = cityAIndex * azimuthSampleCount + sampleIndex;
 			const rimOffset = rayIndex * RAW_CONE_RIM_ECEF_STRIDE;
-			const phiARadians = (sampleIndex * TWO_PI) / azimuthSampleCount;
+			const phiARadians = getRawConeAzimuthRadians(sampleIndex, azimuthSampleCount);
 			rayDirection[0] = rawConeRimEcef[rimOffset] - rayOrigin[0];
 			rayDirection[1] = rawConeRimEcef[rimOffset + 1] - rayOrigin[1];
 			rayDirection[2] = rawConeRimEcef[rimOffset + 2] - rayOrigin[2];
@@ -541,7 +590,7 @@ export function computeConeIntersectionAlphaAwareOrderCpu(
 		for (let sampleIndex = 0; sampleIndex < azimuthSampleCount; sampleIndex += 1) {
 			const rayIndex = cityAIndex * azimuthSampleCount + sampleIndex;
 			const rimOffset = rayIndex * RAW_CONE_RIM_ECEF_STRIDE;
-			const phiARadians = (sampleIndex * TWO_PI) / azimuthSampleCount;
+			const phiARadians = getRawConeAzimuthRadians(sampleIndex, azimuthSampleCount);
 			rayDirection[0] = rawConeRimEcef[rimOffset] - rayOrigin[0];
 			rayDirection[1] = rawConeRimEcef[rimOffset + 1] - rayOrigin[1];
 			rayDirection[2] = rawConeRimEcef[rimOffset + 2] - rayOrigin[2];
@@ -630,6 +679,188 @@ export function computeConeIntersectionAlphaAwareOrderCpu(
 	};
 }
 
+/**
+ * Clips cones exhaustively while pruning conservative alpha-aware blocks.
+ *
+ * The geometry remains identical to the oracle because a block is rejected
+ * only when its conservative entry bound cannot improve the current best
+ * distance. The output keeps the same diagnostics as the alpha-aware order
+ * reference and adds block visitation counters for benchmarks.
+ */
+export function computeConeIntersectionAlphaAwareBlockPrunedCpu(
+	staticInput: SymmetricConeIntersectionStaticInput,
+	rawCones: RawConePrecompute,
+	options: AlphaAwareBlockPrunedConeIntersectionOptions,
+): AlphaAwareBlockPrunedConeIntersectionPrecompute {
+	validateInputs(staticInput, rawCones);
+	validatePairInputs(staticInput, rawCones.cityCount);
+	validateAlphaAwareValues(
+		rawCones.azimuthSampleCount,
+		options.roadAlphaRadians,
+		options.bilateralNeighborhoodFaceCount,
+		options.alphaEpsilonRadians ?? ALPHA_SUPPORT_EPSILON_RADIANS,
+	);
+	validateBlockPruningValues(options.blockFaceCount);
+	const pruningEnabled = options.pruningEnabled ?? true;
+	const { cityCount, azimuthSampleCount, rawConeRimEcef } = rawCones;
+	const rayCount = cityCount * azimuthSampleCount;
+	const coneIntersectionDistanceMeters = new Float32Array(rayCount);
+	const ciseledConeRimEcef = new Float32Array(rawConeRimEcef);
+	const winningNeighborCityIndexes = new Uint32Array(rayCount);
+	const winningFaceIndexes = new Uint32Array(rayCount);
+	const winningFaceVisitOrders = new Uint32Array(rayCount);
+	const testedFaceCounts = new Uint32Array(rayCount);
+	const priorityFaceCounts = new Uint32Array(rayCount);
+	const priorityFastFaceCounts = new Uint32Array(rayCount);
+	const winningFacePriorityFlags = new Uint8Array(rayCount);
+	const blockCounts = new Uint32Array(rayCount);
+	const prunedBlockCounts = new Uint32Array(rayCount);
+	winningNeighborCityIndexes.fill(UNUSED_INDEX);
+	winningFaceIndexes.fill(UNUSED_INDEX);
+	winningFaceVisitOrders.fill(UNUSED_INDEX);
+
+	const fastFacesByCity = new Uint8Array(rayCount);
+	for (let cityIndex = 0; cityIndex < cityCount; cityIndex += 1) {
+		const alphaOffset = cityIndex * azimuthSampleCount;
+		fastFacesByCity.set(
+			classifyFastConeFaces(
+				rawCones.coneAlphaRadians.subarray(alphaOffset, alphaOffset + azimuthSampleCount),
+				options.roadAlphaRadians,
+				options.alphaEpsilonRadians ?? ALPHA_SUPPORT_EPSILON_RADIANS,
+			),
+			alphaOffset,
+		);
+	}
+
+	const rayOrigin: [number, number, number] = [0, 0, 0];
+	const rayDirection: [number, number, number] = [0, 0, 0];
+	const triangleSummit: [number, number, number] = [0, 0, 0];
+	const triangleRim0: [number, number, number] = [0, 0, 0];
+	const triangleRim1: [number, number, number] = [0, 0, 0];
+
+	for (let cityAIndex = 0; cityAIndex < cityCount; cityAIndex += 1) {
+		readCitySummit(staticInput.cityNed2EcefMatrices, cityAIndex, rayOrigin);
+		const candidateOffset = cityAIndex * staticInput.neighborLimit;
+		const candidateCount = staticInput.overlapCandidateCounts[cityAIndex];
+
+		for (let sampleIndex = 0; sampleIndex < azimuthSampleCount; sampleIndex += 1) {
+			const rayIndex = cityAIndex * azimuthSampleCount + sampleIndex;
+			const rimOffset = rayIndex * RAW_CONE_RIM_ECEF_STRIDE;
+			const phiARadians = getRawConeAzimuthRadians(sampleIndex, azimuthSampleCount);
+			rayDirection[0] = rawConeRimEcef[rimOffset] - rayOrigin[0];
+			rayDirection[1] = rawConeRimEcef[rimOffset + 1] - rayOrigin[1];
+			rayDirection[2] = rawConeRimEcef[rimOffset + 2] - rayOrigin[2];
+			const rawDistanceMeters = Math.hypot(rayDirection[0], rayDirection[1], rayDirection[2]);
+			if (!(rawDistanceMeters > RAY_ORIGIN_EPSILON_METERS)) {
+				throw new RangeError('raw cone rays must have a strictly positive finite length');
+			}
+			rayDirection[0] /= rawDistanceMeters;
+			rayDirection[1] /= rawDistanceMeters;
+			rayDirection[2] /= rawDistanceMeters;
+			let bestDistanceMeters = rawDistanceMeters;
+
+			for (let candidateIndex = 0; candidateIndex < candidateCount; candidateIndex += 1) {
+				const cityBIndex = staticInput.overlapCandidates[candidateOffset + candidateIndex];
+				const pairOffset = (cityAIndex * cityCount + cityBIndex) * CITY_PAIR_INVARIANT_STRIDE;
+				const gammaABRadians = staticInput.cityPairInvariants[pairOffset];
+				const gammaBARadians = staticInput.cityPairInvariants[pairOffset + 1];
+				const phiB0Radians = wrapPositive(gammaBARadians - wrapSigned(phiARadians - gammaABRadians));
+				const alphaOffset = cityBIndex * azimuthSampleCount;
+				const traversal = buildAlphaAwareFaceTraversalFromFastFaces(
+					phiB0Radians,
+					gammaBARadians,
+					fastFacesByCity.subarray(alphaOffset, alphaOffset + azimuthSampleCount),
+					options.bilateralNeighborhoodFaceCount,
+				);
+				priorityFaceCounts[rayIndex] += traversal.priorityFaceCount;
+				priorityFastFaceCounts[rayIndex] += traversal.priorityFastFaceCount;
+				readCitySummit(staticInput.cityNed2EcefMatrices, cityBIndex, triangleSummit);
+
+				for (let blockStartIndex = 0; blockStartIndex < traversal.faceIndexes.length; blockStartIndex += options.blockFaceCount) {
+					const blockEndIndex = Math.min(blockStartIndex + options.blockFaceCount, traversal.faceIndexes.length);
+					blockCounts[rayIndex] += 1;
+					const blockEntryMeters = computeBlockEntryDistanceMeters(
+						rayOrigin,
+						rayDirection,
+						triangleSummit,
+						rawCones,
+						cityBIndex,
+						traversal.faceIndexes,
+						blockStartIndex,
+						blockEndIndex,
+						triangleRim0,
+						triangleRim1,
+					);
+					if (
+						pruningEnabled &&
+						(blockEntryMeters === undefined || blockEntryMeters > bestDistanceMeters + RAY_ORIGIN_EPSILON_METERS)
+					) {
+						prunedBlockCounts[rayIndex] += 1;
+						continue;
+					}
+
+					for (let localVisitIndex = blockStartIndex; localVisitIndex < blockEndIndex; localVisitIndex += 1) {
+						const faceIndex = traversal.faceIndexes[localVisitIndex];
+						const nextFaceIndex = (faceIndex + 1) % azimuthSampleCount;
+						readRawRim(rawCones, cityBIndex, faceIndex, triangleRim0);
+						readRawRim(rawCones, cityBIndex, nextFaceIndex, triangleRim1);
+						testedFaceCounts[rayIndex] += 1;
+						const distanceMeters = intersectRayTriangleDoubleSided(
+							rayOrigin,
+							rayDirection,
+							triangleSummit,
+							triangleRim0,
+							triangleRim1,
+							bestDistanceMeters,
+						);
+						if (
+							distanceMeters !== undefined &&
+							isPreferredIntersection(
+								distanceMeters,
+								cityBIndex,
+								faceIndex,
+								bestDistanceMeters,
+								winningNeighborCityIndexes[rayIndex],
+								winningFaceIndexes[rayIndex],
+							)
+						) {
+							bestDistanceMeters = distanceMeters;
+							winningNeighborCityIndexes[rayIndex] = cityBIndex;
+							winningFaceIndexes[rayIndex] = faceIndex;
+							winningFaceVisitOrders[rayIndex] = testedFaceCounts[rayIndex];
+							winningFacePriorityFlags[rayIndex] = localVisitIndex < traversal.priorityFaceCount ? 1 : 0;
+						}
+					}
+				}
+			}
+
+			coneIntersectionDistanceMeters[rayIndex] = bestDistanceMeters;
+			if (winningNeighborCityIndexes[rayIndex] !== UNUSED_INDEX) {
+				ciseledConeRimEcef[rimOffset] = rayOrigin[0] + rayDirection[0] * bestDistanceMeters;
+				ciseledConeRimEcef[rimOffset + 1] = rayOrigin[1] + rayDirection[1] * bestDistanceMeters;
+				ciseledConeRimEcef[rimOffset + 2] = rayOrigin[2] + rayDirection[2] * bestDistanceMeters;
+				ciseledConeRimEcef[rimOffset + 3] = 1;
+			}
+		}
+	}
+
+	return {
+		cityCount,
+		azimuthSampleCount,
+		coneIntersectionDistanceMeters,
+		ciseledConeRimEcef,
+		winningNeighborCityIndexes,
+		winningFaceIndexes,
+		testedFaceCounts,
+		winningFaceVisitOrders,
+		priorityFaceCounts,
+		priorityFastFaceCounts,
+		winningFacePriorityFlags,
+		blockCounts,
+		prunedBlockCounts,
+	};
+}
+
 function validateInputs(staticInput: ConeIntersectionStaticInput, rawCones: RawConePrecompute): void {
 	if (!Number.isSafeInteger(rawCones.cityCount) || rawCones.cityCount < 0) {
 		throw new RangeError('cityCount must be a non-negative safe integer');
@@ -700,6 +931,85 @@ function validateAlphaAwareValues(
 	if (!Number.isFinite(alphaEpsilonRadians) || alphaEpsilonRadians < 0) {
 		throw new RangeError('alphaEpsilonRadians must be finite and non-negative');
 	}
+}
+
+function validateBlockPruningValues(blockFaceCount: number): void {
+	if (!Number.isSafeInteger(blockFaceCount) || blockFaceCount < 1) {
+		throw new RangeError('blockFaceCount must be a strictly positive safe integer');
+	}
+}
+
+function computeBlockEntryDistanceMeters(
+	rayOrigin: Vector3,
+	rayDirection: Vector3,
+	blockSummit: Vector3,
+	rawCones: RawConePrecompute,
+	cityIndex: number,
+	faceIndexes: ArrayLike<number>,
+	blockStartIndex: number,
+	blockEndIndex: number,
+	triangleRim0: [number, number, number],
+	triangleRim1: [number, number, number],
+): number | undefined {
+	let minX = blockSummit[0];
+	let minY = blockSummit[1];
+	let minZ = blockSummit[2];
+	let maxX = blockSummit[0];
+	let maxY = blockSummit[1];
+	let maxZ = blockSummit[2];
+
+	for (let localVisitIndex = blockStartIndex; localVisitIndex < blockEndIndex; localVisitIndex += 1) {
+		const faceIndex = faceIndexes[localVisitIndex];
+		const nextFaceIndex = (faceIndex + 1) % rawCones.azimuthSampleCount;
+		readRawRim(rawCones, cityIndex, faceIndex, triangleRim0);
+		readRawRim(rawCones, cityIndex, nextFaceIndex, triangleRim1);
+		minX = Math.min(minX, triangleRim0[0], triangleRim1[0]);
+		minY = Math.min(minY, triangleRim0[1], triangleRim1[1]);
+		minZ = Math.min(minZ, triangleRim0[2], triangleRim1[2]);
+		maxX = Math.max(maxX, triangleRim0[0], triangleRim1[0]);
+		maxY = Math.max(maxY, triangleRim0[1], triangleRim1[1]);
+		maxZ = Math.max(maxZ, triangleRim0[2], triangleRim1[2]);
+	}
+
+	return intersectRayAxisAlignedBoundingBoxEntryDistanceMeters(rayOrigin, rayDirection, [minX, minY, minZ], [maxX, maxY, maxZ]);
+}
+
+function intersectRayAxisAlignedBoundingBoxEntryDistanceMeters(
+	rayOrigin: Vector3,
+	rayDirection: Vector3,
+	minCorner: Vector3,
+	maxCorner: Vector3,
+): number | undefined {
+	let entryDistanceMeters = 0;
+	let exitDistanceMeters = Number.POSITIVE_INFINITY;
+
+	for (let axisIndex = 0; axisIndex < 3; axisIndex += 1) {
+		const originComponent = rayOrigin[axisIndex];
+		const directionComponent = rayDirection[axisIndex];
+		const minimumComponent = minCorner[axisIndex];
+		const maximumComponent = maxCorner[axisIndex];
+
+		if (Math.abs(directionComponent) <= RAY_ORIGIN_EPSILON_METERS) {
+			if (originComponent < minimumComponent || originComponent > maximumComponent) {
+				return undefined;
+			}
+			continue;
+		}
+
+		const inverseDirection = 1 / directionComponent;
+		let nearPlaneDistance = (minimumComponent - originComponent) * inverseDirection;
+		let farPlaneDistance = (maximumComponent - originComponent) * inverseDirection;
+		if (nearPlaneDistance > farPlaneDistance) {
+			[nearPlaneDistance, farPlaneDistance] = [farPlaneDistance, nearPlaneDistance];
+		}
+		entryDistanceMeters = Math.max(entryDistanceMeters, nearPlaneDistance);
+		exitDistanceMeters = Math.min(exitDistanceMeters, farPlaneDistance);
+		if (entryDistanceMeters > exitDistanceMeters) {
+			return undefined;
+		}
+	}
+
+	return entryDistanceMeters >= RAY_ORIGIN_EPSILON_METERS ? entryDistanceMeters : 0;
 }
 
 function readCitySummit(buffer: Float32Array, cityIndex: number, output: [number, number, number]): void {

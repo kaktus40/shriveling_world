@@ -118,6 +118,17 @@ phiB0 = wrapPositive(gammaBA - delta)
 villes A et B. Il remplace l'hypothese incorrecte selon laquelle le rayon A
 serait necessairement dans le plan `A-B-centre Terre`.
 
+Le rayon de sample `0` des raw cones doit etre interprete comme le cap nord
+local dans le plan horizontal NED de la ville. La direction spatiale complete
+reste cependant inclinee par l'alpha du cone, ce qui signifie que le rayon
+porte une composante verticale locale non nulle meme lorsque l'azimut vaut
+`0`.
+
+Dans le parcours alpha-aware, le reste des faces est maintenant ordonne en
+alternance gauche/droite autour de `phiB0`, puis continue exhaustivement.
+Cette alternance conserve la couverture complete tout en donnant une priorite
+plus stable aux faces proches du rayon symetrique.
+
 La zone ayant la probabilite la plus forte de contenir la premiere
 intersection est l'intervalle angulaire court entre `phiB0` et `gammaBA`.
 L'ordre de recherche privilegie est donc:
@@ -248,6 +259,18 @@ La premiere reference CPU alpha-aware est implementee sans elimination de
 faces. Elle sert a mesurer la qualite de la fourchette avant d'introduire un
 filtre conservateur.
 
+La reference CPU conservatrice est maintenant aussi implementee: les faces
+restent ordonnees par la fourchette alpha-aware, mais sont groupees en blocs
+contigus. Chaque bloc porte une enveloppe conservative en ECEF et peut etre
+rejete lorsque son `blockEntryT` ne peut plus battre le meilleur `t` courant,
+au-dela d'une tolerance numerique.
+Cette variante reste exacte par rapport a l'oracle tout en mesurant le gain
+de pruning sur les jeux de test.
+Le pruning est active par defaut; un drapeau explicite permet de le
+desactiver pour comparer la memoire, le cout et le comportement exhaustif.
+Quand il est desactive, les blocs restent visites dans le meme ordre et la
+geometry doit rester strictement identique a l'oracle exhaustif.
+
 Une face de B est classee rapide lorsque l'une de ses deux arêtes echantillonnees
 respecte:
 
@@ -309,7 +332,7 @@ l'ordre prioritaire `phiB0 -> gammaBA`, module par le sens de variation
 d'alpha. L'arret reste garanti uniquement lorsque:
 
 ```text
-blockEntryT >= bestT
+blockEntryT > bestT + epsilon
 ```
 
 Cette structure doit etre comparee a une BVH circulaire a blocs de taille fixe

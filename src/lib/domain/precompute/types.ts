@@ -153,7 +153,14 @@ export type ConeShape = 'road' | 'fastest-terrestrial' | 'complex';
 export interface RawConePrecomputeOptions {
 	/** Scientific cone variant to generate. */
 	shape: ConeShape;
-	/** Number of uniformly spaced azimuth samples covering `[0, 2 PI)`. */
+	/**
+	 * Number of uniformly spaced azimuth samples covering `[0, 2 PI)`.
+	 *
+	 * The canonical ordering is local NED: sample index `0` points to the
+	 * local north bearing in the horizontal plane, and increasing indexes
+	 * rotate toward local east. The full ray direction still includes the
+	 * alpha-dependent downward component of the cone.
+	 */
 	azimuthSampleCount: number;
 	/** Maximum slant length of every raw cone ray, in meters. */
 	coneLengthMeters: number;
@@ -181,6 +188,8 @@ export interface RawConePrecompute extends ConeAlphaSampleBuffers {
 	shape: ConeShape;
 	/** Maximum slant length used for every ray, in meters. */
 	coneLengthMeters: number;
+	/** Optional angular attenuation used by complex cones, in radians. */
+	attenuationRadians?: number;
 	/**
 	 * ECEF rim positions with one aligned `vec4<f32>` per city/azimuth sample.
 	 *
@@ -257,6 +266,24 @@ export interface AlphaAwareConeIntersectionOptions {
 	alphaEpsilonRadians?: number;
 }
 
+/** Options controlling the alpha-aware CPU block-pruned traversal. */
+export interface AlphaAwareBlockPrunedConeIntersectionOptions extends AlphaAwareConeIntersectionOptions {
+	/**
+	 * Number of consecutive faces grouped into one conservative block.
+	 *
+	 * Blocks are pruned only when their conservative entry bound cannot improve
+	 * the current best distance.
+	 */
+	blockFaceCount: number;
+	/**
+	 * Enables conservative block pruning.
+	 *
+	 * The default runtime behavior is pruning-on when this parameter is absent.
+	 * Setting it to `false` keeps the block structure but disables rejection.
+	 */
+	pruningEnabled?: boolean;
+}
+
 /**
  * Exhaustive intersection output produced with an alpha-aware priority window.
  *
@@ -271,4 +298,17 @@ export interface AlphaAwareConeIntersectionPrecompute extends SymmetricConeInter
 	priorityFastFaceCounts: Uint32Array;
 	/** `1` when the final winning face belonged to its neighbor's priority window. */
 	winningFacePriorityFlags: Uint8Array;
+}
+
+/**
+ * Exhaustive intersection output produced with alpha-aware conservative blocks.
+ *
+ * The geometry still matches the oracle. Additional counters quantify how many
+ * blocks were kept or rejected by the conservative `blockEntryT` bound.
+ */
+export interface AlphaAwareBlockPrunedConeIntersectionPrecompute extends AlphaAwareConeIntersectionPrecompute {
+	/** Total number of conservative blocks visited for each ray. */
+	blockCounts: Uint32Array;
+	/** Number of conservative blocks rejected by `blockEntryT >= bestT` for each ray. */
+	prunedBlockCounts: Uint32Array;
 }
