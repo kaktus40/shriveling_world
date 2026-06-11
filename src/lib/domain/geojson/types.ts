@@ -1,6 +1,13 @@
 import type GeoJSON from 'geojson';
 
-/** A longitude/latitude pair expressed in radians, the internal angular unit. */
+/**
+ * Internal longitude/latitude pair expressed in radians.
+ *
+ * Contract:
+ * - order is always `[longitude, latitude]`;
+ * - both angles are already converted from external degrees;
+ * - this tuple is shared by CPU and GPU boundary-precompute buffers.
+ */
 export type LonLatRadians = readonly [longitude: number, latitude: number];
 
 /** Inclusive/exclusive range inside a flat vertex array. */
@@ -121,7 +128,14 @@ export interface AzimuthInterval {
 	maxRadians: number;
 }
 
-/** Inputs consumed by the CPU reference implementation of boundary clipping. */
+/**
+ * Inputs consumed by the CPU reference implementation of boundary clipping.
+ *
+ * Buffer contract:
+ * - city matrices are ordered by dense city index;
+ * - lon/lat coordinates always use `[longitudeRadians, latitudeRadians]`;
+ * - azimuth intervals are packed as `[minRadians, maxRadians]`.
+ */
 export interface BoundaryRaycastInput {
 	/** NED-to-ECEF matrices in city order, column-major, stride 16. */
 	cityNed2EcefMatrices: Float32Array;

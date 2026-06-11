@@ -103,6 +103,45 @@ preferee. Le benchmark doit enregistrer des temps par etape pour chaque profil
 disponible afin de comparer ingestion, preparation et calcul sur un meme
 dataset.
 
+## Contrats D'Interfacage Communs
+
+Les trois profils `WebGPU -> WebGL2 -> CPU` doivent consommer les memes
+contrats logiques. Le backend peut changer, pas le sens des buffers.
+
+Regles non negociables:
+
+- toutes les distances internes sont en metres;
+- toutes les valeurs angulaires internes sont en radians;
+- toutes les matrices geometriques sont en column-major, stride 16;
+- les paires lon/lat sont toujours stockees dans l'ordre
+  `[longitudeRadians, latitudeRadians]`;
+- les buffers de villes gardent l'ordre dense issu de l'ingestion CSV;
+- les buffers de contours gardent l'ordre de contour issu du GeoJSON
+  precompute;
+- aucune passe ne doit inverser lon/lat pour "arranger" un affichage;
+- aucune passe compute ne doit reconstruire les donnees lossless;
+- les conversions degres -> radians ne sont autorisees qu'a la frontiere
+  d'import humain ou de rendu d'interface;
+- les constantes communes sont partagees par TypeScript et WGSL:
+  `PI`, `TWO_PI`, `HALF_PI`, `EARTH_RADIUS_METERS`.
+
+Conventions de buffers:
+
+| Donnee | Contrat |
+| --- | --- |
+| `LonLatRadians` | `[longitudeRadians, latitudeRadians]` |
+| `cityLonLatRadians` | `Float32Array`, stride 2, villes dans l'ordre dense |
+| `cityNed2EcefMatrices` | `Float32Array`, stride 16, column-major |
+| `cityContourIndexes` | `Int32Array`, un index par ville dense |
+| `countryContourBuffer` | `Float32Array`, stride 2, contours en radians |
+| `countryContourNVectorBuffer` | `Float32Array`, stride 4, `[x, y, z, padding]` |
+| `azimuthIntervals` | `Float32Array`, stride 2, `[minRadians, maxRadians]` |
+| `townBoundaryAngular` | `Float32Array`, stride 4 |
+| `townBoundaryEcef` | `Float32Array`, stride 4 |
+
+Ces regles doivent etre appliquees dans les trois profils compute. Elles
+servent aussi de base pour les tests de conformite CPU/WebGL2/WebGPU.
+
 Schemas PNG:
 
 - ![Responsabilites CPU GPU Renderer](diagrams/precompute/01-responsibilities.png)

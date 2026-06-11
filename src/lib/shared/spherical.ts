@@ -2,16 +2,23 @@ import { EARTH_RADIUS_METERS, PI, TWO_PI } from './constants';
 import { add3, clamp, cross3, dot3, norm3, normalize3, scale3 } from './vector3';
 import type { Vec3 } from './vector3';
 
-/** A longitude/latitude pair expressed in radians. */
+/**
+ * Internal longitude/latitude pair expressed in radians.
+ *
+ * Contract:
+ * - order is always `[longitude, latitude]`;
+ * - both values are already normalized to radians;
+ * - no caller may swap the components to match a rendering convention.
+ */
 export type LonLatRadians = readonly [longitude: number, latitude: number];
 
-/** Converts longitude/latitude radians to a unit n-vector in ECEF orientation. */
+/** Converts `[longitude, latitude]` radians to a unit n-vector in ECEF orientation. */
 export function lonLatToNVector([longitude, latitude]: LonLatRadians): Vec3 {
 	const cosLatitude = Math.cos(latitude);
 	return [cosLatitude * Math.cos(longitude), cosLatitude * Math.sin(longitude), Math.sin(latitude)];
 }
 
-/** Converts a unit n-vector to longitude/latitude radians. */
+/** Converts a unit n-vector to `[longitude, latitude]` radians. */
 export function nVectorToLonLat(vector: Vec3): LonLatRadians {
 	const normalized = normalize3(vector);
 	const latitude = Math.atan2(normalized[2], Math.sqrt(normalized[0] * normalized[0] + normalized[1] * normalized[1]));
@@ -43,7 +50,14 @@ export function intermediateNVector(a: Vec3, b: Vec3, fraction: number): Vec3 {
 	return normalize3(interpolated);
 }
 
-/** Builds a corrected NED-to-ECEF matrix in column-major order. */
+/**
+ * Builds a corrected NED-to-ECEF matrix in column-major order.
+ *
+ * Input contract:
+ * - longitude then latitude;
+ * - both angles in radians;
+ * - radius in meters.
+ */
 export function buildNed2EcefMatrix(
 	[longitude, latitude]: LonLatRadians,
 	earthRadiusMeters = EARTH_RADIUS_METERS
