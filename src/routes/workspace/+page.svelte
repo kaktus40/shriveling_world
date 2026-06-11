@@ -1,5 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import QueryNodeEditor from '$lib/components/query/QueryNodeEditor.svelte';
+	import {
+		buildQueryDatasetSnapshot,
+		createDefaultQueryTree,
+		createQueryWorkerClient,
+		insertQueryNodeAtPath,
+		removeQueryNodeAtPath,
+		updateQueryNodeAtPath,
+		type QueryDatasetSnapshot,
+		type QueryExecutionResult,
+		type QueryWorkerClient,
+	} from '$lib/application/query';
 	import {
 		listWorkspaceCities,
 		listWorkspaceFields,
@@ -12,6 +24,7 @@
 		type WorkspaceModeSummary,
 	} from '$lib/application/workspace';
 	import type { QueryableField } from '$lib/domain/data';
+	import type { QueryNode } from '$lib/domain/query';
 
 	export let data: {
 		datasets: string[];
@@ -23,13 +36,25 @@
 	let modes: WorkspaceModeSummary[] = [];
 	let cities: WorkspaceCitySummary[] = [];
 	let fieldPreview: QueryableField[] = [];
+	let querySnapshot: QueryDatasetSnapshot | null = null;
+	let queryTree: QueryNode | null = null;
+	let queryResult: QueryExecutionResult | null = null;
+	let queryWorker: QueryWorkerClient | null = null;
 	let loading = false;
+	let queryLoading = false;
 	let errorMessage = '';
+	let queryError = '';
 
 	onMount(() => {
+		queryWorker = createQueryWorkerClient();
 		if (selectedDataset) {
 			void reloadWorkspace();
 		}
+
+		return () => {
+			queryWorker?.terminate();
+			queryWorker = null;
+		};
 	});
 
 	async function reloadWorkspace(): Promise<void> {
@@ -46,16 +71,85 @@
 			modes = listWorkspaceModes(loadedWorkspace);
 			cities = listWorkspaceCities(loadedWorkspace, 18);
 			fieldPreview = listWorkspaceFields(loadedWorkspace, 20);
+			querySnapshot = buildQueryDatasetSnapshot(loadedWorkspace);
+			queryTree = createDefaultQueryTree(querySnapshot.fields);
+			queryResult = null;
+			queryError = '';
+			await runQuery();
 		} catch (error) {
 			workspace = null;
 			summary = null;
 			modes = [];
 			cities = [];
 			fieldPreview = [];
+			querySnapshot = null;
+			queryTree = null;
+			queryResult = null;
+			queryError = '';
 			errorMessage = error instanceof Error ? error.message : String(error);
 		} finally {
 			loading = false;
 		}
+	}
+
+	async function runQuery(): Promise<void> {
+		if (!workspace || !querySnapshot || !queryTree || !queryWorker) {
+			return;
+		}
+
+		queryLoading = true;
+		queryError = '';
+		try {
+			queryResult = await queryWorker.execute({
+				dataset: querySnapshot,
+				query: queryTree,
+			});
+		} catch (error) {
+			queryResult = null;
+			queryError = error instanceof Error ? error.message : String(error);
+		} finally {
+			queryLoading = false;
+		}
+	}
+
+	function resetQuery(): void {
+		if (!querySnapshot) {
+			return;
+		}
+
+		queryTree = createDefaultQueryTree(querySnapshot.fields);
+		queryResult = null;
+		queryError = '';
+	}
+
+	function updateQueryNode(path: number[], nextNode: QueryNode): void {
+		if (!queryTree) {
+			return;
+		}
+
+		queryTree = updateQueryNodeAtPath(queryTree, path, () => nextNode);
+		queryResult = null;
+		queryError = '';
+	}
+
+	function deleteQueryNode(path: number[]): void {
+		if (!queryTree) {
+			return;
+		}
+
+		queryTree = removeQueryNodeAtPath(queryTree, path);
+		queryResult = null;
+		queryError = '';
+	}
+
+	function insertQueryNode(path: number[], child: QueryNode): void {
+		if (!queryTree) {
+			return;
+		}
+
+		queryTree = insertQueryNodeAtPath(queryTree, path, child);
+		queryResult = null;
+		queryError = '';
 	}
 
 	function degrees(valueRadians: number): string {
@@ -64,6 +158,21 @@
 
 	function yearLabel(value: number | null): string {
 		return value === null ? 'unbounded' : String(value);
+	}
+
+	function queryMatchRows(limit = 10): Array<{ cityIndex: number; cityId: number; cityCode: number }> {
+		const currentWorkspace = workspace;
+		if (!currentWorkspace || !queryResult) {
+			return [];
+		}
+
+		return Array.from(queryResult.matchedCityIndexes)
+			.slice(0, limit)
+			.map((cityIndex) => ({
+			cityIndex,
+			cityId: currentWorkspace.pipeline.preparedDataset.cityIds[cityIndex],
+			cityCode: currentWorkspace.pipeline.preparedDataset.cityCodes[cityIndex],
+		}));
 	}
 </script>
 
@@ -216,6 +325,108 @@
 			<pre>{JSON.stringify(workspace.pipeline.preparedDataset.diagnostics, null, 2)}</pre>
 		</article>
 	</section>
+
+	{#if querySnapshot && queryTree}
+		{@const currentQuerySnapshot = querySnapshot}
+		<section class="panel query-panel">
+			<div class="query-header">
+				<div>
+					<p class="eyebrow">Query workspace</p>
+					<h2>Human-editable AST tree</h2>
+					<p class="lede">
+						The tree below is the visual projection of the query AST. It stays aligned with the
+						worker contract and can be extended without changing the execution model.
+					</p>
+				</div>
+				<div class="query-actions">
+					<button on:click={() => void runQuery()} disabled={queryLoading}>
+						{queryLoading ? 'Running...' : 'Run query'}
+					</button>
+					<button on:click={resetQuery} disabled={queryLoading}>Reset tree</button>
+				</div>
+			</div>
+
+			{#if queryError}
+				<div class="error inline-error">
+					<pre>{queryError}</pre>
+				</div>
+			{/if}
+
+			<div class="query-layout">
+				<article class="query-column">
+					<h3>Tree editor</h3>
+					<QueryNodeEditor
+						node={queryTree}
+						fields={currentQuerySnapshot.fields}
+						onChange={updateQueryNode}
+						onDelete={deleteQueryNode}
+						onInsert={insertQueryNode}
+					/>
+				</article>
+
+				<article class="query-column">
+					<h3>Snapshot fields</h3>
+					<p>
+						{currentQuerySnapshot.fields.length} queryable fields serialized for the worker, including
+						{currentQuerySnapshot.fields.filter((field: (typeof currentQuerySnapshot.fields)[number]) => field.multiValued).length} multi-valued
+						enrichments.
+					</p>
+					<table>
+						<thead>
+							<tr>
+								<th>Label</th>
+								<th>Type</th>
+								<th>Comparators</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each querySnapshot.fields.slice(0, 14) as field}
+								<tr>
+									<td>{field.label}</td>
+									<td>{field.valueType}</td>
+									<td>{field.supportedComparators.join(', ')}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+
+					<h3>Execution result</h3>
+					{#if queryResult}
+						{@const currentQueryResult = queryResult}
+						<p>
+							<strong>{currentQueryResult.matchedCityIndexes.length}</strong> cities matched.
+						</p>
+						<p>
+							Diagnostics: {currentQueryResult.diagnostics.length} item(s), including
+							{currentQueryResult.diagnostics.filter((diagnostic: (typeof currentQueryResult.diagnostics)[number]) => diagnostic.severity === 'error').length}
+							error(s).
+						</p>
+						<table>
+							<thead>
+								<tr>
+									<th>Idx</th>
+									<th>City id</th>
+									<th>City code</th>
+								</tr>
+							</thead>
+							<tbody>
+								{#each queryMatchRows() as match}
+									<tr>
+										<td>{match.cityIndex}</td>
+										<td>{match.cityId}</td>
+										<td>{match.cityCode}</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+						<pre>{JSON.stringify(currentQueryResult.diagnostics, null, 2)}</pre>
+					{:else}
+						<p>No query executed yet.</p>
+					{/if}
+				</article>
+			</div>
+		</section>
+	{/if}
 {/if}
 
 <style>
@@ -313,8 +524,54 @@
 		background: rgba(255, 243, 239, 0.84);
 	}
 
+	.inline-error {
+		margin-bottom: 1rem;
+	}
+
 	pre {
 		overflow: auto;
 		white-space: pre-wrap;
+	}
+
+	.query-panel {
+		display: grid;
+		gap: 1rem;
+		margin-bottom: 1rem;
+	}
+
+	.query-header {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
+	.query-actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: start;
+		gap: 0.6rem;
+	}
+
+	.query-layout {
+		display: grid;
+		grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+		gap: 1rem;
+		align-items: start;
+	}
+
+	.query-column {
+		display: grid;
+		gap: 0.85rem;
+	}
+
+	.query-column h3 {
+		margin: 0;
+	}
+
+	@media (max-width: 960px) {
+		.query-layout {
+			grid-template-columns: 1fr;
+		}
 	}
 </style>
