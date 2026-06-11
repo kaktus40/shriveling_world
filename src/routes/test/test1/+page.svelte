@@ -183,8 +183,11 @@
 	</section>
 
 	<section class="grid">
-		<article class="panel">
-			<h3>Diagnostics</h3>
+		<details class="panel diagnostic-panel" open>
+			<summary>
+				<h3>Diagnostics</h3>
+				<span>scroll or collapse</span>
+			</summary>
 			<h4>Base network + preparation</h4>
 			<pre>{stringify(workspace.pipeline.preparedDataset.diagnostics)}</pre>
 			{#if boundary}
@@ -193,7 +196,7 @@
 				<h4>Boundary raycast</h4>
 				<pre>{stringify(boundary.boundaryRaycast.diagnostics)}</pre>
 			{/if}
-		</article>
+		</details>
 
 		<article class="panel">
 			<h3>Queryable fields</h3>
@@ -234,6 +237,8 @@
 		background: rgba(14, 21, 28, 0.8);
 		border: 1px solid rgba(141, 168, 178, 0.2);
 		border-radius: 1rem;
+		overflow: auto;
+		min-width: 0;
 	}
 
 	.page-head,
@@ -298,6 +303,30 @@
 		overflow: auto;
 		white-space: pre-wrap;
 		word-break: break-word;
+	}
+
+	.diagnostic-panel {
+		margin: 0;
+	}
+
+	.diagnostic-panel > summary {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		cursor: pointer;
+		list-style: none;
+	}
+
+	.diagnostic-panel > summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.diagnostic-panel > summary span {
+		color: #8ea3aa;
+		font-size: 0.82rem;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
 	}
 
 	table {

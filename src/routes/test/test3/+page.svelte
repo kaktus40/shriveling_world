@@ -342,10 +342,13 @@
 		</article>
 	</section>
 
-	<section class="panel">
-		<h3>Prepared diagnostics</h3>
+	<details class="panel diagnostic-panel" open>
+		<summary>
+			<h3>Prepared diagnostics</h3>
+			<span>scroll or collapse</span>
+		</summary>
 		<pre>{stringify(workspace?.pipeline.preparedDataset.diagnostics ?? [])}</pre>
-	</section>
+	</details>
 {/if}
 
 <style>
@@ -354,6 +357,8 @@
 		background: rgba(14, 21, 28, 0.8);
 		border: 1px solid rgba(141, 168, 178, 0.2);
 		border-radius: 1rem;
+		overflow: auto;
+		min-width: 0;
 	}
 
 	.page-head,
@@ -415,6 +420,30 @@
 		overflow: auto;
 		white-space: pre-wrap;
 		word-break: break-word;
+	}
+
+	.diagnostic-panel {
+		margin: 0;
+	}
+
+	.diagnostic-panel > summary {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		cursor: pointer;
+		list-style: none;
+	}
+
+	.diagnostic-panel > summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.diagnostic-panel > summary span {
+		color: #8ea3aa;
+		font-size: 0.82rem;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
 	}
 
 	table {

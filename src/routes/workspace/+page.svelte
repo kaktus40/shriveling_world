@@ -379,10 +379,13 @@
 			</table>
 		</article>
 
-		<article class="panel">
-			<h2>Diagnostics</h2>
+		<details class="panel diagnostic-panel" open>
+			<summary>
+				<h2>Diagnostics</h2>
+				<span>prepared dataset</span>
+			</summary>
 			<pre>{JSON.stringify(workspace.pipeline.preparedDataset.diagnostics, null, 2)}</pre>
-		</article>
+		</details>
 	</section>
 
 	{#if querySnapshot && queryTree}
@@ -505,6 +508,8 @@
 		background: rgba(12, 19, 26, 0.8);
 		border: 1px solid rgba(138, 168, 178, 0.2);
 		border-radius: 1rem;
+		overflow: auto;
+		min-width: 0;
 	}
 
 	.page-head,
@@ -605,6 +610,9 @@
 	.diagnostic-list {
 		display: grid;
 		gap: 0.75rem;
+		max-height: 24rem;
+		overflow: auto;
+		padding-right: 0.25rem;
 	}
 
 	.diagnostic-card {
@@ -627,6 +635,34 @@
 	pre {
 		overflow: auto;
 		white-space: pre-wrap;
+	}
+
+	.diagnostic-panel {
+		margin: 0;
+	}
+
+	.diagnostic-panel > summary {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		cursor: pointer;
+		list-style: none;
+	}
+
+	.diagnostic-panel > summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.diagnostic-panel > summary span {
+		color: #8ea3aa;
+		font-size: 0.82rem;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+
+	.diagnostic-panel pre {
+		max-height: 20rem;
 	}
 
 	.query-panel {
