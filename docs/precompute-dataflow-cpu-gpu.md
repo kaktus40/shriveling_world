@@ -181,6 +181,10 @@ respectant les memes unites SI que le CPU et le WebGPU.
 Le fallback WebGL2 actuel repose sur deux passes reelles. Le tableau ci-dessous
 fige leurs contrats de buffers.
 
+Quand l'API runtime expose `getBufferSubData`, le backend peut relire les
+buffers de transform feedback et les comparer a l'oracle CPU, sans changer le
+contrat logique des passes.
+
 #### `city-ned2ecef-webgl2.vert`
 
 | Binding / canal | Buffer logique | Type | Stride | Unite / ordre | Role |

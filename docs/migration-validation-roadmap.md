@@ -1290,8 +1290,8 @@ Etat reel observe ulterieurement:
 - le selecteur de profil accepte deja le forçage et le fallback explicite;
 - un fallback WebGL2 existe deja avec detection de contexte, un premier
   dispatch reel `city-ned2ecef` en transform feedback, une passe GeoJSON
-  `boundary-algebre` en transform feedback et delegation du reste au CPU de
-  reference;
+  `boundary-algebre` en transform feedback, comparaison runtime optionnelle
+  des buffers relus et delegation du reste au CPU de reference;
 - un premier squelette WebGPU existe deja avec compilation du premier kernel
   metier `city-ned2ecef` et delegation temporaire au CPU de reference;
 - l'ecran `/workspace` peut deja consommer le backend CPU de reference et

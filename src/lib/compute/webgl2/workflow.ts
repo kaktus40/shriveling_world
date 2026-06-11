@@ -11,6 +11,10 @@ import {
 	createCityNed2EcefProgram,
 	type WebGl2BoundaryAlgebreDispatchResources,
 } from './buffers';
+import {
+	compareFloat32Buffers,
+	readBackFloat32Buffer,
+} from './validation';
 import type {
 	ComputeBenchmarkReport,
 	ComputeCapabilities,
@@ -25,6 +29,7 @@ import type {
 import { measureAsyncStage } from '../core/timing';
 import { EARTH_RADIUS_METERS } from '../../shared';
 import { buildAzimuthIntervals, packAzimuthIntervals } from '../../domain/geojson';
+import type { DatasetDiagnostic } from '../../domain/data';
 import type { WebGl2ComputeContext, WebGl2ComputeResources } from './types';
 
 /** Canvas-like source used to probe or create a WebGL2 context. */
@@ -72,15 +77,18 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 			};
 		const result = await this.#cpuBackend.run(input, options, delegatedSelection);
 		const extraTimings: StageTiming[] = [];
+		const compareDiagnostics: DatasetDiagnostic[] = [];
 
 		if (result.staticTown) {
 			const cityMatrixPass = await this.runCityMatrixPass(result);
 			extraTimings.push(cityMatrixPass.timing);
+			compareDiagnostics.push(...cityMatrixPass.diagnostics);
 		}
 
 		for (const geojsonRun of result.geojsonRuns) {
 			const boundaryPass = await this.runBoundaryRaycastPass(result, geojsonRun);
 			extraTimings.push(boundaryPass.timing);
+			compareDiagnostics.push(...boundaryPass.diagnostics);
 		}
 
 		return {
@@ -89,6 +97,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 			benchmark: remapBenchmarkProfile(result.benchmark, extraTimings),
 			diagnostics: [
 				...result.diagnostics,
+				...compareDiagnostics,
 				{
 					severity: 'warning',
 					code: 'webgl2-city-matrix-pass-dispatched',
@@ -154,7 +163,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 	private async runBoundaryRaycastPass(
 		result: ComputeWorkflowResult,
 		geojsonRun: ComputeWorkflowResult['geojsonRuns'][number],
-	): Promise<{ timing: StageTiming }> {
+	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
 		const staticTown = result.staticTown;
 		if (!staticTown) {
 			return {
@@ -166,6 +175,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 					endedAtMs: 0,
 					durationMs: 0,
 				},
+				diagnostics: [],
 			};
 		}
 
@@ -183,6 +193,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 					endedAtMs: 0,
 					durationMs: 0,
 				},
+				diagnostics: [],
 			};
 		}
 
@@ -246,7 +257,35 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 			},
 		);
 
-		return { timing };
+		const diagnostics: DatasetDiagnostic[] = [];
+		const angularReadback = readBackFloat32Buffer(
+			gl,
+			gl.TRANSFORM_FEEDBACK_BUFFER,
+			dispatchResources.angularOutputBuffer,
+			cityCount * azimuthSampleCount * 4,
+		);
+		const ecefReadback = readBackFloat32Buffer(
+			gl,
+			gl.TRANSFORM_FEEDBACK_BUFFER,
+			dispatchResources.ecefOutputBuffer,
+			cityCount * azimuthSampleCount * 4,
+		);
+		if (angularReadback && ecefReadback) {
+			diagnostics.push(
+				...compareFloat32Buffers(
+					'webgl2-boundary-angular',
+					geojsonRun.boundaryRaycast.townBoundaryAngular,
+					angularReadback,
+				),
+				...compareFloat32Buffers(
+					'webgl2-boundary-ecef',
+					geojsonRun.boundaryRaycast.townBoundaryEcef,
+					ecefReadback,
+				),
+			);
+		}
+
+		return { timing, diagnostics };
 	}
 
 	private ensureGl(): WebGL2RenderingContext {
@@ -261,7 +300,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		return gl;
 	}
 
-	private async runCityMatrixPass(result: ComputeWorkflowResult): Promise<{ timing: StageTiming }> {
+	private async runCityMatrixPass(result: ComputeWorkflowResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
 		const prepared = result.preparedDataset;
 		const cityCount = prepared.cityCount;
 		if (cityCount <= 0) {
@@ -274,6 +313,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 					endedAtMs: 0,
 					durationMs: 0,
 				},
+				diagnostics: [],
 			};
 		}
 
@@ -319,7 +359,24 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 			},
 		);
 
-		return { timing };
+		const diagnostics: DatasetDiagnostic[] = [];
+		const cityMatricesReadback = readBackFloat32Buffer(
+			gl,
+			gl.TRANSFORM_FEEDBACK_BUFFER,
+			dispatchResources.outputBuffer,
+			cityCount * 16,
+		);
+		if (cityMatricesReadback) {
+			diagnostics.push(
+				...compareFloat32Buffers(
+					'webgl2-city-matrices',
+					result.staticTown?.cityNed2EcefMatrices ?? new Float32Array(cityCount * 16),
+					cityMatricesReadback,
+				),
+			);
+		}
+
+		return { timing, diagnostics };
 	}
 }
 
