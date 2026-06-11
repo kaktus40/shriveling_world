@@ -1,4 +1,4 @@
-/** Human-facing comparator strings kept compatible with the historical filter tree. */
+/** Human-facing comparator strings shared by the query tree and evaluator. */
 export type TComparatorString =
 	| '<'
 	| '<='

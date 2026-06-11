@@ -28,9 +28,9 @@ export function angularDistanceRadians(a: Vec3, b: Vec3): number {
 /**
  * Interpolates two n-vectors then projects the result onto the unit sphere.
  *
- * This reproduces the normalized linear interpolation used by the historical
- * project for midpoint and quarter-point construction. Antipodal interpolation
- * at the exact midpoint is undefined and rejected explicitly.
+ * This normalized linear interpolation is used for midpoint and quarter-point
+ * construction. Antipodal interpolation at the exact midpoint is undefined
+ * and rejected explicitly.
  */
 export function intermediateNVector(a: Vec3, b: Vec3, fraction: number): Vec3 {
 	if (!Number.isFinite(fraction) || fraction < 0 || fraction > 1) {

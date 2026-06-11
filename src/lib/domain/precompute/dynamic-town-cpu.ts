@@ -73,7 +73,7 @@ export function computeDynamicTownPrecomputeByYearCpu(
 ): DynamicTownPrecomputeByYear {
 	const { beginYear, endYear } = dataset.speedTimeline.span;
 	if (!Number.isSafeInteger(beginYear) || !Number.isSafeInteger(endYear) || beginYear > endYear) {
-		throw new RangeError('prepared historical span must contain inclusive integer years');
+		throw new RangeError('prepared time span must contain inclusive integer years');
 	}
 
 	const byYear: DynamicTownPrecomputeByYear = {};

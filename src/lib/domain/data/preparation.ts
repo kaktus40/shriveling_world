@@ -3,12 +3,12 @@ import type {
 	BaseNetwork,
 	BaseTransportMode,
 	DatasetDiagnostic,
-	HistoricalTimeSpan,
 	PreparedSpeedTimeline,
 	PreparedSpeedYear,
 	PreparedTransportModeTimeline,
 	PrepareSpeedTimelineOptions,
 	RoadModeReference,
+	PreparedTimeSpan,
 	SourceRecord,
 } from './types';
 import { toFiniteNumber } from './csv';
@@ -86,8 +86,8 @@ function readRequiredNumber(
  * Units:
  * - no measured value is converted by this function.
  *
- * Historical equivalent:
- * - `reader.ts` `identifyingRoadMode`, with stricter diagnostics.
+ * Earlier equivalent:
+ * - road mode identification, with stricter diagnostics.
  */
 export function identifyRoadMode(
 	baseNetwork: BaseNetwork,
@@ -218,14 +218,13 @@ function computeEdgeBounds(baseNetwork: BaseNetwork, mode: BaseTransportMode): {
  * Transform:
  * - speed years bound the period where a mode can be evaluated;
  * - edge dates bound the period where a non-road service exists;
- * - a missing edge begin/end removes that edge-date constraint, matching the
- *   historical `reader.ts` behavior.
+ * - a missing edge begin/end removes that edge-date constraint.
  *
  * Units:
  * - years are dimensionless calendar years.
  *
- * Historical equivalent:
- * - `reader.ts` `historicalTimeSpan`, per-mode part.
+ * Earlier equivalent:
+ * - per-mode time bounds.
  */
 export function computeTransportModeTimeBounds(
 	baseNetwork: BaseNetwork,
@@ -297,7 +296,7 @@ function computeTransportModeTimeBoundsFromSpeedPoints(
 }
 
 /**
- * Computes the global historical span where the differential model is valid.
+ * Computes the global time span where the differential model is valid.
  *
  * Source:
  * - per-mode timelines;
@@ -311,14 +310,14 @@ function computeTransportModeTimeBoundsFromSpeedPoints(
  * Units:
  * - years are dimensionless calendar years.
  *
- * Historical equivalent:
- * - `reader.ts` `historicalTimeSpan`, global span part.
+ * Earlier equivalent:
+ * - global time span aggregation.
  */
-export function computeHistoricalTimeSpan(
+export function computePreparedTimeSpan(
 	timelines: PreparedTransportModeTimeline[],
 	roadReference: RoadModeReference,
 	diagnostics: DatasetDiagnostic[] = []
-): HistoricalTimeSpan | null {
+): PreparedTimeSpan | null {
 	const roadTimeline = timelines.find((timeline) => timeline.modeId === roadReference.roadModeId);
 	const nonRoadTimelines = timelines.filter(
 		(timeline) => timeline.modeId !== roadReference.roadModeId && timeline.yearBegin !== null && timeline.yearEnd !== null
@@ -329,7 +328,7 @@ export function computeHistoricalTimeSpan(
 		return null;
 	}
 	if (nonRoadTimelines.length === 0) {
-		diagnostics.push({ severity: 'error', code: 'historical-span-without-non-road-mode' });
+		diagnostics.push({ severity: 'error', code: 'time-span-without-non-road-mode' });
 		return null;
 	}
 
@@ -342,7 +341,7 @@ export function computeHistoricalTimeSpan(
 	if (!Number.isFinite(beginYear) || !Number.isFinite(endYear) || beginYear > endYear) {
 		diagnostics.push({
 			severity: 'error',
-			code: 'historical-span-empty',
+			code: 'time-span-empty',
 			beginYear,
 			endYear,
 			roadModeId: roadReference.roadModeId,
@@ -406,7 +405,7 @@ function alphaFromSpeedRatio(maxSpeed: number, speed: number): number {
  *
  * Transform:
  * - identifies the unique `Road` mode;
- * - computes per-mode and global historical spans;
+ * - computes per-mode and global time spans;
  * - interpolates speeds for each integer year in each mode validity period;
  * - computes yearly maximum speed;
  * - computes cone slope angles from speed ratios.
@@ -416,9 +415,9 @@ function alphaFromSpeedRatio(maxSpeed: number, speed: number): number {
  * - writes speeds in meters per second;
  * - writes alpha values in radians.
  *
- * Historical equivalent:
+ * Earlier equivalent:
  * - `identifyingRoadMode`;
- * - `historicalTimeSpan`;
+ * - `timeSpan`;
  * - `setSpeedDatas`.
  */
 export function prepareSpeedTimeline(
@@ -429,7 +428,7 @@ export function prepareSpeedTimeline(
 	const roadReference = identifyRoadMode(baseNetwork, options, diagnostics) ?? { roadModeId: -1, roadModeCode: Number.NaN };
 	const speedPointsByMode = collectSpeedPointsByMode(baseNetwork, diagnostics);
 	const timelines = computeTransportModeTimeBoundsFromSpeedPoints(baseNetwork, roadReference, speedPointsByMode, diagnostics);
-	const span = computeHistoricalTimeSpan(timelines, roadReference, diagnostics) ?? { beginYear: 0, endYear: -1 };
+	const span = computePreparedTimeSpan(timelines, roadReference, diagnostics) ?? { beginYear: 0, endYear: -1 };
 	const speedByModeByYear: Record<string, Record<string, PreparedSpeedYear>> = {};
 	const maxSpeedMetersPerSecondByYear: Record<string, number> = {};
 	const terrestrialMinAlphaRadiansByYear: Record<string, number> = {};

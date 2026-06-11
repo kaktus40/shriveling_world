@@ -30,9 +30,9 @@ const DEGREES_TO_RADIANS = Math.PI / 180;
  * - preserves ids linking every compact entity to the lossless network and
  *   source records.
  *
- * Historical equivalent:
- * - the linked and validated `IMergerData` state immediately before
- *   `prepareStaticTownGeometry` in `toBabylon/reader.ts`.
+ * Earlier equivalent:
+ * - the linked and validated prepared state immediately before static-town
+ *   compute buffers are generated.
  */
 export function prepareDataset(
 	baseNetwork: BaseNetwork,

@@ -15,8 +15,8 @@ export interface ParsedCsv {
 /**
  * Parses CSV text through PapaParse.
  *
- * PapaParse is already used by the historical `Merger`, works in both browser
- * and Node contexts, and avoids maintaining a project-specific CSV parser.
+ * PapaParse works in both browser and Node contexts and avoids maintaining a
+ * project-specific CSV parser.
  *
  * `dynamicTyping` is deliberately disabled: the data layer must preserve source
  * values, then convert only characteristic fields with explicit diagnostics.
@@ -46,4 +46,3 @@ export function toFiniteNumber(value: unknown): number | null {
 	const number = Number(value);
 	return Number.isFinite(number) ? number : null;
 }
-

@@ -7,21 +7,21 @@
 		{
 			title: 'test1',
 			href: '/test/test1',
-			historicalRole: 'Load one dataset, inspect the first validated outputs, and verify the data pipeline end to end.',
+			intent: 'Load one dataset, inspect the first validated outputs, and verify the data pipeline end to end.',
 			migrationRole:
 				'Load one compressed dataset, inspect files, resolve the manifest, build the lossless base network, then prepare compact buffers and boundary limits.',
 		},
 		{
 			title: 'test2',
 			href: '/test/test2',
-			historicalRole: 'Focus on country geometry and extrusion without the rest of the application.',
+			intent: 'Focus on country geometry and extrusion without the rest of the application.',
 			migrationRole:
 				'Inspect GeoJSON contours, triangulated country meshes, contour buffers, and city to contour association produced by `prepareBoundaryPrecompute`.',
 		},
 		{
 			title: 'test3',
 			href: '/test/test3',
-			historicalRole: 'Inspect cone geometry stage by stage, from raw calculation to displayed geometry.',
+			intent: 'Inspect cone geometry stage by stage, from raw calculation to displayed geometry.',
 			migrationRole:
 				'Inspect the CPU reference pipeline stage by stage: static invariants, dynamic year links, raw cones, and ciseled intersections.',
 		},
@@ -29,12 +29,11 @@
 </script>
 
 <section class="hero">
-	<p class="eyebrow">Historical Mapping</p>
+	<p class="eyebrow">Validation Mapping</p>
 	<h2>What survived the migration</h2>
 	<p>
 		The original pages were not business routes. They were engineering checkpoints. This port keeps
-		that role, but swaps the legacy `Merger`, `reader`, and `mesherEngine` for the new explicit
-		domain modules and shared workspace services.
+		that role, but uses the explicit domain modules and shared workspace services.
 	</p>
 </section>
 
@@ -42,7 +41,7 @@
 	{#each mappings as mapping}
 		<article class="card">
 			<h3>{mapping.title}</h3>
-			<p><strong>Legacy intent.</strong> {mapping.historicalRole}</p>
+			<p><strong>Intent.</strong> {mapping.intent}</p>
 			<p><strong>Migration route.</strong> {mapping.migrationRole}</p>
 			<a href={mapping.href}>Open validation page</a>
 		</article>

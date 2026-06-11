@@ -219,7 +219,7 @@ export function benchmarkStaticTownInvariantsCpu(
 	};
 }
 
-/** Benchmarks one dynamic year and the complete prepared historical span. */
+/** Benchmarks one dynamic year and the complete prepared time span. */
 export function benchmarkDynamicTownPrecomputeCpu(
 	dataset: PreparedDataset,
 	staticTown: StaticTownPrecompute,

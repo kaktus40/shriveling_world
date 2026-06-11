@@ -14,8 +14,8 @@
 		<h1>Shriveling world</h1>
 		<p>
 			Application shell backed by the new domain and application layers. The first non-test screen
-			is now the dataset workspace, while the historical validation routes remain available for the
-			CPU reference pipeline.
+			is now the dataset workspace, while the validation routes remain available for the CPU
+			reference pipeline.
 		</p>
 	</section>
 

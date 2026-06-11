@@ -127,16 +127,14 @@ export interface SourceRecord {
 /**
  * Characteristic city fields required by the base network.
  *
- * This corresponds to the source-oriented part of `ICity` in the `toBabylon`
- * merger interfaces. Optional user columns remain in the referenced
- * `SourceRecord`.
+ * Optional user columns remain in the referenced `SourceRecord`.
  */
 export interface BaseCityCharacteristic {
 	cityCode: number;
 	latitude: number;
 	longitude: number;
 	/**
-	 * Optional local radius. Some historical datasets use `NA`; the value is
+	 * Optional local radius. Some source datasets use `NA`; the value is
 	 * therefore nullable while the column remains characteristic.
 	 */
 	radius: number | null;
@@ -146,8 +144,7 @@ export interface BaseCityCharacteristic {
  * Base city entity assembled from the `cities` source file.
  *
  * This is not the final prepared city used by render or compute. It is the
- * lossless network-level equivalent of the source-oriented subset of
- * `toBabylon`'s `ICity`.
+ * lossless network-level city entity.
  */
 export interface BaseCity {
 	id: number;
@@ -162,9 +159,8 @@ export interface BaseCity {
 /**
  * Characteristic edge fields from the transport network.
  *
- * This maps to the source-oriented part of `IEdge` in the `toBabylon`
- * interfaces. Optional date columns and user columns remain available through
- * the referenced `SourceRecord`.
+ * Optional date columns and user columns remain available through the
+ * referenced `SourceRecord`.
  */
 export interface BaseEdgeCharacteristic {
 	cityCodeOri: number;
@@ -189,8 +185,7 @@ export interface BaseEdge {
 /**
  * Characteristic transport mode fields.
  *
- * This maps to `ITranspMode` in the `toBabylon` interfaces, excluding derived
- * speed tables that are built during preparation.
+ * Derived speed tables are built during preparation.
  */
 export interface BaseTransportModeCharacteristic {
 	code: number;
@@ -237,9 +232,9 @@ export interface QueryableField {
 /**
  * Lossless assembled base network.
  *
- * `BaseNetwork` is lower-level than `toBabylon`'s `IMergerData`: it keeps
- * source records and relation indexes, but it does not produce prepared static
- * or dynamic geometry. Those structures belong to the next preparation phase.
+ * It keeps source records and relation indexes, but it does not produce
+ * prepared static or dynamic geometry. Those structures belong to the next
+ * preparation phase.
  */
 export interface BaseNetwork {
 	cities: BaseCity[];
@@ -254,10 +249,10 @@ export interface BaseNetwork {
 /** Options controlling preparation of speed timelines from a lossless base network. */
 export interface PrepareSpeedTimelineOptions {
 	/**
-	 * Reference road mode name used by the historical differential model.
+	 * Reference road mode name used by the differential model.
 	 *
 	 * Matching is case-insensitive and trimmed. The default value follows the
-	 * dataset contract documented by the original project.
+	 * dataset contract documented by the project.
 	 */
 	roadModeName?: string;
 }
@@ -294,8 +289,8 @@ export interface PreparedTransportModeTimeline {
 	yearEnd: number | null;
 }
 
-/** Inclusive historical time span where the differential model is computable. */
-export interface HistoricalTimeSpan {
+/** Inclusive time span where the differential model is computable. */
+export interface PreparedTimeSpan {
 	beginYear: number;
 	endYear: number;
 }
@@ -314,8 +309,8 @@ export interface PreparedSpeedTimeline {
 	roadModeId: number;
 	/** Source mode code for the reference road mode. */
 	roadModeCode: number;
-	/** Historical span where the differential model is computable. */
-	span: HistoricalTimeSpan;
+	/** Time span where the differential model is computable. */
+	span: PreparedTimeSpan;
 	/** Per-mode validity bounds. */
 	modes: PreparedTransportModeTimeline[];
 	/** Mode ids split by graphical role. */

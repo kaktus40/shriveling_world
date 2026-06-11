@@ -119,13 +119,13 @@ export interface StaticTownInvariantPrecompute extends CityInvariantBuffers, Cit
 export interface StaticTownPrecompute extends StaticTownInvariantPrecompute, OverlapCandidateBuffers, CurveControlBuffers {}
 
 /**
- * Compact dynamic cone inputs computed for one historical year.
+ * Compact dynamic cone inputs computed for one year.
  *
  * Link lists use `offset + count` with an exclusive upper bound. One link is
  * retained per origin/destination pair and lists are sorted by azimuth.
  */
 export interface DynamicTownPrecompute {
-	/** Historical year represented by these buffers. */
+	/** Year represented by these buffers. */
 	year: number;
 	/** Alpha of the reference Road surface, in radians. */
 	roadAlphaRadians: number;
@@ -143,7 +143,7 @@ export interface DynamicTownPrecompute {
 	cityFastestTerrestrialAlphaRadians: Float32Array;
 }
 
-/** Dynamic cone inputs indexed by their decimal historical year. */
+/** Dynamic cone inputs indexed by their decimal year. */
 export type DynamicTownPrecomputeByYear = Record<string, DynamicTownPrecompute>;
 
 /** Supported scientific variants for raw cone slope generation. */

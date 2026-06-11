@@ -19,7 +19,7 @@ interface SectorCandidates {
 /**
  * Selects a bounded, angularly distributed set of neighbors for every city.
  *
- * This CPU reference reproduces the historical quota redistribution:
+ * This CPU reference redistributes quotas as follows:
  *
  * 1. Group all non-diagonal ordered pairs by azimuth sector.
  * 2. Process sectors from least to most populated.

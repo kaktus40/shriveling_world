@@ -14,10 +14,9 @@ export const RAW_CONE_RIM_ECEF_STRIDE = 4;
 /**
  * Computes the directional alpha selected for every city and azimuth sample.
  *
- * Complex cones reproduce the intended historical `rawCones.frag` law:
- * nearest lower and upper directional links are selected circularly; a side
- * farther than `attenuationRadians` is replaced by Road alpha; smoothstep
- * interpolates between both sides.
+ * Complex cones follow the intended law: nearest lower and upper directional
+ * links are selected circularly; a side farther than `attenuationRadians` is
+ * replaced by Road alpha; smoothstep interpolates between both sides.
  */
 export function computeConeAlphaSamplesCpu(
 	dynamicTown: DynamicTownPrecompute,

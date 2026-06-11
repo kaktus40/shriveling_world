@@ -85,7 +85,7 @@ export function densifyRing(ring: LonLatRadians[], maxSegmentRadians: number): L
 	return result;
 }
 
-/** Generates candidate interior points using the Fibonacci-lattice strategy from the historical code. */
+/** Generates candidate interior points using the Fibonacci-lattice strategy used by the model. */
 export function fibonacciLattice(
 	spacingRadians: number,
 	[lonMin, lonMax, latMin, latMax]: [number, number, number, number]

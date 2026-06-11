@@ -288,7 +288,7 @@
 		</article>
 
 		<article class="panel">
-			<h2>Historical span</h2>
+			<h2>Prepared span</h2>
 			<p><strong>Begin:</strong> {summary.yearBegin}</p>
 			<p><strong>End:</strong> {summary.yearEnd}</p>
 			<p><strong>Errors:</strong> {summary.errorCount}</p>

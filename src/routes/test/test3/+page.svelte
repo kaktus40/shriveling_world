@@ -156,9 +156,8 @@
 	<p class="eyebrow">test3</p>
 	<h2>CPU cone precompute stages</h2>
 	<p>
-		This route ports the historical stage-by-stage cone inspection page. It now targets the explicit
-		CPU reference pipeline: static invariants, one-year dynamic links, raw cones, and ciseled cone
-		intersections.
+		This route targets the explicit CPU reference pipeline: static invariants, one-year dynamic
+		links, raw cones, and ciseled cone intersections.
 	</p>
 </section>
 

@@ -36,9 +36,9 @@ export function buildCurveEdgePairsCpu(edges: readonly KnownCurveEdge[], cityCou
 /**
  * Computes `[A, P, Q, B]` ECEF control points for known curve edges.
  *
- * `P` and `Q` reproduce the historical construction: midpoint `M` is the
- * normalized interpolation of `A` and `B`; `P` is the midpoint of `A` and
- * `M`; `Q` is the midpoint of `M` and `B`.
+ * `P` and `Q` follow the midpoint construction used by the current model:
+ * midpoint `M` is the normalized interpolation of `A` and `B`; `P` is the
+ * midpoint of `A` and `M`; `Q` is the midpoint of `M` and `B`.
  */
 export function computeCurveControlPointsCpu(
 	cityInvariants: CityInvariantBuffers,

@@ -120,8 +120,7 @@ function catalogFields(recordsByKind: Record<string, SourceRecord[]>): Queryable
 /**
  * Assembles a lossless base network from source files and a resolved manifest.
  *
- * It intentionally stops before `IMergerData`:
- * prepared static and dynamic structures belong to the next preparation phase.
+ * Prepared static and dynamic structures belong to the next preparation phase.
  *
  * @param input Source files and an already resolved dataset manifest.
  * @returns A lossless, indexed base network with diagnostics.

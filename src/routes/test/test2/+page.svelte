@@ -100,9 +100,8 @@
 	<p class="eyebrow">test2</p>
 	<h2>GeoJSON contours, triangulation, and town association</h2>
 	<p>
-		This route replaces the historical country-only page. It focuses on the first migration stage of
-		GeoJSON handling: retaining first-level contours, triangulating the interior, and linking cities
-		to those contours.
+		This route focuses on the first migration stage of GeoJSON handling: retaining first-level
+		contours, triangulating the interior, and linking cities to those contours.
 	</p>
 </section>
 

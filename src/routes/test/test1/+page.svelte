@@ -101,9 +101,8 @@
 	<p class="eyebrow">test1</p>
 	<h2>Dataset, manifest, prepared buffers, and boundary limits</h2>
 	<p>
-		This route replaces the historical “load a dataset and see if the first stages work” page. It
-		runs the new order-independent pipeline and, when GeoJSON is present, the CPU reference for city
-		boundary limits.
+		This route loads a dataset, runs the order-independent pipeline, and, when GeoJSON is present,
+		exposes the CPU reference for city boundary limits.
 	</p>
 </section>
 
@@ -166,7 +165,7 @@
 			<p>Edges: {workspace.pipeline.preparedDataset.edgeCount}</p>
 			<p>Modes: {workspace.pipeline.preparedDataset.modeCount}</p>
 			<p>
-				Historical span: {workspace.pipeline.preparedDataset.speedTimeline.span.beginYear} to
+				Prepared span: {workspace.pipeline.preparedDataset.speedTimeline.span.beginYear} to
 				{workspace.pipeline.preparedDataset.speedTimeline.span.endYear}
 			</p>
 		</article>

@@ -7,7 +7,7 @@
 		{
 			href: '/test',
 			label: 'Overview',
-			description: 'Intent and mapping of the historical validation pages.',
+			description: 'Intent and mapping of the validation pages.',
 		},
 		{
 			href: '/test/test1',
@@ -32,8 +32,8 @@
 		<p class="eyebrow">Validation Routes</p>
 		<h1>Migration Test Bench</h1>
 		<p class="lede">
-			Modern SvelteKit replacements for the historical `src/routes/test` pages. The goal is to
-			validate the migration pipeline step by step with the new data and precompute domains.
+			Modern SvelteKit validation pages for the migration pipeline. The goal is to validate the
+			new data and precompute domains step by step.
 		</p>
 
 		<nav class="nav">
