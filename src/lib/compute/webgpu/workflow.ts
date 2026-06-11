@@ -1,6 +1,7 @@
 import rawConeAlphasShaderSource from '../kernels/raw-cone-alphas.wgsl?raw';
 import boundaryAlgebreShaderSource from '../kernels/boundary-algebre.wgsl?raw';
 import cityNed2EcefShaderSource from '../kernels/city-ned2ecef.wgsl?raw';
+import ciseledConesShaderSource from '../kernels/ciseled-cones.wgsl?raw';
 import {
 	createCpuWorkflowBackend,
 	type CpuComputeWorkflowBackend,
@@ -8,6 +9,7 @@ import {
 import {
 	createBoundaryAlgebreDispatchResources,
 	createCityNed2EcefDispatchResources,
+	createCiseledConesDispatchResources,
 	createRawConeAlphaDispatchResources,
 } from './buffers';
 import {
@@ -83,6 +85,12 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			compareDiagnostics.push(...rawConeAlphaPass.diagnostics);
 		}
 
+		if (result.staticTown && result.rawCones && result.coneIntersections) {
+			const ciseledConePass = await this.runCiseledConePass(context, result);
+			extraTimings.push(ciseledConePass.timing);
+			compareDiagnostics.push(...ciseledConePass.diagnostics);
+		}
+
 		for (const geojsonRun of result.geojsonRuns) {
 			const boundaryPass = await this.runBoundaryRaycastPass(context, result, geojsonRun);
 			extraTimings.push(boundaryPass.timing);
@@ -98,9 +106,9 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 				...tagDiagnostics(compareDiagnostics, this.profile),
 				{
 					severity: 'warning',
-					code: 'webgpu-skeleton-cpu-delegation',
+					code: 'webgpu-partial-cpu-delegation',
 					profile: this.profile,
-					message: 'WebGPU backend is wired, dispatches real city and GeoJSON boundary WGSL passes, but still delegates the remaining compute stages to the CPU reference backend.',
+					message: 'WebGPU backend is wired, dispatches real city, raw-cone and cone-cone WGSL passes, but still delegates the remaining compute stages to the CPU reference backend.',
 				},
 			],
 		};
@@ -136,6 +144,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		const device = await this.ensureDevice();
 		const cityMatrixModule = device.createShaderModule({ code: cityNed2EcefShaderSource });
 		const rawConeAlphaModule = device.createShaderModule({ code: rawConeAlphasShaderSource });
+		const ciseledConeModule = device.createShaderModule({ code: ciseledConesShaderSource });
 		const boundaryModule = device.createShaderModule({ code: boundaryAlgebreShaderSource });
 		this.#resources = {
 			buffers: [],
@@ -168,11 +177,21 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 						workgroupSize: [1, 1, 1],
 						notes: ['First real WGSL raw-cone kernel: select cone alphas per city and azimuth sample.'],
 					},
+					{
+						name: 'ciseled-cones',
+						stage: 'cone-intersections-precompute',
+						profile: 'webgpu',
+						inputs: [],
+						outputs: [],
+						workgroupSize: [1, 1, 1],
+						notes: ['First real WGSL cone-cone kernel: exhaustively ciseled raw cones against retained neighbors and compared them against the CPU oracle.'],
+					},
 				],
 			},
 			shaderModuleCache: new Map([
 				['city-ned2ecef', cityMatrixModule],
 				['raw-cone-alphas', rawConeAlphaModule],
+				['ciseled-cones', ciseledConeModule],
 				['boundary-algebre', boundaryModule],
 			]),
 			pipelineCache: new Map(),
@@ -383,6 +402,126 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		return { timing, diagnostics };
 	}
 
+	private async runCiseledConePass(
+		context: WebGpuComputeContext,
+		result: ComputeWorkflowResult,
+	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
+		const staticTown = result.staticTown;
+		const rawCones = result.rawCones;
+		const reference = result.coneIntersections;
+		if (!staticTown || !rawCones || !reference) {
+			return {
+				timing: {
+					stage: 'cone-intersections-precompute',
+					scope: 'interactive',
+					profile: 'webgpu',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+				diagnostics: [],
+			};
+		}
+
+		const cityCount = rawCones.cityCount;
+		const azimuthSampleCount = rawCones.azimuthSampleCount;
+		if (cityCount <= 0 || azimuthSampleCount <= 0) {
+			return {
+				timing: {
+					stage: 'cone-intersections-precompute',
+					scope: 'interactive',
+					profile: 'webgpu',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+				diagnostics: [],
+			};
+		}
+
+		const usage = getGpuBufferUsage();
+		const resources = createCiseledConesDispatchResources(
+			context.device,
+			usage,
+			{
+				cityNed2EcefMatrices: staticTown.cityNed2EcefMatrices,
+				overlapCandidates: staticTown.overlapCandidates,
+				overlapCandidateCounts: staticTown.overlapCandidateCounts,
+				rawConeRimEcef: rawCones.rawConeRimEcef,
+				cityCount,
+				azimuthSampleCount,
+				neighborLimit: staticTown.neighborLimit,
+			},
+		);
+
+		const resourcesCache = await this.ensureResources();
+		const pipeline = await context.device.createComputePipelineAsync({
+			layout: 'auto',
+			compute: {
+				module:
+					resourcesCache.shaderModuleCache?.get('ciseled-cones') ??
+					context.device.createShaderModule({ code: ciseledConesShaderSource }),
+				entryPoint: 'main',
+			},
+		});
+		const bindGroup = context.device.createBindGroup({
+			layout: pipeline.getBindGroupLayout(0),
+			entries: [
+				{ binding: 0, resource: { buffer: resources.cityMatrices.buffer } },
+				{ binding: 1, resource: { buffer: resources.overlapCandidates.buffer } },
+				{ binding: 2, resource: { buffer: resources.overlapCandidateCounts.buffer } },
+				{ binding: 3, resource: { buffer: resources.rawConeRimEcef.buffer } },
+				{ binding: 4, resource: { buffer: resources.uniform.buffer } },
+				{ binding: 5, resource: { buffer: resources.coneIntersectionDistanceMeters.buffer } },
+				{ binding: 6, resource: { buffer: resources.ciseledConeRimEcef.buffer } },
+			],
+		});
+
+		const { timing } = await measureAsyncStage(
+			'cone-intersections-precompute',
+			'interactive',
+			'webgpu',
+			async () => {
+				const encoder = context.device.createCommandEncoder();
+				const pass = encoder.beginComputePass();
+				pass.setPipeline(pipeline);
+				pass.setBindGroup(0, bindGroup);
+				pass.dispatchWorkgroups(azimuthSampleCount, cityCount, 1);
+				pass.end();
+				context.queue.submit([encoder.finish()]);
+				return undefined;
+			},
+		);
+
+		const diagnostics: DatasetDiagnostic[] = [];
+		const distanceReadback = await readBackFloat32Buffer(
+			context.device,
+			resources.coneIntersectionDistanceMeters.buffer,
+			cityCount * azimuthSampleCount,
+		);
+		const rimReadback = await readBackFloat32Buffer(
+			context.device,
+			resources.ciseledConeRimEcef.buffer,
+			cityCount * azimuthSampleCount * 4,
+		);
+		if (distanceReadback && rimReadback) {
+			diagnostics.push(
+				...compareFloat32Buffers(
+					'webgpu-cone-intersection-distance',
+					reference.coneIntersectionDistanceMeters,
+					distanceReadback,
+				),
+				...compareFloat32Buffers(
+					'webgpu-ciseled-cone-rim',
+					reference.ciseledConeRimEcef,
+					rimReadback,
+				),
+			);
+		}
+
+		return { timing, diagnostics };
+	}
+
 	private async runBoundaryRaycastPass(
 		context: WebGpuComputeContext,
 		result: ComputeWorkflowResult,
@@ -555,7 +694,7 @@ function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport, extraTimings: 
 		totalDurationMs: benchmark.totalDurationMs + extraTimings.reduce((sum, timing) => sum + timing.durationMs, 0),
 		notes: [
 			...benchmark.notes,
-			'WebGPU backend dispatches a city NED-to-ECEF pass and a GeoJSON boundary raycast pass before delegating the remaining compute stages to the CPU reference backend.',
+			'WebGPU backend dispatches city NED-to-ECEF, raw-cone alpha and cone-cone passes before delegating the remaining compute stages to the CPU reference backend.',
 		],
 	};
 }

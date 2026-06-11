@@ -1402,7 +1402,7 @@ Pour les profils GPU, l'ordre de responsabilite attendu est:
 2. `static-town` prepare les invariants fixes et les matrices de base;
 3. `boundaryAlgebre` etablit les limites geographiques exploitables;
 4. `rawCones` fabrique la geometrie brute massivement parallele;
-5. `ciseledCones` retire les parties invalides ou trop longues;
+5. `ciseledCones` retire les parties invalides ou trop longues, avec un premier portage WebGPU oracle;
 6. `finalCones` applique la reduction finale et le clipping pays;
 7. `displayedCones` convertit la geometrie pour le moteur de rendu;
 8. `curveMeshShader` prepare les courbes de representation;

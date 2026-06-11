@@ -122,7 +122,12 @@ test('webgpu probe becomes available with an injected device and the backend kee
 	const backend = await descriptor.create();
 	const result = await backend.run(
 		buildMinimalDataset(),
-		{ benchmark: true },
+		{
+			benchmark: true,
+			dynamicYear: 2000,
+			rawCone: { shape: 'road', azimuthSampleCount: 8, coneLengthMeters: 100000 },
+			coneIntersection: { enabled: true },
+		},
 		{
 			requested: 'webgpu',
 			forced: 'webgpu',
@@ -139,7 +144,9 @@ test('webgpu probe becomes available with an injected device and the backend kee
 
 	expect(result.selection.selected).toBe('webgpu');
 	expect(result.benchmark.profile).toBe('webgpu');
-	expect(result.benchmark.notes.some((note) => note.includes('city NED-to-ECEF pass'))).toBe(true);
-	expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'webgpu-skeleton-cpu-delegation')).toBe(true);
-	expect(fake.calls.dispatches).toBeGreaterThanOrEqual(2);
+	expect(
+		result.benchmark.notes.some((note) => note.includes('city NED-to-ECEF, raw-cone alpha and cone-cone passes')),
+	).toBe(true);
+	expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'webgpu-partial-cpu-delegation')).toBe(true);
+	expect(fake.calls.dispatches).toBeGreaterThanOrEqual(4);
 });

@@ -1407,6 +1407,8 @@ Travail realise:
 - diagnostics de taille de fourchette et d'appartenance de la face gagnante;
 - benchmark stable `cone-intersection-alpha-aware-order`;
 - benchmark stable `cone-intersection-alpha-aware-block-pruned`;
+- premier portage WebGPU du noyau `ciseledCones` avec comparaison readback
+  contre l'oracle CPU;
 - contrat de cache memoire d'instance par annee pour
   `coneIntersectionDistanceMeters`;
 - resolution angulaire fixe a `1 deg` et cache vide au changement de dataset;
