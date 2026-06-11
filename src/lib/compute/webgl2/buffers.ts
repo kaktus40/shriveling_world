@@ -82,6 +82,36 @@ export interface WebGl2RawConeAlphaDispatchResources {
 	readonly outputContract: ComputeGpuBufferContract;
 }
 
+/** Input bundle required by the ciseled-cones WebGL2 pass. */
+export interface WebGl2CiseledConesDispatchInput {
+	readonly cityNed2EcefMatrices: Float32Array;
+	readonly overlapCandidates: Uint32Array;
+	readonly overlapCandidateCounts: Uint32Array;
+	readonly rawConeRimEcef: Float32Array;
+	readonly cityCount: number;
+	readonly azimuthSampleCount: number;
+	readonly neighborLimit: number;
+}
+
+/** WebGL2 resources required by the ciseled-cones WebGL2 pass. */
+export interface WebGl2CiseledConesDispatchResources {
+	readonly vertexArray: WebGLVertexArrayObject;
+	readonly program: WebGLProgram;
+	readonly cityMatricesTexture: WebGLTexture;
+	readonly overlapCandidatesTexture: WebGLTexture;
+	readonly overlapCandidateCountsTexture: WebGLTexture;
+	readonly rawConeRimEcefTexture: WebGLTexture;
+	readonly coneIntersectionDistanceMetersBuffer: WebGLBuffer;
+	readonly ciseledConeRimEcefBuffer: WebGLBuffer;
+	readonly uniformLocation: WebGLUniformLocation;
+	readonly cityMatricesContract: ComputeGpuBufferContract;
+	readonly overlapCandidatesContract: ComputeGpuBufferContract;
+	readonly overlapCandidateCountsContract: ComputeGpuBufferContract;
+	readonly rawConeRimEcefContract: ComputeGpuBufferContract;
+	readonly coneIntersectionDistanceMetersContract: ComputeGpuBufferContract;
+	readonly ciseledConeRimEcefContract: ComputeGpuBufferContract;
+}
+
 /** Compiles the WebGL2 transform-feedback program for city NED-to-ECEF matrices. */
 export function createCityNed2EcefProgram(
 	gl: WebGL2RenderingContext,
@@ -143,6 +173,28 @@ export function createRawConeAlphasProgram(
 		const message = gl.getProgramInfoLog(program) ?? 'unknown WebGL2 link error';
 		gl.deleteProgram(program);
 		throw new Error(`WebGL2 raw-cone alpha program link failed: ${message}`);
+	}
+	gl.deleteShader(vertexShader);
+	return program;
+}
+
+/** Compiles the WebGL2 transform-feedback program for ciseled cones. */
+export function createCiseledConesProgram(
+	gl: WebGL2RenderingContext,
+	vertexShaderSource: string,
+): WebGLProgram {
+	const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+	const program = gl.createProgram();
+	if (!program) {
+		throw new Error('WebGL2 ciseled cones program creation failed');
+	}
+	gl.attachShader(program, vertexShader);
+	gl.transformFeedbackVaryings(program, ['tf_coneIntersectionDistanceMeters', 'tf_ciseledConeRimEcef'], gl.SEPARATE_ATTRIBS);
+	gl.linkProgram(program);
+	if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+		const message = gl.getProgramInfoLog(program) ?? 'unknown WebGL2 link error';
+		gl.deleteProgram(program);
+		throw new Error(`WebGL2 ciseled cones program link failed: ${message}`);
 	}
 	gl.deleteShader(vertexShader);
 	return program;
@@ -493,6 +545,147 @@ export function createRawConeAlphasDispatchResources(
 			count: input.cityCount * input.azimuthSampleCount,
 			angularUnit: 'radians',
 			notes: ['Selected alpha per city and azimuth sample captured with transform feedback'],
+		},
+	};
+}
+
+/** Creates the GPU allocations required by the ciseled-cones pass. */
+export function createCiseledConesDispatchResources(
+	gl: WebGL2RenderingContext,
+	program: WebGLProgram,
+	input: WebGl2CiseledConesDispatchInput,
+): WebGl2CiseledConesDispatchResources {
+	const vertexArray = gl.createVertexArray();
+	const coneIntersectionDistanceMetersBuffer = gl.createBuffer();
+	const ciseledConeRimEcefBuffer = gl.createBuffer();
+	const uniformLocation = gl.getUniformLocation(program, 'u_uniforms');
+	if (!vertexArray || !coneIntersectionDistanceMetersBuffer || !ciseledConeRimEcefBuffer || !uniformLocation) {
+		throw new Error('WebGL2 ciseled cones resource allocation failed');
+	}
+
+	const outputCount = Math.max(input.cityCount * input.azimuthSampleCount, 1);
+	const matrixCount = Math.max(input.cityCount, 1);
+	const candidateTextureWidth = Math.max(input.neighborLimit, 1);
+	const candidateTextureHeight = matrixCount;
+	const rimTextureWidth = outputCount;
+
+	const cityMatricesTexture = createFloatTexture2D(
+		gl,
+		gl.RGBA32F,
+		gl.RGBA,
+		4,
+		matrixCount,
+		input.cityNed2EcefMatrices.length > 0
+			? input.cityNed2EcefMatrices
+			: new Float32Array(matrixCount * 16),
+	);
+	const overlapCandidatesTexture = createIntTexture2D(
+		gl,
+		gl.R32UI,
+		gl.RED_INTEGER,
+		gl.UNSIGNED_INT,
+		candidateTextureWidth,
+		candidateTextureHeight,
+		input.overlapCandidates.length > 0
+			? input.overlapCandidates
+			: new Uint32Array(candidateTextureWidth * candidateTextureHeight),
+	);
+	const overlapCandidateCountsTexture = createIntTexture2D(
+		gl,
+		gl.R32UI,
+		gl.RED_INTEGER,
+		gl.UNSIGNED_INT,
+		matrixCount,
+		1,
+		input.overlapCandidateCounts.length > 0
+			? input.overlapCandidateCounts
+			: new Uint32Array(matrixCount),
+	);
+	const rawConeRimEcefTexture = createFloatTexture2D(
+		gl,
+		gl.RGBA32F,
+		gl.RGBA,
+		rimTextureWidth,
+		1,
+		input.rawConeRimEcef.length > 0
+			? input.rawConeRimEcef
+			: new Float32Array(rimTextureWidth * 4),
+	);
+
+	gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, coneIntersectionDistanceMetersBuffer);
+	gl.bufferData(
+		gl.TRANSFORM_FEEDBACK_BUFFER,
+		outputCount * Float32Array.BYTES_PER_ELEMENT,
+		gl.DYNAMIC_COPY,
+	);
+	gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, ciseledConeRimEcefBuffer);
+	gl.bufferData(
+		gl.TRANSFORM_FEEDBACK_BUFFER,
+		outputCount * 4 * Float32Array.BYTES_PER_ELEMENT,
+		gl.DYNAMIC_COPY,
+	);
+	gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, null);
+	gl.bindVertexArray(vertexArray);
+	gl.bindVertexArray(null);
+
+	return {
+		vertexArray,
+		program,
+		cityMatricesTexture,
+		overlapCandidatesTexture,
+		overlapCandidateCountsTexture,
+		rawConeRimEcefTexture,
+		coneIntersectionDistanceMetersBuffer,
+		ciseledConeRimEcefBuffer,
+		uniformLocation,
+		cityMatricesContract: {
+			name: 'cityNed2EcefMatrices',
+			elementType: 'float32',
+			strideBytes: 16 * Float32Array.BYTES_PER_ELEMENT,
+			count: input.cityCount,
+			linearUnit: 'meters',
+			coordinateOrder: 'ecef',
+			notes: ['Column-major NED-to-ECEF matrices per city sampled as a RGBA32F texture'],
+		},
+		overlapCandidatesContract: {
+			name: 'overlapCandidates',
+			elementType: 'uint32',
+			strideBytes: Uint32Array.BYTES_PER_ELEMENT,
+			count: input.overlapCandidates.length,
+			notes: ['Dense overlap candidates sampled as a R32UI texture'],
+		},
+		overlapCandidateCountsContract: {
+			name: 'overlapCandidateCounts',
+			elementType: 'uint32',
+			strideBytes: Uint32Array.BYTES_PER_ELEMENT,
+			count: input.overlapCandidateCounts.length,
+			notes: ['Number of valid overlap candidates retained for every city'],
+		},
+		rawConeRimEcefContract: {
+			name: 'rawConeRimEcef',
+			elementType: 'float32',
+			strideBytes: 4 * Float32Array.BYTES_PER_ELEMENT,
+			count: input.rawConeRimEcef.length / 4,
+			linearUnit: 'meters',
+			coordinateOrder: 'ecef',
+			notes: ['Raw cone rims sampled as a RGBA32F texture'],
+		},
+		coneIntersectionDistanceMetersContract: {
+			name: 'coneIntersectionDistanceMeters',
+			elementType: 'float32',
+			strideBytes: Float32Array.BYTES_PER_ELEMENT,
+			count: outputCount,
+			linearUnit: 'meters',
+			notes: ['Minimum ciseled intersection distance per ray'],
+		},
+		ciseledConeRimEcefContract: {
+			name: 'ciseledConeRimEcef',
+			elementType: 'float32',
+			strideBytes: 4 * Float32Array.BYTES_PER_ELEMENT,
+			count: outputCount,
+			linearUnit: 'meters',
+			coordinateOrder: 'ecef',
+			notes: ['Ciseled rim positions retained after cone/cone clipping'],
 		},
 	};
 }

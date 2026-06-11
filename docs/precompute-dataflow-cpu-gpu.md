@@ -178,7 +178,7 @@ respectant les memes unites SI que le CPU et le WebGPU.
 
 ### Schema Des Buffers WebGL2
 
-Le fallback WebGL2 actuel repose sur deux passes reelles. Le tableau ci-dessous
+Le fallback WebGL2 actuel repose sur trois passes reelles. Le tableau ci-dessous
 fige leurs contrats de buffers.
 
 Quand l'API runtime expose `getBufferSubData`, le backend peut relire les
@@ -213,6 +213,26 @@ Dispatch:
 | `uniform u_uniforms` | `earthRadiusMeters`, `cityCount`, `azimuthIntervalCount`, `contourCount` | `vec4<f32>` | `4` floats | metres, compteurs | Uniform compact de passe |
 | transform feedback `tf_boundaryAngular` | `townBoundaryAngular` | `RGBA32F` | `4` floats | `[longitudeRadians, latitudeRadians, angularDistanceRadians, validFlag]` | Sortie angulaire |
 | transform feedback `tf_boundaryEcef` | `townBoundaryEcef` | `RGBA32F` | `4` floats | `[xMeters, yMeters, zMeters, validFlag]` | Sortie ECEF |
+
+Dispatch:
+
+- un sommet instancie par couple `(ville, azimut)`;
+- `gl.POINTS`;
+- `drawArraysInstanced` avec `cityCount * azimuthSampleCount` instances;
+- `transform feedback` en mode separate attribs;
+- `rasterizer discard` active pendant le calcul.
+
+#### `ciseled-cones-webgl2.vert`
+
+| Binding / canal | Buffer logique | Type | Stride | Unite / ordre | Role |
+| --- | --- | --- | --- | --- | --- |
+| `texture unit 0` | `cityNed2EcefMatrices` | `RGBA32F` | `16` floats | matrice `NED2ECEF` column-major | Matrices ville en texture 2D |
+| `texture unit 1` | `overlapCandidates` | `R32UI` | `1` entier | index dense ou `UNUSED_INDEX` | Voisins statiques retenus |
+| `texture unit 2` | `overlapCandidateCounts` | `R32UI` | `1` entier | compte dense | Nombre de voisins retenus par ville |
+| `texture unit 3` | `rawConeRimEcef` | `RGBA32F` | `4` floats | `[x, y, z, padding]` | Rims bruts dense city/azimut |
+| `uniform u_uniforms` | `cityCount`, `azimuthSampleCount`, `neighborLimit`, reserve | `vec4<f32>` | `4` floats | compteurs sans reinterpretation angulaire | Uniform compact de passe |
+| transform feedback `tf_coneIntersectionDistanceMeters` | `coneIntersectionDistanceMeters` | `R32F` | `1` float | metres | Distance ciselee retenue |
+| transform feedback `tf_ciseledConeRimEcef` | `ciseledConeRimEcef` | `RGBA32F` | `4` floats | `[xMeters, yMeters, zMeters, validFlag]` | Rim ECEF cisele |
 
 Dispatch:
 
@@ -1388,11 +1408,11 @@ sans reproduire le nom de fichier a l'identique.
 | `boundaryAlgebre.frag` | Identifier la limite geographique valide pour une ville et un azimut | `u_towns`, `u_countries`, limites GeoJSON, azimuts echantillonnes | limites cartographiques, limites ECEF, index de contour associe | Porte | CPU -> WebGL2 -> WebGPU | Elle remplace la logique de raycast pays et prepare les contours pour la decoupe suivante. |
 | `countryMeshShader.frag` | Convertir les contours pays en maillage affichable | polygones GeoJSON, contours triangules, couches basse/haute | vertices, normales, uvs, indexes, mesh pays | Non porte | Rendu | Passe de rendu, utile pour valider les donnees GeoJSON et le maillage des pays. |
 | `rawCones.frag` | Generer les cones bruts avant toute intersection | villes statiques, villes dynamiques, alphas, longueurs, intervalles d'azimut | `RawConeBuffer` | Porte | CPU -> WebGL2 -> WebGPU | Une invocation correspond a un couple `(ville, azimut)`. La selection d'alpha est la partie la plus parallele et la plus interessante a accelerer. |
-| `ciseledCones.frag` | Cisailler les cones bruts sur les cones voisins et les supports choisis | `RawConeBuffer`, voisins statiques, BVH circulaire, invariants de paires | `CiseledConeBuffer`, diagnostics de coupe, `t` retenus | Partiellement porte | CPU -> WebGL2 -> WebGPU | Passe critique de filtrage. Elle garde la valeur minimale utile sans changer le contrat geometrique. |
+| `ciseledCones.frag` | Cisailler les cones bruts sur les cones voisins et les supports choisis | `RawConeBuffer`, voisins statiques, BVH circulaire, invariants de paires | `CiseledConeBuffer`, diagnostics de coupe, `t` retenus | Porte | CPU -> WebGL2 -> WebGPU | Passe critique de filtrage. Elle garde la valeur minimale utile sans changer le contrat geometrique. |
 | `finalCones.frag` | Finaliser la geometrie decoupee | cones ciseles, limites pays, acceptation du clipping | `FinalConeBuffer` | Non porte | WebGPU -> WebGL2 fallback -> CPU oracle | Cette passe applique la reduction finale et peut fusionner les minima cone/cone et cone/pays. |
 | `displayedCones.frag` | Transformer les cones finaux en donnees de rendu | `FinalConeBuffer`, conventions renderer | vertices, couleurs, attributs de dessin | Non porte | Rendu | Derniere passe avant Babylon ou un autre moteur de rendu. |
 | `curveMeshShader.ts` | Construire les courbes entre villes ou modes | points de controle, vitesses, annee, position sur la courbe | `CurveVertexBuffer` | Non porte | CPU -> WebGL2 -> WebGPU | Peut etre partagee entre CPU, WebGL2 et WebGPU. Elle echantillonne les courbes et n'est pas liee aux cones. |
-| `rayIntersectTriangle.glsl` | Primitive d'intersection rayon/triangle | rayon, triangle, seuils numeriques | `t`, hit flag, point d'intersection | Porte comme primitive WGSL partagee | CPU -> WebGL2 -> WebGPU | Ce n'est pas un passe autonome, mais une primitive partagee par les passes de coupe. |
+| `rayIntersectTriangle.glsl` | Primitive d'intersection rayon/triangle | rayon, triangle, seuils numeriques | `t`, hit flag, point d'intersection | Porte comme primitive partagee GLSL/WGSL | CPU -> WebGL2 -> WebGPU | Ce n'est pas un passe autonome, mais une primitive partagee par les passes de coupe. |
 
 ### Lecture Pratique De L'Inventaire
 
@@ -1402,7 +1422,7 @@ Pour les profils GPU, l'ordre de responsabilite attendu est:
 2. `static-town` prepare les invariants fixes et les matrices de base;
 3. `boundaryAlgebre` etablit les limites geographiques exploitables;
 4. `rawCones` fabrique la geometrie brute massivement parallele;
-5. `ciseledCones` retire les parties invalides ou trop longues, avec un premier portage WebGPU oracle;
+5. `ciseledCones` retire les parties invalides ou trop longues, avec un portage WebGL2 fallback et un portage WebGPU oracle;
 6. `finalCones` applique la reduction finale et le clipping pays;
 7. `displayedCones` convertit la geometrie pour le moteur de rendu;
 8. `curveMeshShader` prepare les courbes de representation;

@@ -1,17 +1,22 @@
 import rawConeAlphasVertexShaderSource from '../kernels/raw-cone-alphas-webgl2.vert?raw';
 import cityNed2EcefVertexShaderSource from '../kernels/city-ned2ecef-webgl2.vert?raw';
 import boundaryAlgebreVertexShaderSource from '../kernels/boundary-algebre-webgl2.vert?raw';
+import rayIntersectTriangleWebGl2ShaderSource from '../kernels/ray-intersect-triangle-webgl2.glsl?raw';
+import ciseledConesVertexShaderSource from '../kernels/ciseled-cones-webgl2.vert?raw';
 import {
 	createCpuWorkflowBackend,
 	type CpuComputeWorkflowBackend,
 } from '../cpu';
 import {
+	createCiseledConesDispatchResources,
+	createCiseledConesProgram,
 	createBoundaryAlgebreDispatchResources,
 	createBoundaryAlgebreProgram,
 	createCityNed2EcefDispatchResources,
 	createCityNed2EcefProgram,
 	createRawConeAlphasDispatchResources,
 	createRawConeAlphasProgram,
+	type WebGl2CiseledConesDispatchResources,
 	type WebGl2BoundaryAlgebreDispatchResources,
 	type WebGl2RawConeAlphaDispatchResources,
 } from './buffers';
@@ -96,6 +101,12 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 			compareDiagnostics.push(...rawConeAlphaPass.diagnostics);
 		}
 
+		if (result.staticTown && result.rawCones && result.coneIntersections) {
+			const ciseledConePass = await this.runCiseledConePass(result);
+			extraTimings.push(ciseledConePass.timing);
+			compareDiagnostics.push(...ciseledConePass.diagnostics);
+		}
+
 		for (const geojsonRun of result.geojsonRuns) {
 			const boundaryPass = await this.runBoundaryRaycastPass(result, geojsonRun);
 			extraTimings.push(boundaryPass.timing);
@@ -114,6 +125,12 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 					code: 'webgl2-city-matrix-pass-dispatched',
 					profile: this.profile,
 					message: 'WebGL2 backend dispatches a real city NED-to-ECEF transform-feedback pass before delegating the remaining compute stages to the CPU reference backend.',
+				},
+				{
+					severity: 'warning',
+					code: 'webgl2-ciseled-cones-pass-dispatched',
+					profile: this.profile,
+					message: 'WebGL2 backend dispatches a real cone-cone pass before delegating the remaining compute stages to the CPU reference backend.',
 				},
 				{
 					severity: 'warning',
@@ -143,6 +160,10 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		const program = createCityNed2EcefProgram(gl, cityNed2EcefVertexShaderSource);
 		const rawConeAlphaProgram = createRawConeAlphasProgram(gl, rawConeAlphasVertexShaderSource);
 		const boundaryProgram = createBoundaryAlgebreProgram(gl, boundaryAlgebreVertexShaderSource);
+		const ciseledConesProgram = createCiseledConesProgram(
+			gl,
+			`${rayIntersectTriangleWebGl2ShaderSource}\n${ciseledConesVertexShaderSource}`,
+		);
 		this.#resources = {
 			buffers: [],
 			pipeline: {
@@ -174,6 +195,15 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 						workgroupSize: [1, 1, 1],
 						notes: ['First operational WebGL2 raw-cone pass: select cone alphas with transform feedback.'],
 					},
+					{
+						name: 'ciseled-cones',
+						stage: 'cone-intersections-precompute',
+						profile: 'webgl2',
+						inputs: [],
+						outputs: [],
+						workgroupSize: [1, 1, 1],
+						notes: ['First operational WebGL2 cone-cone pass: exhaustive ciseled cones with transform feedback.'],
+					},
 				],
 			},
 			programCache: new Map([['city-ned2ecef', program]]),
@@ -181,6 +211,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		};
 		this.#resources.programCache?.set('boundary-algebre', boundaryProgram);
 		this.#resources.programCache?.set('raw-cone-alphas', rawConeAlphaProgram);
+		this.#resources.programCache?.set('ciseled-cones', ciseledConesProgram);
 		return this.#resources;
 	}
 
@@ -513,6 +544,128 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 
 		return { timing, diagnostics };
 	}
+
+	private async runCiseledConePass(result: ComputeWorkflowResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
+		const staticTown = result.staticTown;
+		const rawCones = result.rawCones;
+		const coneIntersections = result.coneIntersections;
+		if (!staticTown || !rawCones || !coneIntersections) {
+			return {
+				timing: {
+					stage: 'cone-intersections-precompute',
+					scope: 'interactive',
+					profile: 'webgl2',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+				diagnostics: [],
+			};
+		}
+
+		const cityCount = rawCones.cityCount;
+		const azimuthSampleCount = rawCones.azimuthSampleCount;
+		if (cityCount <= 0 || azimuthSampleCount <= 0) {
+			return {
+				timing: {
+					stage: 'cone-intersections-precompute',
+					scope: 'interactive',
+					profile: 'webgl2',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+				diagnostics: [],
+			};
+		}
+
+		const gl = this.ensureGl();
+		const resources = await this.ensureResources();
+		const program = resources.programCache?.get('ciseled-cones');
+		if (!program) {
+			throw new Error('WebGL2 ciseled cones program is not available');
+		}
+
+		const dispatchResources = createCiseledConesDispatchResources(
+			gl,
+			program,
+			{
+				cityNed2EcefMatrices: staticTown.cityNed2EcefMatrices,
+				overlapCandidates: staticTown.overlapCandidates,
+				overlapCandidateCounts: staticTown.overlapCandidateCounts,
+				rawConeRimEcef: rawCones.rawConeRimEcef,
+				cityCount,
+				azimuthSampleCount,
+				neighborLimit: staticTown.neighborLimit,
+			},
+		);
+		const transformFeedback = gl.createTransformFeedback();
+		if (!transformFeedback) {
+			throw new Error('WebGL2 transform feedback allocation failed');
+		}
+
+		const { timing } = await measureAsyncStage(
+			'cone-intersections-precompute',
+			'interactive',
+			'webgl2',
+			async () => {
+				gl.useProgram(program);
+				gl.uniform4f(
+					dispatchResources.uniformLocation,
+					cityCount,
+					azimuthSampleCount,
+					staticTown.neighborLimit,
+					0,
+				);
+				bindCiseledConesTextures(gl, dispatchResources);
+				gl.bindVertexArray(dispatchResources.vertexArray);
+				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, dispatchResources.coneIntersectionDistanceMetersBuffer);
+				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, dispatchResources.ciseledConeRimEcefBuffer);
+				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
+				gl.enable(gl.RASTERIZER_DISCARD);
+				gl.beginTransformFeedback(gl.POINTS);
+				gl.drawArraysInstanced(gl.POINTS, 0, 1, cityCount * azimuthSampleCount);
+				gl.endTransformFeedback();
+				gl.disable(gl.RASTERIZER_DISCARD);
+				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
+				gl.bindVertexArray(null);
+				gl.finish();
+				return undefined;
+			},
+		);
+
+		const diagnostics: DatasetDiagnostic[] = [];
+		const distanceReadback = readBackFloat32Buffer(
+			gl,
+			gl.TRANSFORM_FEEDBACK_BUFFER,
+			dispatchResources.coneIntersectionDistanceMetersBuffer,
+			cityCount * azimuthSampleCount,
+		);
+		const rimReadback = readBackFloat32Buffer(
+			gl,
+			gl.TRANSFORM_FEEDBACK_BUFFER,
+			dispatchResources.ciseledConeRimEcefBuffer,
+			cityCount * azimuthSampleCount * 4,
+		);
+		if (distanceReadback && rimReadback) {
+			diagnostics.push(
+				...compareFloat32Buffers(
+					'webgl2-cone-intersection-distance',
+					coneIntersections.coneIntersectionDistanceMeters,
+					distanceReadback,
+				),
+				...compareFloat32Buffers(
+					'webgl2-ciseled-cone-rim',
+					coneIntersections.ciseledConeRimEcef,
+					rimReadback,
+				),
+			);
+		}
+
+		return { timing, diagnostics };
+	}
 }
 
 /** Returns the WebGL2 capability snapshot. */
@@ -522,7 +675,7 @@ export function webgl2Capabilities(available = false): ComputeCapabilities {
 		webgl2Available: available,
 		cpuAvailable: true,
 		notes: available
-			? ['WebGL2 fallback backend with city NED-to-ECEF and GeoJSON boundary transform-feedback passes']
+			? ['WebGL2 fallback backend with city NED-to-ECEF, raw-cone alpha, ciseled-cone and GeoJSON boundary transform-feedback passes']
 			: ['WebGL2 unavailable'],
 	};
 }
@@ -566,7 +719,7 @@ function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport, extraTimings: 
 		totalDurationMs: benchmark.totalDurationMs + extraTimings.reduce((sum, timing) => sum + timing.durationMs, 0),
 		notes: [
 			...benchmark.notes,
-			'WebGL2 backend dispatches a city NED-to-ECEF transform-feedback pass and a GeoJSON boundary transform-feedback pass before delegating the remaining compute stages to the CPU reference backend.',
+			'WebGL2 backend dispatches city NED-to-ECEF, raw-cone alpha, cone-cone and GeoJSON boundary transform-feedback passes before delegating the remaining compute stages to the CPU reference backend.',
 		],
 	};
 }
@@ -666,6 +819,39 @@ function bindRawConeAlphaTextures(
 	gl.uniform1i(cityFastestTerrestrialAlphaLocation, 4);
 
 	gl.uniform1i(cityLinkOffsetsLocation, 0);
+}
+
+function bindCiseledConesTextures(
+	gl: WebGL2RenderingContext,
+	resources: WebGl2CiseledConesDispatchResources,
+): void {
+	gl.activeTexture(gl.TEXTURE0);
+	gl.bindTexture(gl.TEXTURE_2D, resources.cityMatricesTexture);
+	const cityMatricesLocation = gl.getUniformLocation(resources.program, 'u_cityMatrices');
+	const overlapCandidatesLocation = gl.getUniformLocation(resources.program, 'u_overlapCandidates');
+	const overlapCandidateCountsLocation = gl.getUniformLocation(resources.program, 'u_overlapCandidateCounts');
+	const rawConeRimEcefLocation = gl.getUniformLocation(resources.program, 'u_rawConeRimEcef');
+	if (
+		!cityMatricesLocation ||
+		!overlapCandidatesLocation ||
+		!overlapCandidateCountsLocation ||
+		!rawConeRimEcefLocation
+	) {
+		throw new Error('WebGL2 ciseled cones uniform lookup failed');
+	}
+	gl.uniform1i(cityMatricesLocation, 0);
+
+	gl.activeTexture(gl.TEXTURE1);
+	gl.bindTexture(gl.TEXTURE_2D, resources.overlapCandidatesTexture);
+	gl.uniform1i(overlapCandidatesLocation, 1);
+
+	gl.activeTexture(gl.TEXTURE2);
+	gl.bindTexture(gl.TEXTURE_2D, resources.overlapCandidateCountsTexture);
+	gl.uniform1i(overlapCandidateCountsLocation, 2);
+
+	gl.activeTexture(gl.TEXTURE3);
+	gl.bindTexture(gl.TEXTURE_2D, resources.rawConeRimEcefTexture);
+	gl.uniform1i(rawConeRimEcefLocation, 3);
 }
 
 function shapeToCode(shape: ConeShape): number {

@@ -147,12 +147,14 @@ function createFakeGl(): WebGL2RenderingContext & { calls: { drawCalls: number; 
 		CLAMP_TO_EDGE: 0x812f,
 		RGBA32F: 0x8814,
 		RG32F: 0x8230,
+		R32UI: 0x8236,
 		R32I: 0x8235,
 		RGBA: 0x1908,
 		RG: 0x8227,
 		RED_INTEGER: 0x8d94,
 		FLOAT: 0x1406,
 		INT: 0x1404,
+		UNSIGNED_INT: 0x1405,
 		UNPACK_ALIGNMENT: 0x0cf5,
 		createShader: () => shader,
 		shaderSource: () => {},
@@ -215,7 +217,18 @@ test('webgl2 probe becomes available with a webgl2-capable canvas and the backen
 	const backend = await descriptor.create();
 	const result = await backend.run(
 		buildMinimalDataset(),
-		{ benchmark: true },
+		{
+			benchmark: true,
+			dynamicYear: 2000,
+			rawCone: {
+				shape: 'road',
+				azimuthSampleCount: 8,
+				coneLengthMeters: 100000,
+			},
+			coneIntersection: {
+				enabled: true,
+			},
+		},
 		{
 			requested: 'webgl2',
 			forced: 'webgl2',
@@ -234,8 +247,9 @@ test('webgl2 probe becomes available with a webgl2-capable canvas and the backen
 	expect(result.benchmark.profile).toBe('webgl2');
 	expect(result.benchmark.notes.some((note) => note.includes('GeoJSON boundary transform-feedback pass'))).toBe(true);
 	expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'webgl2-city-matrix-pass-dispatched')).toBe(true);
+	expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'webgl2-ciseled-cones-pass-dispatched')).toBe(true);
 	expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'webgl2-boundary-raycast-pass-dispatched')).toBe(true);
 	const gl = fakeCanvas.getContext('webgl2') as ReturnType<typeof createFakeGl>;
 	expect(gl.calls.drawCalls).toBeGreaterThanOrEqual(1);
-	expect(gl.calls.instancedDrawCalls).toBeGreaterThanOrEqual(1);
+	expect(gl.calls.instancedDrawCalls).toBeGreaterThanOrEqual(3);
 });

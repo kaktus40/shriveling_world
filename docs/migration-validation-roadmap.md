@@ -1291,8 +1291,8 @@ Etat reel observe ulterieurement:
 - le backend CPU de reference orchestre deja l'ingestion, l'assemblage, le
   `PreparedDataset`, les precomputes GeoJSON et les passes CPU de reference;
 - le selecteur de profil accepte deja le forçage et le fallback explicite;
-- un fallback WebGL2 existe deja avec detection de contexte, un premier
-  dispatch reel `city-ned2ecef` en transform feedback, une passe GeoJSON
+- un fallback WebGL2 existe deja avec detection de contexte, des dispatchs
+  reels `city-ned2ecef`, `raw-cone-alphas`, `ciseled-cones` et
   `boundary-algebre` en transform feedback, comparaison runtime optionnelle
   des buffers relus et delegation du reste au CPU de reference;
 - un premier squelette WebGPU existe deja avec compilation du premier kernel
@@ -1407,7 +1407,7 @@ Travail realise:
 - diagnostics de taille de fourchette et d'appartenance de la face gagnante;
 - benchmark stable `cone-intersection-alpha-aware-order`;
 - benchmark stable `cone-intersection-alpha-aware-block-pruned`;
-- premier portage WebGPU du noyau `ciseledCones` avec comparaison readback
+- portage WebGL2 puis WebGPU du noyau `ciseledCones` avec comparaison readback
   contre l'oracle CPU;
 - contrat de cache memoire d'instance par annee pour
   `coneIntersectionDistanceMeters`;
