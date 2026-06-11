@@ -76,7 +76,7 @@ Utiliser les statuts suivants:
 | M1 | validated | Caracterisation initiale et fixtures |
 | M2 | validated | Migration SvelteKit/Vite minimale |
 | M2.1 | validated | Evaluation des hooks Rollup applicatifs |
-| M3 | in_progress | Extraction du domaine metier |
+| M3 | validated | Extraction du domaine metier |
 | M3.1 | validated | Inspection dataset et assemblage lossless du reseau |
 | M4 | in_progress | Architecture explicite de precalcul |
 | M4.1 | validated | Socle de tests CPU et contrats de buffers |
@@ -799,7 +799,7 @@ Implementation CPU de la generation des cones bruts:
 
 ## M3: Extraction Du Domaine Metier
 
-Statut: `in_progress`
+Statut: `validated`
 
 Objectif:
 
@@ -870,7 +870,7 @@ Critere d'acceptation:
 
 Validation:
 
-- Implementation partielle:
+- Implementation:
   - `src/lib/domain/data/types.ts`, `csv.ts`, `inspection.ts`, `assembly.ts` et `index.ts` crees;
   - code documente pour TypeDoc;
   - PapaParse retenu comme parseur CSV du domaine.
@@ -910,16 +910,10 @@ Validation:
     de relancer l'execution dans le `Worker` et d'afficher les diagnostics et
     resultats de requete dans l'interface.
   - le requeteur AST est considere comme suffisamment mature pour le stade
-    actuel et n'est plus un point bloquant du jalon M3; la suite de M3 se
-    concentre sur l'extraction du reste du domaine metier et la reduction des
-    derniers couplages applicatifs.
+    actuel et n'est plus un point bloquant du jalon M3.
 - Validations executees:
   - compilation TypeScript ciblee des fichiers `src/lib/domain/data/*.ts`;
   - `npm run build`.
-- Reste a faire:
-  - porter progressivement les autres consommateurs applicatifs futurs du
-    domaine, au-dela des routes de validation;
-  - finaliser le branchement interactif complet hors pages de test.
 - Verification ulterieure sur le worktree de migration:
   - `tests/integration/data-pipeline.test.ts` passe;
   - `npm test`, `npm run test:integration`, `npm run build` et
@@ -929,8 +923,8 @@ Validation:
     construction du snapshot de requete et l'execution worker serialisable;
   - `npm run test:e2e` passe apres branchement du `workspace` partage sur le
     shell racine et les routes de validation;
-  - la dette M3 ne porte plus sur l'assemblage lossless, mais sur
-    l'integration applicative et l'extraction complete du domaine.
+  - la dette de couplage legacy ne porte plus sur `M3`; elle est traitee par
+    les jalons suivants de precalcul et d'integration interactive.
 
 ## M4: Architecture Explicite De Precalcul
 
