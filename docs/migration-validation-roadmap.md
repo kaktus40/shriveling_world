@@ -894,6 +894,11 @@ Validation:
     `docs/query-engine-architecture.md`:
     AST explicite, evaluation pure, execution parallele dans un `Worker`, et
     compatibilite UX avec l'arbre de requete de `VoitureBDD2`.
+  - le moteur de requetes AST est maintenant implemente dans
+    `src/lib/domain/query/`;
+  - un snapshot de requete serialisable par ville et un executeur applicatif
+    `Worker` ont ete ajoutes dans `src/lib/application/query/` et
+    `src/lib/workers/city-query.worker.ts`.
 - Validations executees:
   - compilation TypeScript ciblee des fichiers `src/lib/domain/data/*.ts`;
   - `npm run build`.
@@ -906,6 +911,8 @@ Validation:
   - `npm test`, `npm run test:integration`, `npm run build` et
     `npm run validate` passent apres extraction de l'orchestration applicative
     et ajout de la route `/workspace`;
+  - les tests unitaires couvrent maintenant l'evaluation de l'AST, la
+    construction du snapshot de requete et l'execution worker serialisable;
   - `npm run test:e2e` passe apres branchement du `workspace` partage sur le
     shell racine et les routes de validation;
   - la dette M3 ne porte plus sur l'assemblage lossless, mais sur
