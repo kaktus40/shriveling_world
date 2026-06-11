@@ -1,5 +1,4 @@
 import cityNed2EcefShaderSource from '../kernels/city-ned2ecef.wgsl?raw';
-import smokeShaderSource from '../kernels/smoke.wgsl?raw';
 import {
 	createCpuWorkflowBackend,
 	type CpuComputeWorkflowBackend,
@@ -48,7 +47,6 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		selection?: ComputeProfileSelection,
 	): Promise<ComputeWorkflowResult> {
 		const context = await this.ensureContext();
-		await this.runSmokePass(context);
 		const delegatedSelection: ComputeProfileSelection =
 			selection ?? {
 				selected: 'webgpu',
@@ -66,12 +64,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 				{
 					severity: 'warning',
 					code: 'webgpu-skeleton-cpu-delegation',
-					message: 'WebGPU backend is wired, dispatches a smoke pass and a city NED-to-ECEF pass, but still delegates the remaining compute stages to the CPU reference backend.',
-				},
-				{
-					severity: 'warning',
-					code: 'webgpu-city-matrix-pass-dispatched',
-					message: 'WebGPU backend dispatches a real city NED-to-ECEF pass before CPU delegation so the first production-style WGSL kernel is exercised.',
+					message: 'WebGPU backend is wired, dispatches a city NED-to-ECEF pass, but still delegates the remaining compute stages to the CPU reference backend.',
 				},
 			],
 		};
@@ -105,21 +98,11 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			return this.#resources;
 		}
 		const device = await this.ensureDevice();
-		const smokeModule = device.createShaderModule({ code: smokeShaderSource });
 		const cityMatrixModule = device.createShaderModule({ code: cityNed2EcefShaderSource });
 		this.#resources = {
 			buffers: [],
 			pipeline: {
 				passes: [
-					{
-						name: 'smoke',
-						stage: 'prepared-dataset',
-						profile: 'webgpu',
-						inputs: [],
-						outputs: [],
-						workgroupSize: [1, 1, 1],
-						notes: ['Smoke kernel used to prove the WebGPU path before real passes are wired.'],
-					},
 					{
 						name: 'city-ned2ecef',
 						stage: 'static-town-precompute',
@@ -131,10 +114,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 					},
 				],
 			},
-			shaderModuleCache: new Map([
-				['smoke', smokeModule],
-				['city-ned2ecef', cityMatrixModule],
-			]),
+			shaderModuleCache: new Map([['city-ned2ecef', cityMatrixModule]]),
 			pipelineCache: new Map(),
 			bindGroupCache: new Map(),
 		};
@@ -152,23 +132,6 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		}
 		this.#device = await adapter.requestDevice();
 		return this.#device;
-	}
-
-	private async runSmokePass(context: WebGpuComputeContext): Promise<void> {
-		const resources = await this.ensureResources();
-		const pipeline = await context.device.createComputePipelineAsync({
-			layout: 'auto',
-			compute: {
-				module: resources.shaderModuleCache?.get('smoke') ?? context.device.createShaderModule({ code: smokeShaderSource }),
-				entryPoint: 'main',
-			},
-		});
-		const encoder = context.device.createCommandEncoder();
-		const pass = encoder.beginComputePass();
-		pass.setPipeline(pipeline);
-		pass.dispatchWorkgroups(1, 1, 1);
-		pass.end();
-		context.queue.submit([encoder.finish()]);
 	}
 
 	private async runCityMatrixPass(context: WebGpuComputeContext, result: ComputeWorkflowResult): Promise<{ timing: StageTiming }> {
@@ -250,7 +213,7 @@ export function webgpuCapabilities(available = false): ComputeCapabilities {
 		webgpuAvailable: available,
 		webgl2Available: false,
 		cpuAvailable: true,
-		notes: available ? ['WebGPU backend with smoke and city NED-to-ECEF passes'] : ['WebGPU unavailable'],
+		notes: available ? ['WebGPU backend with a city NED-to-ECEF pass'] : ['WebGPU unavailable'],
 	};
 }
 
@@ -289,7 +252,7 @@ function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport, extraTiming?: 
 		totalDurationMs: benchmark.totalDurationMs + (extraTiming?.durationMs ?? 0),
 		notes: [
 			...benchmark.notes,
-			'WebGPU backend dispatches a smoke pass and a first real city NED-to-ECEF pass before delegating the remaining compute stages to the CPU reference backend.',
+			'WebGPU backend dispatches a first real city NED-to-ECEF pass before delegating the remaining compute stages to the CPU reference backend.',
 		],
 	};
 }

@@ -1233,7 +1233,7 @@ src/lib/compute/core/
 src/lib/compute/webgl2/
 src/lib/compute/webgpu/
 src/lib/compute/kernels/
-  smoke.wgsl
+  city-ned2ecef.wgsl
 ```
 
 Interface cible indicative:
@@ -1269,7 +1269,7 @@ Validation:
 
 Etat reel observe ulterieurement:
 
-- un shader de smoke existe deja dans `src/lib/compute/kernels/smoke.wgsl`;
+- un premier kernel WGSL metier existe deja dans `src/lib/compute/kernels/city-ned2ecef.wgsl`;
 - l'import WGSL via Vite est deja prouve dans le shell applicatif;
 - le framework compute est amorce dans `src/lib/compute/core` et
   `src/lib/compute/cpu/workflow.ts`;
@@ -1290,9 +1290,8 @@ Etat reel observe ulterieurement:
 - le selecteur de profil accepte deja le forçage et le fallback explicite;
 - un premier squelette WebGL2 existe deja avec detection de contexte, contrat
   de backends et delegation temporaire au CPU de reference;
-- un premier squelette WebGPU existe deja avec compilation du shader smoke,
-  dispatch minimal, premier kernel metier `city-ned2ecef` et delegation
-  temporaire au CPU de reference;
+- un premier squelette WebGPU existe deja avec compilation du premier kernel
+  metier `city-ned2ecef` et delegation temporaire au CPU de reference;
 - l'ecran `/workspace` peut deja consommer le backend CPU de reference et
   afficher la selection de profil ainsi que le benchmark par etape;
 - le backend WebGPU est maintenant branche sur le meme contrat, mais ses
