@@ -3,6 +3,7 @@ import cityNed2EcefVertexShaderSource from '../kernels/city-ned2ecef-webgl2.vert
 import boundaryAlgebreVertexShaderSource from '../kernels/boundary-algebre-webgl2.vert?raw';
 import rayIntersectTriangleWebGl2ShaderSource from '../kernels/ray-intersect-triangle-webgl2.glsl?raw';
 import ciseledConesVertexShaderSource from '../kernels/ciseled-cones-webgl2.vert?raw';
+import finalConesVertexShaderSource from '../kernels/final-cones-webgl2.vert?raw';
 import {
 	createCpuWorkflowBackend,
 	type CpuComputeWorkflowBackend,
@@ -16,8 +17,11 @@ import {
 	createCityNed2EcefProgram,
 	createRawConeAlphasDispatchResources,
 	createRawConeAlphasProgram,
+	createFinalConesDispatchResources,
+	createFinalConesProgram,
 	type WebGl2CiseledConesDispatchResources,
 	type WebGl2BoundaryAlgebreDispatchResources,
+	type WebGl2FinalConesDispatchResources,
 	type WebGl2RawConeAlphaDispatchResources,
 } from './buffers';
 import {
@@ -62,6 +66,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 	readonly #cpuBackend: CpuComputeWorkflowBackend;
 	#gl: WebGL2RenderingContext | null;
 	#resources: WebGl2ComputeResources | null = null;
+	#ciseledConeRimEcefBuffer: WebGLBuffer | null = null;
 
 	constructor(options: WebGl2WorkflowBackendOptions = {}) {
 		this.#canvas = options.canvas ?? options.createCanvas?.() ?? null;
@@ -74,6 +79,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		options: ComputeWorkflowOptions = {},
 		selection?: ComputeProfileSelection,
 	): Promise<ComputeWorkflowResult> {
+		this.#ciseledConeRimEcefBuffer = null;
 		const available = await this.ensureAvailable();
 		if (!available) {
 			throw new Error('WebGL2 compute backend unavailable: no WebGL2 context could be created');
@@ -105,11 +111,17 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 			const ciseledConePass = await this.runCiseledConePass(result);
 			extraTimings.push(ciseledConePass.timing);
 			compareDiagnostics.push(...ciseledConePass.diagnostics);
+			if (ciseledConePass.ciseledConeRimEcefBuffer) {
+				this.#ciseledConeRimEcefBuffer = ciseledConePass.ciseledConeRimEcefBuffer;
+			}
 		}
 
 		for (const geojsonRun of result.geojsonRuns) {
 			const boundaryPass = await this.runBoundaryRaycastPass(result, geojsonRun);
 			extraTimings.push(boundaryPass.timing);
+			if (boundaryPass.extraTimings) {
+				extraTimings.push(...boundaryPass.extraTimings);
+			}
 			compareDiagnostics.push(...boundaryPass.diagnostics);
 		}
 
@@ -138,6 +150,12 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 					profile: this.profile,
 					message: 'WebGL2 backend dispatches a real GeoJSON boundary transform-feedback pass before delegating the remaining compute stages to the CPU reference backend.',
 				},
+				{
+					severity: 'warning',
+					code: 'webgl2-final-cones-pass-dispatched',
+					profile: this.profile,
+					message: 'WebGL2 backend dispatches a real final cone geometry transform-feedback pass before delegating the remaining compute stages to the CPU reference backend.',
+				},
 			],
 		};
 	}
@@ -163,6 +181,10 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		const ciseledConesProgram = createCiseledConesProgram(
 			gl,
 			`${rayIntersectTriangleWebGl2ShaderSource}\n${ciseledConesVertexShaderSource}`,
+		);
+		const finalConesProgram = createFinalConesProgram(
+			gl,
+			finalConesVertexShaderSource,
 		);
 		this.#resources = {
 			buffers: [],
@@ -204,6 +226,15 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 						workgroupSize: [1, 1, 1],
 						notes: ['First operational WebGL2 cone-cone pass: exhaustive ciseled cones with transform feedback.'],
 					},
+					{
+						name: 'final-cones',
+						stage: 'final-cones-precompute',
+						profile: 'webgl2',
+						inputs: [],
+						outputs: [],
+						workgroupSize: [1, 1, 1],
+						notes: ['Final operational WebGL2 geometry-emission pass: merge boundary clipping into the final render-ready cone geometry.'],
+					},
 				],
 			},
 			programCache: new Map([['city-ned2ecef', program]]),
@@ -212,13 +243,14 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		this.#resources.programCache?.set('boundary-algebre', boundaryProgram);
 		this.#resources.programCache?.set('raw-cone-alphas', rawConeAlphaProgram);
 		this.#resources.programCache?.set('ciseled-cones', ciseledConesProgram);
+		this.#resources.programCache?.set('final-cones', finalConesProgram);
 		return this.#resources;
 	}
 
 	private async runBoundaryRaycastPass(
 		result: ComputeWorkflowResult,
 		geojsonRun: ComputeWorkflowResult['geojsonRuns'][number],
-	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
+	): Promise<{ timing: StageTiming; extraTimings?: StageTiming[]; diagnostics: DatasetDiagnostic[] }> {
 		const staticTown = result.staticTown;
 		if (!staticTown) {
 			return {
@@ -230,6 +262,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 					endedAtMs: 0,
 					durationMs: 0,
 				},
+				extraTimings: [],
 				diagnostics: [],
 			};
 		}
@@ -248,6 +281,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 					endedAtMs: 0,
 					durationMs: 0,
 				},
+				extraTimings: [],
 				diagnostics: [],
 			};
 		}
@@ -340,6 +374,138 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 			);
 		}
 
+		if (this.#ciseledConeRimEcefBuffer && geojsonRun.finalCones) {
+			const finalPass = await this.runFinalConePass(result, geojsonRun, this.#ciseledConeRimEcefBuffer, dispatchResources.angularOutputBuffer, dispatchResources.ecefOutputBuffer);
+			diagnostics.push(...finalPass.diagnostics);
+			return {
+				timing,
+				extraTimings: [finalPass.timing],
+				diagnostics,
+			};
+		}
+
+		return { timing, diagnostics };
+	}
+
+	private async runFinalConePass(
+		result: ComputeWorkflowResult,
+		geojsonRun: ComputeWorkflowResult['geojsonRuns'][number],
+		ciseledConeRimEcefBuffer: WebGLBuffer,
+		townBoundaryAngularBuffer: WebGLBuffer,
+		townBoundaryEcefBuffer: WebGLBuffer,
+	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
+		const staticTown = result.staticTown;
+		if (!staticTown) {
+			return {
+				timing: {
+					stage: 'final-cones-precompute',
+					scope: 'precompute',
+					profile: 'webgl2',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+				diagnostics: [],
+			};
+		}
+
+		const finalCones = geojsonRun.finalCones;
+		if (!finalCones) {
+			return {
+				timing: {
+					stage: 'final-cones-precompute',
+					scope: 'precompute',
+					profile: 'webgl2',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+				diagnostics: [],
+			};
+		}
+
+		const cityCount = staticTown.cityCount;
+		const azimuthSampleCount = geojsonRun.boundaryRaycast.azimuthSampleCount;
+		if (cityCount <= 0 || azimuthSampleCount <= 0) {
+			return {
+				timing: {
+					stage: 'final-cones-precompute',
+					scope: 'precompute',
+					profile: 'webgl2',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+				diagnostics: [],
+			};
+		}
+
+		const gl = this.ensureGl();
+		const resources = await this.ensureResources();
+		const program = resources.programCache?.get('final-cones');
+		if (!program) {
+			throw new Error('WebGL2 final cones program is not available');
+		}
+
+		const dispatchResources = createFinalConesDispatchResources(gl, program, {
+			ciseledConeRimEcef: ciseledConeRimEcefBuffer,
+			townBoundaryAngular: townBoundaryAngularBuffer,
+			townBoundaryEcef: townBoundaryEcefBuffer,
+			cityCount,
+			azimuthSampleCount,
+			earthRadiusMeters: EARTH_RADIUS_METERS,
+		});
+		const transformFeedback = gl.createTransformFeedback();
+		if (!transformFeedback) {
+			throw new Error('WebGL2 transform feedback allocation failed');
+		}
+
+		const { timing } = await measureAsyncStage(
+			'final-cones-precompute',
+			'precompute',
+			'webgl2',
+			async () => {
+				gl.useProgram(program);
+				gl.uniform4f(
+					dispatchResources.uniformLocation,
+					EARTH_RADIUS_METERS,
+					cityCount,
+					azimuthSampleCount,
+					0,
+				);
+				this.bindFinalConesInputs(gl, dispatchResources);
+				gl.bindVertexArray(dispatchResources.vertexArray);
+				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, dispatchResources.finalConeGeometryEcefBuffer);
+				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
+				gl.enable(gl.RASTERIZER_DISCARD);
+				gl.beginTransformFeedback(gl.POINTS);
+				gl.drawArraysInstanced(gl.POINTS, 0, 1, cityCount * azimuthSampleCount);
+				gl.endTransformFeedback();
+				gl.disable(gl.RASTERIZER_DISCARD);
+				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+				gl.bindVertexArray(null);
+				gl.finish();
+				return undefined;
+			},
+		);
+
+		const diagnostics: DatasetDiagnostic[] = [];
+		const finalReadback = readBackFloat32Buffer(
+			gl,
+			gl.TRANSFORM_FEEDBACK_BUFFER,
+			dispatchResources.finalConeGeometryEcefBuffer,
+			cityCount * azimuthSampleCount * 4,
+		);
+		if (finalReadback) {
+			diagnostics.push(
+				...compareFloat32Buffers(
+					'webgl2-final-cone-geometry',
+					finalCones.finalConeGeometryEcef,
+					finalReadback,
+				),
+			);
+		}
 		return { timing, diagnostics };
 	}
 
@@ -353,6 +519,31 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		}
 		this.#gl = gl;
 		return gl;
+	}
+
+	private bindFinalConesInputs(
+		gl: WebGL2RenderingContext,
+		resources: WebGl2FinalConesDispatchResources,
+	): void {
+		gl.bindVertexArray(resources.vertexArray);
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, resources.ciseledConeRimEcefBuffer);
+		gl.enableVertexAttribArray(0);
+		gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0);
+		gl.vertexAttribDivisor?.(0, 1);
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, resources.townBoundaryAngularBuffer);
+		gl.enableVertexAttribArray(1);
+		gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 0, 0);
+		gl.vertexAttribDivisor?.(1, 1);
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, resources.townBoundaryEcefBuffer);
+		gl.enableVertexAttribArray(2);
+		gl.vertexAttribPointer(2, 4, gl.FLOAT, false, 0, 0);
+		gl.vertexAttribDivisor?.(2, 1);
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		gl.bindVertexArray(null);
 	}
 
 	private async runCityMatrixPass(result: ComputeWorkflowResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
@@ -545,7 +736,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		return { timing, diagnostics };
 	}
 
-	private async runCiseledConePass(result: ComputeWorkflowResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
+	private async runCiseledConePass(result: ComputeWorkflowResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[]; ciseledConeRimEcefBuffer?: WebGLBuffer }> {
 		const staticTown = result.staticTown;
 		const rawCones = result.rawCones;
 		const coneIntersections = result.coneIntersections;
@@ -664,7 +855,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 			);
 		}
 
-		return { timing, diagnostics };
+		return { timing, diagnostics, ciseledConeRimEcefBuffer: dispatchResources.ciseledConeRimEcefBuffer };
 	}
 }
 
@@ -675,7 +866,7 @@ export function webgl2Capabilities(available = false): ComputeCapabilities {
 		webgl2Available: available,
 		cpuAvailable: true,
 		notes: available
-			? ['WebGL2 fallback backend with city NED-to-ECEF, raw-cone alpha, ciseled-cone and GeoJSON boundary transform-feedback passes']
+			? ['WebGL2 fallback backend with city NED-to-ECEF, raw-cone alpha, ciseled-cone, GeoJSON boundary and final geometry transform-feedback passes']
 			: ['WebGL2 unavailable'],
 	};
 }
@@ -719,7 +910,7 @@ function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport, extraTimings: 
 		totalDurationMs: benchmark.totalDurationMs + extraTimings.reduce((sum, timing) => sum + timing.durationMs, 0),
 		notes: [
 			...benchmark.notes,
-			'WebGL2 backend dispatches city NED-to-ECEF, raw-cone alpha, cone-cone and GeoJSON boundary transform-feedback passes before delegating the remaining compute stages to the CPU reference backend.',
+			'WebGL2 backend dispatches city NED-to-ECEF, raw-cone alpha, cone-cone, GeoJSON boundary and final geometry transform-feedback passes before delegating the remaining compute stages to the CPU reference backend.',
 		],
 	};
 }

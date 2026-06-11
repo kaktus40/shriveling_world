@@ -1293,12 +1293,14 @@ Etat reel observe ulterieurement:
 - le selecteur de profil accepte deja le forçage et le fallback explicite;
 - un fallback WebGL2 existe deja avec detection de contexte, des dispatchs
   reels `city-ned2ecef`, `raw-cone-alphas`, `ciseled-cones` et
-  `boundary-algebre` en transform feedback, comparaison runtime optionnelle
-  des buffers relus et delegation du reste au CPU de reference;
+  `boundary-algebre` et `finalCones` en transform feedback, comparaison
+  runtime optionnelle des buffers relus et delegation du reste au CPU de
+  reference;
 - un premier squelette WebGPU existe deja avec compilation du premier kernel
   metier `city-ned2ecef`, du raycast GeoJSON `boundary-algebre` et de la
-  selection d'alpha des raw cones, tout en deleguant les autres etapes au CPU
-  de reference;
+  selection d'alpha des raw cones, de la reduction finale des cones et de la
+  geometrie finale prete a afficher, tout en deleguant les autres etapes au
+  CPU de reference;
 - l'ecran `/workspace` peut deja consommer le backend CPU de reference et
   afficher la selection de profil, la strategie d'intersection cone/cone et
   le benchmark par etape;
@@ -1327,6 +1329,7 @@ Passes prioritaires:
 - generation des courbes;
 - conversion de projection;
 - limites geographiques;
+- geometrie finale des cones;
 - clipping.
 
 Travail attendu:

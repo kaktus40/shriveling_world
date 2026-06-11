@@ -1,6 +1,7 @@
 import rawConeAlphasShaderSource from '../kernels/raw-cone-alphas.wgsl?raw';
 import boundaryAlgebreShaderSource from '../kernels/boundary-algebre.wgsl?raw';
 import cityNed2EcefShaderSource from '../kernels/city-ned2ecef.wgsl?raw';
+import finalConesShaderSource from '../kernels/final-cones.wgsl?raw';
 import rayIntersectTriangleShaderSource from '../kernels/ray-intersect-triangle.wgsl?raw';
 import ciseledConesShaderSource from '../kernels/ciseled-cones.wgsl?raw';
 import {
@@ -11,7 +12,9 @@ import {
 	createBoundaryAlgebreDispatchResources,
 	createCityNed2EcefDispatchResources,
 	createCiseledConesDispatchResources,
+	createFinalConesDispatchResources,
 	createRawConeAlphaDispatchResources,
+	type GpuBufferAllocation,
 } from './buffers';
 import {
 	compareFloat32Buffers,
@@ -51,6 +54,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 	#device: GPUDevice | null;
 	#requestAdapter: (() => Promise<GPUAdapter | null>) | null;
 	#resources: WebGpuComputeResources | null = null;
+	#ciseledConeRimEcef: GpuBufferAllocation | null = null;
 
 	constructor(options: WebGpuWorkflowBackendOptions = {}) {
 		this.#device = options.device ?? null;
@@ -63,6 +67,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		options: ComputeWorkflowOptions = {},
 		selection?: ComputeProfileSelection,
 	): Promise<ComputeWorkflowResult> {
+		this.#ciseledConeRimEcef = null;
 		const context = await this.ensureContext();
 		const delegatedSelection: ComputeProfileSelection =
 			selection ?? {
@@ -90,11 +95,17 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			const ciseledConePass = await this.runCiseledConePass(context, result);
 			extraTimings.push(ciseledConePass.timing);
 			compareDiagnostics.push(...ciseledConePass.diagnostics);
+			if (ciseledConePass.ciseledConeRimEcef) {
+				this.#ciseledConeRimEcef = ciseledConePass.ciseledConeRimEcef;
+			}
 		}
 
 		for (const geojsonRun of result.geojsonRuns) {
 			const boundaryPass = await this.runBoundaryRaycastPass(context, result, geojsonRun);
 			extraTimings.push(boundaryPass.timing);
+			if (boundaryPass.extraTimings) {
+				extraTimings.push(...boundaryPass.extraTimings);
+			}
 			compareDiagnostics.push(...boundaryPass.diagnostics);
 		}
 
@@ -148,6 +159,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		const ciseledConeModule = device.createShaderModule({
 			code: `${rayIntersectTriangleShaderSource}\n${ciseledConesShaderSource}`,
 		});
+		const finalConeModule = device.createShaderModule({ code: finalConesShaderSource });
 		const boundaryModule = device.createShaderModule({ code: boundaryAlgebreShaderSource });
 		this.#resources = {
 			buffers: [],
@@ -189,12 +201,22 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 						workgroupSize: [1, 1, 1],
 						notes: ['First real WGSL cone-cone kernel: exhaustively ciseled raw cones against retained neighbors and compared them against the CPU oracle.'],
 					},
+					{
+						name: 'final-cones',
+						stage: 'final-cones-precompute',
+						profile: 'webgpu',
+						inputs: [],
+						outputs: [],
+						workgroupSize: [1, 1, 1],
+						notes: ['Final real WGSL geometry-emission kernel: merge boundary clipping into the final render-ready cone geometry.'],
+					},
 				],
 			},
 			shaderModuleCache: new Map([
 				['city-ned2ecef', cityMatrixModule],
 				['raw-cone-alphas', rawConeAlphaModule],
 				['ciseled-cones', ciseledConeModule],
+				['final-cones', finalConeModule],
 				['boundary-algebre', boundaryModule],
 			]),
 			pipelineCache: new Map(),
@@ -408,7 +430,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 	private async runCiseledConePass(
 		context: WebGpuComputeContext,
 		result: ComputeWorkflowResult,
-	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
+	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[]; ciseledConeRimEcef?: GpuBufferAllocation }> {
 		const staticTown = result.staticTown;
 		const rawCones = result.rawCones;
 		const reference = result.coneIntersections;
@@ -522,14 +544,14 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			);
 		}
 
-		return { timing, diagnostics };
+		return { timing, diagnostics, ciseledConeRimEcef: resources.ciseledConeRimEcef };
 	}
 
 	private async runBoundaryRaycastPass(
 		context: WebGpuComputeContext,
 		result: ComputeWorkflowResult,
 		geojsonRun: ComputeWorkflowResult['geojsonRuns'][number],
-	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
+	): Promise<{ timing: StageTiming; extraTimings?: StageTiming[]; diagnostics: DatasetDiagnostic[] }> {
 		const staticTown = result.staticTown;
 		if (!staticTown) {
 			return {
@@ -541,6 +563,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 					endedAtMs: 0,
 					durationMs: 0,
 				},
+				extraTimings: [],
 				diagnostics: [],
 			};
 		}
@@ -559,6 +582,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 					endedAtMs: 0,
 					durationMs: 0,
 				},
+				extraTimings: [],
 				diagnostics: [],
 			};
 		}
@@ -648,6 +672,74 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			);
 		}
 
+		if (this.#ciseledConeRimEcef && geojsonRun.finalCones) {
+			const finalResources = createFinalConesDispatchResources(
+				context.device,
+				usage,
+				{
+					ciseledConeRimEcef: this.#ciseledConeRimEcef,
+					townBoundaryAngular: buffers.townBoundaryAngular,
+					townBoundaryEcef: buffers.townBoundaryEcef,
+					cityCount,
+					azimuthSampleCount,
+					earthRadiusMeters: EARTH_RADIUS_METERS,
+				},
+			);
+			const finalPipeline = await context.device.createComputePipelineAsync({
+				layout: 'auto',
+				compute: {
+					module:
+						resources.shaderModuleCache?.get('final-cones') ??
+						context.device.createShaderModule({ code: finalConesShaderSource }),
+					entryPoint: 'main',
+				},
+			});
+			const finalBindGroup = context.device.createBindGroup({
+				layout: finalPipeline.getBindGroupLayout(0),
+				entries: [
+					{ binding: 0, resource: { buffer: finalResources.ciseledConeRimEcef.buffer } },
+					{ binding: 1, resource: { buffer: finalResources.townBoundaryAngular.buffer } },
+					{ binding: 2, resource: { buffer: finalResources.townBoundaryEcef.buffer } },
+					{ binding: 3, resource: { buffer: finalResources.uniform.buffer } },
+					{ binding: 4, resource: { buffer: finalResources.finalConeGeometryEcef.buffer } },
+				],
+			});
+			const finalTiming = await measureAsyncStage(
+				'final-cones-precompute',
+				'precompute',
+				'webgpu',
+				async () => {
+					const encoder = context.device.createCommandEncoder();
+					const pass = encoder.beginComputePass();
+					pass.setPipeline(finalPipeline);
+					pass.setBindGroup(0, finalBindGroup);
+					pass.dispatchWorkgroups(azimuthSampleCount, cityCount, 1);
+					pass.end();
+					context.queue.submit([encoder.finish()]);
+					return undefined;
+				},
+			);
+			const finalReadback = await readBackFloat32Buffer(
+				context.device,
+				finalResources.finalConeGeometryEcef.buffer,
+				cityCount * azimuthSampleCount * 4,
+			);
+			if (finalReadback) {
+				diagnostics.push(
+					...compareFloat32Buffers(
+						'webgpu-final-cone-geometry',
+						geojsonRun.finalCones.finalConeGeometryEcef,
+						finalReadback,
+					),
+				);
+			}
+			return {
+				timing,
+				extraTimings: [finalTiming.timing],
+				diagnostics,
+			};
+		}
+
 		return { timing, diagnostics };
 	}
 }
@@ -658,7 +750,9 @@ export function webgpuCapabilities(available = false): ComputeCapabilities {
 		webgpuAvailable: available,
 		webgl2Available: false,
 		cpuAvailable: true,
-		notes: available ? ['WebGPU backend with city NED-to-ECEF and GeoJSON boundary passes'] : ['WebGPU unavailable'],
+		notes: available
+			? ['WebGPU backend with city NED-to-ECEF, GeoJSON boundary, cone-cone and final geometry passes']
+			: ['WebGPU unavailable'],
 	};
 }
 
@@ -697,7 +791,7 @@ function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport, extraTimings: 
 		totalDurationMs: benchmark.totalDurationMs + extraTimings.reduce((sum, timing) => sum + timing.durationMs, 0),
 		notes: [
 			...benchmark.notes,
-			'WebGPU backend dispatches city NED-to-ECEF, raw-cone alpha and cone-cone passes before delegating the remaining compute stages to the CPU reference backend.',
+			'WebGPU backend dispatches city NED-to-ECEF, raw-cone alpha, cone-cone, boundary and final geometry passes before delegating the remaining compute stages to the CPU reference backend.',
 		],
 	};
 }

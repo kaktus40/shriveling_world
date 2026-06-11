@@ -245,11 +245,12 @@ test('webgl2 probe becomes available with a webgl2-capable canvas and the backen
 
 	expect(result.selection.selected).toBe('webgl2');
 	expect(result.benchmark.profile).toBe('webgl2');
-	expect(result.benchmark.notes.some((note) => note.includes('GeoJSON boundary transform-feedback pass'))).toBe(true);
+	expect(result.benchmark.notes.some((note) => note.includes('GeoJSON boundary'))).toBe(true);
 	expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'webgl2-city-matrix-pass-dispatched')).toBe(true);
 	expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'webgl2-ciseled-cones-pass-dispatched')).toBe(true);
 	expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'webgl2-boundary-raycast-pass-dispatched')).toBe(true);
+	expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'webgl2-final-cones-pass-dispatched')).toBe(true);
 	const gl = fakeCanvas.getContext('webgl2') as ReturnType<typeof createFakeGl>;
 	expect(gl.calls.drawCalls).toBeGreaterThanOrEqual(1);
-	expect(gl.calls.instancedDrawCalls).toBeGreaterThanOrEqual(3);
+	expect(gl.calls.instancedDrawCalls).toBeGreaterThanOrEqual(4);
 });

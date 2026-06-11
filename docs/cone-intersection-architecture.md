@@ -454,7 +454,7 @@ Le renderer et la suite du pipeline n'ont besoin que des coordonnees ciselees.
 Les index de ville ou de face ayant produit l'intersection restent des sorties
 de debug optionnelles, pas des donnees obligatoires de production.
 
-Le profil WebGPU peut produire simultanement:
+Le profil GPU peut produire simultanement:
 
 ```ts
 interface FinalConeComputeOutputs {

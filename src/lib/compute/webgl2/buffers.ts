@@ -112,6 +112,31 @@ export interface WebGl2CiseledConesDispatchResources {
 	readonly ciseledConeRimEcefContract: ComputeGpuBufferContract;
 }
 
+/** Input bundle required by the final-cones WebGL2 pass. */
+export interface WebGl2FinalConesDispatchInput {
+	readonly ciseledConeRimEcef: WebGLBuffer;
+	readonly townBoundaryAngular: WebGLBuffer;
+	readonly townBoundaryEcef: WebGLBuffer;
+	readonly cityCount: number;
+	readonly azimuthSampleCount: number;
+	readonly earthRadiusMeters: number;
+}
+
+/** WebGL2 resources required by the final-cones WebGL2 pass. */
+export interface WebGl2FinalConesDispatchResources {
+	readonly vertexArray: WebGLVertexArrayObject;
+	readonly program: WebGLProgram;
+	readonly ciseledConeRimEcefBuffer: WebGLBuffer;
+	readonly townBoundaryAngularBuffer: WebGLBuffer;
+	readonly townBoundaryEcefBuffer: WebGLBuffer;
+	readonly finalConeGeometryEcefBuffer: WebGLBuffer;
+	readonly uniformLocation: WebGLUniformLocation;
+	readonly ciseledConeRimEcefContract: ComputeGpuBufferContract;
+	readonly townBoundaryAngularContract: ComputeGpuBufferContract;
+	readonly townBoundaryEcefContract: ComputeGpuBufferContract;
+	readonly finalConeGeometryEcefContract: ComputeGpuBufferContract;
+}
+
 /** Compiles the WebGL2 transform-feedback program for city NED-to-ECEF matrices. */
 export function createCityNed2EcefProgram(
 	gl: WebGL2RenderingContext,
@@ -195,6 +220,28 @@ export function createCiseledConesProgram(
 		const message = gl.getProgramInfoLog(program) ?? 'unknown WebGL2 link error';
 		gl.deleteProgram(program);
 		throw new Error(`WebGL2 ciseled cones program link failed: ${message}`);
+	}
+	gl.deleteShader(vertexShader);
+	return program;
+}
+
+/** Compiles the WebGL2 transform-feedback program for final cone geometry. */
+export function createFinalConesProgram(
+	gl: WebGL2RenderingContext,
+	vertexShaderSource: string,
+): WebGLProgram {
+	const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+	const program = gl.createProgram();
+	if (!program) {
+		throw new Error('WebGL2 final cones program creation failed');
+	}
+	gl.attachShader(program, vertexShader);
+	gl.transformFeedbackVaryings(program, ['tf_finalConeGeometryEcef'], gl.SEPARATE_ATTRIBS);
+	gl.linkProgram(program);
+	if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+		const message = gl.getProgramInfoLog(program) ?? 'unknown WebGL2 link error';
+		gl.deleteProgram(program);
+		throw new Error(`WebGL2 final cones program link failed: ${message}`);
 	}
 	gl.deleteShader(vertexShader);
 	return program;
@@ -686,6 +733,94 @@ export function createCiseledConesDispatchResources(
 			linearUnit: 'meters',
 			coordinateOrder: 'ecef',
 			notes: ['Ciseled rim positions retained after cone/cone clipping'],
+		},
+	};
+}
+
+/** Creates the GPU allocations required by the final-cones WebGL2 pass. */
+export function createFinalConesDispatchResources(
+	gl: WebGL2RenderingContext,
+	program: WebGLProgram,
+	input: WebGl2FinalConesDispatchInput,
+): WebGl2FinalConesDispatchResources {
+	const vertexArray = gl.createVertexArray();
+	const finalConeGeometryEcefBuffer = gl.createBuffer();
+	const uniformLocation = gl.getUniformLocation(program, 'u_uniforms');
+	if (!vertexArray || !finalConeGeometryEcefBuffer || !uniformLocation) {
+		throw new Error('WebGL2 final cones resource allocation failed');
+	}
+
+	const outputCount = Math.max(input.cityCount * input.azimuthSampleCount, 1);
+
+	gl.bindVertexArray(vertexArray);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, input.ciseledConeRimEcef);
+	gl.enableVertexAttribArray(0);
+	gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0);
+	gl.vertexAttribDivisor?.(0, 1);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, input.townBoundaryAngular);
+	gl.enableVertexAttribArray(1);
+	gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 0, 0);
+	gl.vertexAttribDivisor?.(1, 1);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, input.townBoundaryEcef);
+	gl.enableVertexAttribArray(2);
+	gl.vertexAttribPointer(2, 4, gl.FLOAT, false, 0, 0);
+	gl.vertexAttribDivisor?.(2, 1);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, null);
+	gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, finalConeGeometryEcefBuffer);
+	gl.bufferData(
+		gl.TRANSFORM_FEEDBACK_BUFFER,
+		outputCount * 4 * Float32Array.BYTES_PER_ELEMENT,
+		gl.DYNAMIC_COPY,
+	);
+	gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, null);
+	gl.bindVertexArray(null);
+
+	return {
+		vertexArray,
+		program,
+		ciseledConeRimEcefBuffer: input.ciseledConeRimEcef,
+		townBoundaryAngularBuffer: input.townBoundaryAngular,
+		townBoundaryEcefBuffer: input.townBoundaryEcef,
+		finalConeGeometryEcefBuffer,
+		uniformLocation,
+		ciseledConeRimEcefContract: {
+			name: 'ciseledConeRimEcef',
+			elementType: 'float32',
+			strideBytes: 4 * Float32Array.BYTES_PER_ELEMENT,
+			count: input.cityCount * input.azimuthSampleCount,
+			linearUnit: 'meters',
+			coordinateOrder: 'ecef',
+			notes: ['Ciseled cone rims reused as vertex inputs for the final pass'],
+		},
+		townBoundaryAngularContract: {
+			name: 'townBoundaryAngular',
+			elementType: 'float32',
+			strideBytes: 4 * Float32Array.BYTES_PER_ELEMENT,
+			count: input.cityCount * input.azimuthSampleCount,
+			angularUnit: 'radians',
+			notes: ['Boundary angular data reused as vertex inputs for the final pass'],
+		},
+		townBoundaryEcefContract: {
+			name: 'townBoundaryEcef',
+			elementType: 'float32',
+			strideBytes: 4 * Float32Array.BYTES_PER_ELEMENT,
+			count: input.cityCount * input.azimuthSampleCount,
+			linearUnit: 'meters',
+			coordinateOrder: 'ecef',
+			notes: ['Boundary ECEF data reused as vertex inputs for the final pass'],
+		},
+		finalConeGeometryEcefContract: {
+			name: 'finalConeGeometryEcef',
+			elementType: 'float32',
+			strideBytes: 4 * Float32Array.BYTES_PER_ELEMENT,
+			count: input.cityCount * input.azimuthSampleCount,
+			linearUnit: 'meters',
+			coordinateOrder: 'ecef',
+			notes: ['Final cone geometry in ECEF meters, ready to display'],
 		},
 	};
 }
