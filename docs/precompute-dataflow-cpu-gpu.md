@@ -171,14 +171,15 @@ longitude et latitude pour compenser une convention graphique.
 
 Le premier fallback WebGL2 rendu operationnel dans la migration porte deja la
 construction des matrices `cityNed2EcefMatrices` par transform feedback
-vertex. Ce kernel sert de contrat de reference pour le fallback accelere:
-il prouve le chemin canvas -> programme -> dispatch -> buffer de sortie tout en
+vertex, puis la passe GeoJSON `boundary-algebre` pour le raycast des limites.
+Ces kernels servent de contrat de reference pour le fallback accelere: ils
+prouvent le chemin canvas -> programme -> dispatch -> buffer de sortie tout en
 respectant les memes unites SI que le CPU et le WebGPU.
 
 ### Schema Des Buffers WebGL2
 
-Le fallback WebGL2 actuel repose sur un premier pass reel. Le tableau ci-dessous
-fige son contrat de buffers.
+Le fallback WebGL2 actuel repose sur deux passes reelles. Le tableau ci-dessous
+fige leurs contrats de buffers.
 
 #### `city-ned2ecef-webgl2.vert`
 
@@ -193,6 +194,28 @@ Dispatch:
 - un sommet par ville;
 - `gl.POINTS`;
 - `transform feedback` en mode interleaved;
+- `rasterizer discard` active pendant le calcul.
+
+#### `boundary-algebre-webgl2.vert`
+
+| Binding / canal | Buffer logique | Type | Stride | Unite / ordre | Role |
+| --- | --- | --- | --- | --- | --- |
+| `texture unit 0` | `cityNed2EcefMatrices` | `RGBA32F` | `16` floats | matrice `NED2ECEF` column-major | Matrices ville en texture 2D |
+| `texture unit 1` | `cityContourIndexes` | `R32I` | `1` entier | index de contour ou `-1` | Association ville -> contour |
+| `texture unit 2` | `countryContourNVectorBuffer` | `RGBA32F` | `4` floats | `[x, y, z, padding]` | Sommets de contour en n-vecteurs |
+| `texture unit 3` | `countryContourOffsets` | `R32I` | `1` entier | offset dense | Debut de chaque contour |
+| `texture unit 4` | `countryContourSizes` | `R32I` | `1` entier | taille dense | Nombre de sommets par contour |
+| `texture unit 5` | `azimuthIntervals` | `RG32F` | `2` floats | `[minRadians, maxRadians]` | Couples d'azimuts adjacents |
+| `uniform u_uniforms` | `earthRadiusMeters`, `cityCount`, `azimuthIntervalCount`, `contourCount` | `vec4<f32>` | `4` floats | metres, compteurs | Uniform compact de passe |
+| transform feedback `tf_boundaryAngular` | `townBoundaryAngular` | `RGBA32F` | `4` floats | `[longitudeRadians, latitudeRadians, angularDistanceRadians, validFlag]` | Sortie angulaire |
+| transform feedback `tf_boundaryEcef` | `townBoundaryEcef` | `RGBA32F` | `4` floats | `[xMeters, yMeters, zMeters, validFlag]` | Sortie ECEF |
+
+Dispatch:
+
+- un sommet instancie par couple `(ville, azimut)`;
+- `gl.POINTS`;
+- `drawArraysInstanced` avec `cityCount * azimuthSampleCount` instances;
+- `transform feedback` en mode separate attribs;
 - `rasterizer discard` active pendant le calcul.
 
 ### WebGPU

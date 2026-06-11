@@ -1,11 +1,15 @@
 import cityNed2EcefVertexShaderSource from '../kernels/city-ned2ecef-webgl2.vert?raw';
+import boundaryAlgebreVertexShaderSource from '../kernels/boundary-algebre-webgl2.vert?raw';
 import {
 	createCpuWorkflowBackend,
 	type CpuComputeWorkflowBackend,
 } from '../cpu';
 import {
+	createBoundaryAlgebreDispatchResources,
+	createBoundaryAlgebreProgram,
 	createCityNed2EcefDispatchResources,
 	createCityNed2EcefProgram,
+	type WebGl2BoundaryAlgebreDispatchResources,
 } from './buffers';
 import type {
 	ComputeBenchmarkReport,
@@ -20,6 +24,7 @@ import type {
 } from '../core';
 import { measureAsyncStage } from '../core/timing';
 import { EARTH_RADIUS_METERS } from '../../shared';
+import { buildAzimuthIntervals, packAzimuthIntervals } from '../../domain/geojson';
 import type { WebGl2ComputeContext, WebGl2ComputeResources } from './types';
 
 /** Canvas-like source used to probe or create a WebGL2 context. */
@@ -73,6 +78,11 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 			extraTimings.push(cityMatrixPass.timing);
 		}
 
+		for (const geojsonRun of result.geojsonRuns) {
+			const boundaryPass = await this.runBoundaryRaycastPass(result, geojsonRun);
+			extraTimings.push(boundaryPass.timing);
+		}
+
 		return {
 			...result,
 			selection: delegatedSelection,
@@ -83,6 +93,11 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 					severity: 'warning',
 					code: 'webgl2-city-matrix-pass-dispatched',
 					message: 'WebGL2 backend dispatches a real city NED-to-ECEF transform-feedback pass before delegating the remaining compute stages to the CPU reference backend.',
+				},
+				{
+					severity: 'warning',
+					code: 'webgl2-boundary-raycast-pass-dispatched',
+					message: 'WebGL2 backend dispatches a real GeoJSON boundary transform-feedback pass before delegating the remaining compute stages to the CPU reference backend.',
 				},
 			],
 		};
@@ -104,6 +119,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		}
 		const gl = this.ensureGl();
 		const program = createCityNed2EcefProgram(gl, cityNed2EcefVertexShaderSource);
+		const boundaryProgram = createBoundaryAlgebreProgram(gl, boundaryAlgebreVertexShaderSource);
 		this.#resources = {
 			buffers: [],
 			pipeline: {
@@ -117,12 +133,120 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 						workgroupSize: [1, 1, 1],
 						notes: ['First operational WebGL2 fallback pass: city NED-to-ECEF matrices via transform feedback.'],
 					},
+					{
+						name: 'boundary-algebre',
+						stage: 'geojson-boundary-raycast',
+						profile: 'webgl2',
+						inputs: [],
+						outputs: [],
+						workgroupSize: [1, 1, 1],
+						notes: ['First operational WebGL2 GeoJSON fallback pass: boundary raycast via transform feedback.'],
+					},
 				],
 			},
 			programCache: new Map([['city-ned2ecef', program]]),
 			framebufferCache: new Map(),
 		};
+		this.#resources.programCache?.set('boundary-algebre', boundaryProgram);
 		return this.#resources;
+	}
+
+	private async runBoundaryRaycastPass(
+		result: ComputeWorkflowResult,
+		geojsonRun: ComputeWorkflowResult['geojsonRuns'][number],
+	): Promise<{ timing: StageTiming }> {
+		const staticTown = result.staticTown;
+		if (!staticTown) {
+			return {
+				timing: {
+					stage: 'geojson-boundary-raycast',
+					scope: 'precompute',
+					profile: 'webgl2',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+			};
+		}
+
+		const boundary = geojsonRun.boundaryPrecompute;
+		const cityCount = staticTown.cityCount;
+		const azimuthSampleCount = boundary.azimuthSampleCount;
+		const contourCount = boundary.countryContourSizes.length;
+		if (cityCount <= 0 || azimuthSampleCount <= 0) {
+			return {
+				timing: {
+					stage: 'geojson-boundary-raycast',
+					scope: 'precompute',
+					profile: 'webgl2',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+			};
+		}
+
+		const gl = this.ensureGl();
+		const resources = await this.ensureResources();
+		const program = resources.programCache?.get('boundary-algebre');
+		if (!program) {
+			throw new Error('WebGL2 boundary raycast program is not available');
+		}
+
+		const dispatchResources = createBoundaryAlgebreDispatchResources(
+			gl,
+			program,
+			{
+				cityNed2EcefMatrices: staticTown.cityNed2EcefMatrices,
+				cityContourIndexes: boundary.cityContourIndexes,
+				countryContourNVectorBuffer: boundary.countryContourNVectorBuffer,
+				countryContourOffsets: boundary.countryContourOffsets,
+				countryContourSizes: boundary.countryContourSizes,
+				azimuthIntervals: packAzimuthIntervals(buildAzimuthIntervals(azimuthSampleCount)),
+				cityCount,
+				azimuthIntervalCount: azimuthSampleCount,
+				contourCount,
+				earthRadiusMeters: EARTH_RADIUS_METERS,
+			},
+		);
+
+		const { timing } = await measureAsyncStage(
+			'geojson-boundary-raycast',
+			'precompute',
+			'webgl2',
+			async () => {
+				gl.useProgram(program);
+				gl.uniform4f(
+					dispatchResources.uniformLocation,
+					EARTH_RADIUS_METERS,
+					cityCount,
+					azimuthSampleCount,
+					contourCount,
+				);
+				bindBoundaryTextures(gl, dispatchResources);
+				gl.bindVertexArray(dispatchResources.vertexArray);
+				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, dispatchResources.angularOutputBuffer);
+				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, dispatchResources.ecefOutputBuffer);
+				const transformFeedback = gl.createTransformFeedback();
+				if (!transformFeedback) {
+					throw new Error('WebGL2 transform feedback allocation failed');
+				}
+				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
+				gl.enable(gl.RASTERIZER_DISCARD);
+				gl.beginTransformFeedback(gl.POINTS);
+				gl.drawArraysInstanced(gl.POINTS, 0, 1, cityCount * azimuthSampleCount);
+				gl.endTransformFeedback();
+				gl.disable(gl.RASTERIZER_DISCARD);
+				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
+				gl.bindVertexArray(null);
+				gl.finish();
+				return undefined;
+			},
+		);
+
+		return { timing };
 	}
 
 	private ensureGl(): WebGL2RenderingContext {
@@ -205,7 +329,9 @@ export function webgl2Capabilities(available = false): ComputeCapabilities {
 		webgpuAvailable: false,
 		webgl2Available: available,
 		cpuAvailable: true,
-		notes: available ? ['WebGL2 fallback backend with a city NED-to-ECEF transform-feedback pass'] : ['WebGL2 unavailable'],
+		notes: available
+			? ['WebGL2 fallback backend with city NED-to-ECEF and GeoJSON boundary transform-feedback passes']
+			: ['WebGL2 unavailable'],
 	};
 }
 
@@ -248,9 +374,54 @@ function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport, extraTimings: 
 		totalDurationMs: benchmark.totalDurationMs + extraTimings.reduce((sum, timing) => sum + timing.durationMs, 0),
 		notes: [
 			...benchmark.notes,
-			'WebGL2 backend dispatches a city NED-to-ECEF transform-feedback pass before delegating the remaining compute stages to the CPU reference backend.',
+			'WebGL2 backend dispatches a city NED-to-ECEF transform-feedback pass and a GeoJSON boundary transform-feedback pass before delegating the remaining compute stages to the CPU reference backend.',
 		],
 	};
+}
+
+function bindBoundaryTextures(
+	gl: WebGL2RenderingContext,
+	resources: WebGl2BoundaryAlgebreDispatchResources,
+): void {
+	gl.activeTexture(gl.TEXTURE0);
+	gl.bindTexture(gl.TEXTURE_2D, resources.cityMatricesTexture);
+	const cityMatricesLocation = gl.getUniformLocation(resources.program, 'u_cityMatrices');
+	const cityContourIndexesLocation = gl.getUniformLocation(resources.program, 'u_cityContourIndexes');
+	const contourNVectorsLocation = gl.getUniformLocation(resources.program, 'u_contourNVectors');
+	const contourOffsetsLocation = gl.getUniformLocation(resources.program, 'u_contourOffsets');
+	const contourSizesLocation = gl.getUniformLocation(resources.program, 'u_contourSizes');
+	const azimuthIntervalsLocation = gl.getUniformLocation(resources.program, 'u_azimuthIntervals');
+	if (
+		!cityMatricesLocation ||
+		!cityContourIndexesLocation ||
+		!contourNVectorsLocation ||
+		!contourOffsetsLocation ||
+		!contourSizesLocation ||
+		!azimuthIntervalsLocation
+	) {
+		throw new Error('WebGL2 boundary raycast uniform lookup failed');
+	}
+	gl.uniform1i(cityMatricesLocation, 0);
+
+	gl.activeTexture(gl.TEXTURE1);
+	gl.bindTexture(gl.TEXTURE_2D, resources.cityContourIndexesTexture);
+	gl.uniform1i(cityContourIndexesLocation, 1);
+
+	gl.activeTexture(gl.TEXTURE2);
+	gl.bindTexture(gl.TEXTURE_2D, resources.contourNVectorsTexture);
+	gl.uniform1i(contourNVectorsLocation, 2);
+
+	gl.activeTexture(gl.TEXTURE3);
+	gl.bindTexture(gl.TEXTURE_2D, resources.contourOffsetsTexture);
+	gl.uniform1i(contourOffsetsLocation, 3);
+
+	gl.activeTexture(gl.TEXTURE4);
+	gl.bindTexture(gl.TEXTURE_2D, resources.contourSizesTexture);
+	gl.uniform1i(contourSizesLocation, 4);
+
+	gl.activeTexture(gl.TEXTURE5);
+	gl.bindTexture(gl.TEXTURE_2D, resources.azimuthIntervalsTexture);
+	gl.uniform1i(azimuthIntervalsLocation, 5);
 }
 
 function probeWebGl2Context(canvas?: WebGl2CanvasLike | null): WebGL2RenderingContext | null {

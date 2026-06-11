@@ -59,14 +59,47 @@ cityCodeOri,cityCodeDes,transportModeCode,eYearBegin,eYearEnd
 				name: 'boundaries.geojson',
 				text: JSON.stringify({
 					type: 'FeatureCollection',
-					features: [],
+					features: [
+						{
+							type: 'Feature',
+							properties: { continent: 'test' },
+							geometry: {
+								type: 'Polygon',
+								coordinates: [[
+									[-60, -60],
+									[60, -60],
+									[60, 60],
+									[-60, 60],
+									[-60, -60],
+								]],
+							},
+						},
+					],
 				}),
 			},
 		],
 		geojsonSources: [
 			{
 				fileName: 'boundaries.geojson',
-				geojson: { type: 'FeatureCollection', features: [] },
+				geojson: {
+					type: 'FeatureCollection',
+					features: [
+						{
+							type: 'Feature',
+							properties: { continent: 'test' },
+							geometry: {
+								type: 'Polygon',
+								coordinates: [[
+									[-60, -60],
+									[60, -60],
+									[60, 60],
+									[-60, 60],
+									[-60, -60],
+								]],
+							},
+						},
+					],
+				},
 			},
 		],
 	};
@@ -79,13 +112,15 @@ function createFakeCanvas(): WebGl2WorkflowBackendOptions['canvas'] {
 	} as unknown as WebGl2WorkflowBackendOptions['canvas'];
 }
 
-function createFakeGl(): WebGL2RenderingContext & { calls: { drawCalls: number } } {
-	const calls = { drawCalls: 0 };
+function createFakeGl(): WebGL2RenderingContext & { calls: { drawCalls: number; instancedDrawCalls: number } } {
+	const calls = { drawCalls: 0, instancedDrawCalls: 0 };
 	const shader = {} as WebGLShader;
 	const program = {} as WebGLProgram;
 	const buffer = {} as WebGLBuffer;
 	const vao = {} as WebGLVertexArrayObject;
 	const transformFeedback = {} as WebGLTransformFeedback;
+	const texture = {} as WebGLTexture;
+	const uniformLocation = {} as WebGLUniformLocation;
 	return {
 		calls,
 		VERTEX_SHADER: 0x8b31,
@@ -93,6 +128,7 @@ function createFakeGl(): WebGL2RenderingContext & { calls: { drawCalls: number }
 		COMPILE_STATUS: 0x8b81,
 		LINK_STATUS: 0x8b82,
 		INTERLEAVED_ATTRIBS: 0x8c8c,
+		SEPARATE_ATTRIBS: 0x8c8d,
 		ARRAY_BUFFER: 0x8892,
 		TRANSFORM_FEEDBACK_BUFFER: 0x8c8e,
 		STATIC_DRAW: 0x88e4,
@@ -100,6 +136,24 @@ function createFakeGl(): WebGL2RenderingContext & { calls: { drawCalls: number }
 		POINTS: 0x0000,
 		RASTERIZER_DISCARD: 0x8c89,
 		TRANSFORM_FEEDBACK: 0x8e22,
+		TEXTURE_2D: 0x0de1,
+		TEXTURE0: 0x84c0,
+		TEXTURE1: 0x84c1,
+		TEXTURE2: 0x84c2,
+		TEXTURE3: 0x84c3,
+		TEXTURE4: 0x84c4,
+		TEXTURE5: 0x84c5,
+		NEAREST: 0x2600,
+		CLAMP_TO_EDGE: 0x812f,
+		RGBA32F: 0x8814,
+		RG32F: 0x8230,
+		R32I: 0x8235,
+		RGBA: 0x1908,
+		RG: 0x8227,
+		RED_INTEGER: 0x8d94,
+		FLOAT: 0x1406,
+		INT: 0x1404,
+		UNPACK_ALIGNMENT: 0x0cf5,
 		createShader: () => shader,
 		shaderSource: () => {},
 		compileShader: () => {},
@@ -113,7 +167,7 @@ function createFakeGl(): WebGL2RenderingContext & { calls: { drawCalls: number }
 		getProgramParameter: () => true,
 		getProgramInfoLog: () => '',
 		deleteProgram: () => {},
-		getUniformLocation: () => ({} as WebGLUniformLocation),
+		getUniformLocation: () => uniformLocation,
 		createBuffer: () => buffer,
 		bindBuffer: () => {},
 		bufferData: () => {},
@@ -124,6 +178,14 @@ function createFakeGl(): WebGL2RenderingContext & { calls: { drawCalls: number }
 		createTransformFeedback: () => transformFeedback,
 		bindTransformFeedback: () => {},
 		bindBufferBase: () => {},
+		createTexture: () => texture,
+		bindTexture: () => {},
+		texParameteri: () => {},
+		texImage2D: () => {},
+		activeTexture: () => {},
+		pixelStorei: () => {},
+		uniform1i: () => {},
+		uniform4f: () => {},
 		useProgram: () => {},
 		uniform1f: () => {},
 		enable: () => {},
@@ -132,9 +194,12 @@ function createFakeGl(): WebGL2RenderingContext & { calls: { drawCalls: number }
 		drawArrays: () => {
 			calls.drawCalls += 1;
 		},
+		drawArraysInstanced: () => {
+			calls.instancedDrawCalls += 1;
+		},
 		endTransformFeedback: () => {},
 		finish: () => {},
-	} as unknown as WebGL2RenderingContext & { calls: { drawCalls: number } };
+	} as unknown as WebGL2RenderingContext & { calls: { drawCalls: number; instancedDrawCalls: number } };
 }
 
 test('webgl2 probe stays false without a canvas', () => {
@@ -167,8 +232,10 @@ test('webgl2 probe becomes available with a webgl2-capable canvas and the backen
 
 	expect(result.selection.selected).toBe('webgl2');
 	expect(result.benchmark.profile).toBe('webgl2');
-	expect(result.benchmark.notes.some((note) => note.includes('transform-feedback pass'))).toBe(true);
+	expect(result.benchmark.notes.some((note) => note.includes('GeoJSON boundary transform-feedback pass'))).toBe(true);
 	expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'webgl2-city-matrix-pass-dispatched')).toBe(true);
+	expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'webgl2-boundary-raycast-pass-dispatched')).toBe(true);
 	const gl = fakeCanvas.getContext('webgl2') as ReturnType<typeof createFakeGl>;
 	expect(gl.calls.drawCalls).toBeGreaterThanOrEqual(1);
+	expect(gl.calls.instancedDrawCalls).toBeGreaterThanOrEqual(1);
 });

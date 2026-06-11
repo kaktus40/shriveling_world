@@ -1258,7 +1258,7 @@ Critere d'acceptation:
   precompute pour au moins deux profils differents;
 - un test WebGPU simple passe quand WebGPU est disponible;
 - un skip explicite existe quand WebGPU est indisponible;
-- un backend WebGL2 simple passe avec le meme contrat de buffers;
+- un backend WebGL2 passe avec les contrats de buffers villes et limites;
 - le framework compute ne depend pas de Babylon;
 - le framework compute ne depend pas de SvelteKit;
 - l'API ne bloque pas l'ajout futur d'un backend Rust/wgpu.
@@ -1289,8 +1289,9 @@ Etat reel observe ulterieurement:
   `PreparedDataset`, les precomputes GeoJSON et les passes CPU de reference;
 - le selecteur de profil accepte deja le forçage et le fallback explicite;
 - un fallback WebGL2 existe deja avec detection de contexte, un premier
-  dispatch reel `city-ned2ecef` en transform feedback et delegation du reste
-  au CPU de reference;
+  dispatch reel `city-ned2ecef` en transform feedback, une passe GeoJSON
+  `boundary-algebre` en transform feedback et delegation du reste au CPU de
+  reference;
 - un premier squelette WebGPU existe deja avec compilation du premier kernel
   metier `city-ned2ecef` et delegation temporaire au CPU de reference;
 - l'ecran `/workspace` peut deja consommer le backend CPU de reference et
