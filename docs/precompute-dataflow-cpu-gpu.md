@@ -1163,6 +1163,49 @@ stop
 
 Les buffers statiques ne doivent pas etre recrees a chaque changement d'annee. Les buffers dynamiques peuvent etre remplaces ou mis a jour par `queue.writeBuffer`.
 
+## Inventaire Des Shaders Et De Leurs Roles
+
+La migration ne consiste pas seulement a porter des shaders. Chaque passe doit
+recevoir des entrees compactes, produire des buffers stables et pouvoir etre
+benchmarkee dans les trois profils `WebGPU -> WebGL2 -> CPU`.
+
+Le tableau ci-dessous resume les passes prevues et leur responsabilite
+principale. Les noms WebGL2 reprennent les passes historiques ou leurs
+equivalents metier. Le futur kernel WGSL peut reutiliser la meme responsabilite
+sans reproduire le nom de fichier a l'identique.
+
+| Passe | Role principal | Entrees principales | Sorties principales | Remarque |
+| --- | --- | --- | --- | --- |
+| `sphericalCalculus` / math partagee | Fournir les fonctions geometriques communes | constantes SI, matrices, vecteurs, angles | fonctions inline ou helpers partageables | Brique commune a tous les kernels. Elle contient `MatNED2ECEF`, les conversions angulaires, les grands cercles et les primitives vectorielles. |
+| `city.frag` / passe `static-town` | Preparer les invariants fixes des villes | positions ville, N-vectors, couplages de villes, resolutions d'azimut | `cityNed2EcefMatrices`, invariants de paires, index de villes | Cette passe fixe les structures reutilisees ensuite par tous les profils. |
+| `boundaryAlgebre.frag` | Identifier la limite geographique valide pour une ville et un azimut | `u_towns`, `u_countries`, limites GeoJSON, azimuts echantillonnes | limites cartographiques, limites ECEF, index de contour associe | Elle remplace la logique de raycast pays et prepare les contours pour la decoupe suivante. |
+| `countryMeshShader.frag` | Convertir les contours pays en maillage affichable | polygones GeoJSON, contours triangules, couches basse/haute | vertices, normales, uvs, indexes, mesh pays | Passe de rendu, mais utile pour valider les donnees GeoJSON et le maillage des pays. |
+| `rawCones.frag` | Generer les cones bruts avant toute intersection | villes statiques, villes dynamiques, alphas, longueurs, intervalles d'azimut | `RawConeBuffer` | Une invocation correspond a un couple `(ville, azimut)`. C'est la passe la plus parallele. |
+| `ciseledCones.frag` | Cisailler les cones bruts sur les cones voisins et les supports choisis | `RawConeBuffer`, voisins statiques, BVH circulaire, invariants de paires | `CiseledConeBuffer`, diagnostics de coupe, `t` retenus | Passe critique de filtrage. Elle garde la valeur minimale utile sans changer le contrat geometrique. |
+| `finalCones.frag` | Finaliser la geometrie decoupee | cones ciseles, limites pays, acceptation du clipping | `FinalConeBuffer` | Cette passe applique la reduction finale et peut fusionner les minima cone/cone et cone/pays. |
+| `displayedCones.frag` | Transformer les cones finaux en donnees de rendu | `FinalConeBuffer`, conventions renderer | vertices, couleurs, attributs de dessin | Derniere passe avant Babylon ou un autre moteur de rendu. |
+| `curveMeshShader.ts` | Construire les courbes entre villes ou modes | points de controle, vitesses, annee, position sur la courbe | `CurveVertexBuffer` | Peut etre partagee entre CPU, WebGL2 et WebGPU. Elle echantillonne les courbes et n'est pas liee aux cones. |
+| `rayIntersectTriangle.glsl` | Primitive d'intersection rayon/triangle | rayon, triangle, seuils numeriques | `t`, hit flag, point d'intersection | Ce n'est pas un passe autonome, mais une primitive partagee par les passes de coupe. |
+
+### Lecture Pratique De L'Inventaire
+
+Pour les profils GPU, l'ordre de responsabilite attendu est:
+
+1. la brique math commune stabilise les conventions d'entree/sortie;
+2. `static-town` prepare les invariants fixes et les matrices de base;
+3. `boundaryAlgebre` etablit les limites geographiques exploitables;
+4. `rawCones` fabrique la geometrie brute massivement parallele;
+5. `ciseledCones` retire les parties invalides ou trop longues;
+6. `finalCones` applique la reduction finale et le clipping pays;
+7. `displayedCones` convertit la geometrie pour le moteur de rendu;
+8. `curveMeshShader` prepare les courbes de representation;
+9. `rayIntersectTriangle` fournit le test de base commun aux coupes.
+
+Sur le profil CPU, les memes responsabilites existent sous forme de fonctions
+de reference. Cela permet de mesurer le temps par etape, puis de verifier que
+le backend WebGL2 ou WebGPU produit les memes buffers logiques dans les
+tolerances attendues.
+
 ## Etape 7: Generation Des Cones Bruts
 
 Responsable principal: GPU.
