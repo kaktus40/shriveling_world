@@ -72,26 +72,41 @@ cityCodeOri,cityCodeDes,transportModeCode,eYearBegin,eYearEnd
 	};
 }
 
-function createFakeDevice(): WebGpuWorkflowBackendOptions['device'] {
+function createFakeDevice(): { device: WebGpuWorkflowBackendOptions['device']; calls: { dispatches: number } } {
+	const calls = {
+		dispatches: 0,
+	};
 	const queue = {
 		submit: () => {},
+		writeBuffer: () => {},
 	} as GPUQueue;
 
-	return {
+	const pipeline = {
+		getBindGroupLayout: () => ({} as GPUBindGroupLayout),
+	} as GPUComputePipeline;
+
+	const device = {
 		queue,
+		createBuffer: () => ({} as GPUBuffer),
 		createShaderModule: () => ({} as GPUShaderModule),
-		createComputePipelineAsync: async () => ({} as GPUComputePipeline),
+		createComputePipelineAsync: async () => pipeline,
+		createBindGroup: () => ({} as GPUBindGroup),
 		createCommandEncoder: () =>
 			({
 				beginComputePass: () =>
 					({
 						setPipeline: () => {},
-						dispatchWorkgroups: () => {},
+						setBindGroup: () => {},
+						dispatchWorkgroups: () => {
+							calls.dispatches += 1;
+						},
 						end: () => {},
 					}) as unknown as GPUComputePassEncoder,
 				finish: () => ({} as GPUCommandBuffer),
 			}) as GPUCommandEncoder,
 	} as unknown as WebGpuWorkflowBackendOptions['device'];
+
+	return { device, calls };
 }
 
 test('webgpu probe stays false without a device or adapter', async () => {
@@ -100,7 +115,8 @@ test('webgpu probe stays false without a device or adapter', async () => {
 });
 
 test('webgpu probe becomes available with an injected device and the backend keeps the selected profile', async () => {
-	const descriptor = createWebGpuWorkflowBackendDescriptor({ device: createFakeDevice() });
+	const fake = createFakeDevice();
+	const descriptor = createWebGpuWorkflowBackendDescriptor({ device: fake.device });
 	assert.equal(await descriptor.isAvailable(), true);
 
 	const backend = await descriptor.create();
@@ -123,6 +139,7 @@ test('webgpu probe becomes available with an injected device and the backend kee
 
 	expect(result.selection.selected).toBe('webgpu');
 	expect(result.benchmark.profile).toBe('webgpu');
-	expect(result.benchmark.notes.some((note) => note.includes('delegates compute stages to the CPU reference backend'))).toBe(true);
+	expect(result.benchmark.notes.some((note) => note.includes('city NED-to-ECEF pass'))).toBe(true);
 	expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'webgpu-skeleton-cpu-delegation')).toBe(true);
+	expect(fake.calls.dispatches).toBeGreaterThanOrEqual(2);
 });

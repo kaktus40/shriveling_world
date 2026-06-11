@@ -179,6 +179,13 @@ memes donnees logiques via:
 - compute pipelines;
 - dispatchs explicitement nommes par passe.
 
+Le premier kernel WGSL reel introduit dans la migration calcule deja les
+matrices `cityNed2EcefMatrices` a partir des couples
+`[longitudeRadians, latitudeRadians]`. Ce kernel sert de reference de forme
+pour les passes suivantes: il prouve le chemin de dispatch, le contrat des
+buffers et la conservation des unites SI avant de porter les kernels plus
+lourds.
+
 Les kernels WGSL doivent consommer les buffers prepares sans reinterpréter les
 unites. Les uniforms et structs WGSL doivent expliciter les valeurs angulaires
 en radians, les longueurs en metres, et l'ordre geographique des tuples.

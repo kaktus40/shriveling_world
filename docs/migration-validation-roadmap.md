@@ -1291,7 +1291,8 @@ Etat reel observe ulterieurement:
 - un premier squelette WebGL2 existe deja avec detection de contexte, contrat
   de backends et delegation temporaire au CPU de reference;
 - un premier squelette WebGPU existe deja avec compilation du shader smoke,
-  dispatch minimal et delegation temporaire au CPU de reference;
+  dispatch minimal, premier kernel metier `city-ned2ecef` et delegation
+  temporaire au CPU de reference;
 - l'ecran `/workspace` peut deja consommer le backend CPU de reference et
   afficher la selection de profil ainsi que le benchmark par etape;
 - le backend WebGPU est maintenant branche sur le meme contrat, mais ses

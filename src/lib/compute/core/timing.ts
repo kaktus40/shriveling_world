@@ -32,6 +32,30 @@ export function measureStage<T>(
 	};
 }
 
+/** Measures one async compute stage and returns its timing. */
+export async function measureAsyncStage<T>(
+	stage: ComputeStage,
+	scope: ComputeStageScope,
+	profile: ComputeProfile,
+	compute: () => Promise<T>,
+	clock: () => number = nowMilliseconds,
+): Promise<{ value: T; timing: StageTiming }> {
+	const startedAtMs = clock();
+	const value = await compute();
+	const endedAtMs = clock();
+	return {
+		value,
+		timing: {
+			stage,
+			scope,
+			profile,
+			startedAtMs,
+			endedAtMs,
+			durationMs: endedAtMs - startedAtMs,
+		},
+	};
+}
+
 /** Aggregates a stage list into a total benchmark duration. */
 export function sumStageDurations(timings: readonly StageTiming[]): number {
 	return timings.reduce((sum, timing) => sum + timing.durationMs, 0);

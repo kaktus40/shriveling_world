@@ -1,3 +1,4 @@
+import cityNed2EcefShaderSource from '../kernels/city-ned2ecef.wgsl?raw';
 import smokeShaderSource from '../kernels/smoke.wgsl?raw';
 import {
 	createCpuWorkflowBackend,
@@ -12,7 +13,9 @@ import type {
 	ComputeWorkflowInput,
 	ComputeWorkflowOptions,
 	ComputeWorkflowResult,
+	StageTiming,
 } from '../core';
+import { measureAsyncStage } from '../core/timing';
 import type { WebGpuComputeContext, WebGpuComputeResources } from './types';
 
 /** Options used to build the WebGPU skeleton backend. */
@@ -53,16 +56,22 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 				capabilities: webgpuCapabilities(true),
 			};
 		const result = await this.#cpuBackend.run(input, options, delegatedSelection);
+		const staticTownPass = await this.runCityMatrixPass(context, result);
 		return {
 			...result,
 			selection: delegatedSelection,
-			benchmark: remapBenchmarkProfile(result.benchmark),
+			benchmark: remapBenchmarkProfile(result.benchmark, staticTownPass.timing),
 			diagnostics: [
 				...result.diagnostics,
 				{
 					severity: 'warning',
 					code: 'webgpu-skeleton-cpu-delegation',
-					message: 'WebGPU backend is wired and dispatches a smoke pass, but still delegates compute stages to the CPU reference backend.',
+					message: 'WebGPU backend is wired, dispatches a smoke pass and a city NED-to-ECEF pass, but still delegates the remaining compute stages to the CPU reference backend.',
+				},
+				{
+					severity: 'warning',
+					code: 'webgpu-city-matrix-pass-dispatched',
+					message: 'WebGPU backend dispatches a real city NED-to-ECEF pass before CPU delegation so the first production-style WGSL kernel is exercised.',
 				},
 			],
 		};
@@ -96,7 +105,8 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			return this.#resources;
 		}
 		const device = await this.ensureDevice();
-		const shaderModule = device.createShaderModule({ code: smokeShaderSource });
+		const smokeModule = device.createShaderModule({ code: smokeShaderSource });
+		const cityMatrixModule = device.createShaderModule({ code: cityNed2EcefShaderSource });
 		this.#resources = {
 			buffers: [],
 			pipeline: {
@@ -110,9 +120,21 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 						workgroupSize: [1, 1, 1],
 						notes: ['Smoke kernel used to prove the WebGPU path before real passes are wired.'],
 					},
+					{
+						name: 'city-ned2ecef',
+						stage: 'static-town-precompute',
+						profile: 'webgpu',
+						inputs: [],
+						outputs: [],
+						workgroupSize: [1, 1, 1],
+						notes: ['First real WGSL kernel: build city NED-to-ECEF matrices from lon/lat radians.'],
+					},
 				],
 			},
-			shaderModuleCache: new Map([['smoke', shaderModule]]),
+			shaderModuleCache: new Map([
+				['smoke', smokeModule],
+				['city-ned2ecef', cityMatrixModule],
+			]),
 			pipelineCache: new Map(),
 			bindGroupCache: new Map(),
 		};
@@ -148,6 +170,78 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		pass.end();
 		context.queue.submit([encoder.finish()]);
 	}
+
+	private async runCityMatrixPass(context: WebGpuComputeContext, result: ComputeWorkflowResult): Promise<{ timing: StageTiming }> {
+		if (result.preparedDataset.cityCount <= 0) {
+			return {
+				timing: {
+					stage: 'static-town-precompute',
+					scope: 'precompute',
+					profile: 'webgpu',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+			};
+		}
+
+		const prepared = result.preparedDataset;
+		const cityCount = prepared.cityCount;
+		const lonLat = new Float32Array(prepared.cityLonLatRadians);
+		const outputBytes = cityCount * 16 * Float32Array.BYTES_PER_ELEMENT;
+		const usage = getGpuBufferUsage();
+		const inputBuffer = context.device.createBuffer({
+			size: lonLat.byteLength,
+			usage: usage.STORAGE | usage.COPY_DST,
+		});
+		const outputBuffer = context.device.createBuffer({
+			size: outputBytes,
+			usage: usage.STORAGE | usage.COPY_SRC,
+		});
+		const uniformBuffer = context.device.createBuffer({
+			size: 16,
+			usage: usage.UNIFORM | usage.COPY_DST,
+		});
+
+		context.queue.writeBuffer(inputBuffer, 0, lonLat);
+		const uniformData = new Float32Array([6_371_000, 0, 0, 0]);
+		context.queue.writeBuffer(uniformBuffer, 0, uniformData);
+
+		const resources = await this.ensureResources();
+		const pipeline = await context.device.createComputePipelineAsync({
+			layout: 'auto',
+			compute: {
+				module: resources.shaderModuleCache?.get('city-ned2ecef') ?? context.device.createShaderModule({ code: cityNed2EcefShaderSource }),
+				entryPoint: 'main',
+			},
+		});
+		const bindGroup = context.device.createBindGroup({
+			layout: pipeline.getBindGroupLayout(0),
+			entries: [
+				{ binding: 0, resource: { buffer: inputBuffer } },
+				{ binding: 1, resource: { buffer: outputBuffer } },
+				{ binding: 2, resource: { buffer: uniformBuffer } },
+			],
+		});
+
+		const { timing } = await measureAsyncStage(
+			'static-town-precompute',
+			'precompute',
+			'webgpu',
+			async () => {
+				const encoder = context.device.createCommandEncoder();
+				const pass = encoder.beginComputePass();
+				pass.setPipeline(pipeline);
+				pass.setBindGroup(0, bindGroup);
+				pass.dispatchWorkgroups(cityCount, 1, 1);
+				pass.end();
+				context.queue.submit([encoder.finish()]);
+				return undefined;
+			},
+		);
+
+		return { timing };
+	}
 }
 
 /** Returns the WebGPU capability snapshot. */
@@ -156,7 +250,7 @@ export function webgpuCapabilities(available = false): ComputeCapabilities {
 		webgpuAvailable: available,
 		webgl2Available: false,
 		cpuAvailable: true,
-		notes: available ? ['WebGPU skeleton backend'] : ['WebGPU unavailable'],
+		notes: available ? ['WebGPU backend with smoke and city NED-to-ECEF passes'] : ['WebGPU unavailable'],
 	};
 }
 
@@ -183,15 +277,20 @@ export function createWebGpuWorkflowBackendDescriptor(
 	};
 }
 
-function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport): ComputeBenchmarkReport {
+function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport, extraTiming?: StageTiming): ComputeBenchmarkReport {
+	const timings = extraTiming ? [...benchmark.timings, extraTiming] : [...benchmark.timings];
 	return {
 		...benchmark,
 		profile: 'webgpu',
-		timings: benchmark.timings.map((timing) => ({
+		timings: timings.map((timing) => ({
 			...timing,
 			profile: 'webgpu',
 		})),
-		notes: [...benchmark.notes, 'WebGPU skeleton currently dispatches a smoke pass and delegates compute stages to the CPU reference backend.'],
+		totalDurationMs: benchmark.totalDurationMs + (extraTiming?.durationMs ?? 0),
+		notes: [
+			...benchmark.notes,
+			'WebGPU backend dispatches a smoke pass and a first real city NED-to-ECEF pass before delegating the remaining compute stages to the CPU reference backend.',
+		],
 	};
 }
 
@@ -202,3 +301,26 @@ async function defaultRequestWebGpuAdapter(): Promise<GPUAdapter | null> {
 	return navigator.gpu.requestAdapter();
 }
 
+function getGpuBufferUsage(): {
+	readonly STORAGE: number;
+	readonly COPY_DST: number;
+	readonly COPY_SRC: number;
+	readonly UNIFORM: number;
+} {
+	const usage = (globalThis as typeof globalThis & {
+		GPUBufferUsage?: {
+			STORAGE: number;
+			COPY_DST: number;
+			COPY_SRC: number;
+			UNIFORM: number;
+		};
+	}).GPUBufferUsage;
+	return (
+		usage ?? {
+			STORAGE: 1 << 7,
+			COPY_DST: 1 << 3,
+			COPY_SRC: 1 << 1,
+			UNIFORM: 1 << 6,
+		}
+	);
+}
