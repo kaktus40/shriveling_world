@@ -31,6 +31,12 @@ est porte par une strategie injectee. L'utilisateur peut forcer explicitement
 preferee quand la plateforme le permet. Les fonctions metier ne doivent pas
 multiplier les tests conditionnels par profil.
 
+L'implementation de migration a deja commence dans `src/lib/compute/core` et
+`src/lib/compute/cpu/workflow.ts`, avec un backend CPU de reference et un
+selecteur de profil capable de remonter les decisions de forçage ou de
+fallback. Les futurs backends WebGL2 et WebGPU doivent reutiliser le meme
+contrat de buffers et la meme logique de benchmark par etape.
+
 La chaine de repli par defaut est:
 
 ```text

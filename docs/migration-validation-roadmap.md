@@ -92,7 +92,7 @@ Utiliser les statuts suivants:
 | M4 | in_progress | Architecture explicite de precalcul |
 | M4.1 | validated | Socle de tests CPU et contrats de buffers |
 | M5 | deferred | Prototype comparatif de rendu Babylon.js / luma.gl |
-| M6 | todo | Framework compute multi-profil et fallback WebGPU -> WebGL2 -> CPU |
+| M6 | in_progress | Framework compute multi-profil et fallback WebGPU -> WebGL2 -> CPU |
 | M7 | todo | Portage WGSL / backend WebGPU des passes existantes |
 | M8 | in_progress | Nouveau pipeline d'intersections |
 | M9 | todo | Integration interactive complete |
@@ -1177,7 +1177,7 @@ Validation:
 
 ## M6: Framework Compute Multi-Profil Et Fallback
 
-Statut: `todo`
+Statut: `in_progress`
 
 Objectif:
 
@@ -1269,14 +1269,26 @@ Etat reel observe ulterieurement:
 
 - un shader de smoke existe deja dans `src/lib/compute/kernels/smoke.wgsl`;
 - l'import WGSL via Vite est deja prouve dans le shell applicatif;
-- aucun framework compute WebGPU minimal exploitable n'est encore integre au
-  domaine ou a l'orchestration applicative;
-- l'orchestrateur de migration doit encore etre relie aux etapes d'ingestion
-  CSV/GeoJSON et a leur benchmark par phase.
+- le framework compute est amorce dans `src/lib/compute/core` et
+  `src/lib/compute/cpu/workflow.ts`;
+- les premiers fichiers concrets sont:
+  - `src/lib/compute/core/types.ts`;
+  - `src/lib/compute/core/selector.ts`;
+  - `src/lib/compute/core/timing.ts`;
+  - `src/lib/compute/cpu/workflow.ts`;
+  - `src/lib/compute/index.ts`;
+  - `tests/unit/compute/profile-selector.test.ts`;
+  - `tests/unit/compute/cpu-workflow.test.ts`;
+- le backend CPU de reference orchestre deja l'ingestion, l'assemblage, le
+  `PreparedDataset`, les precomputes GeoJSON et les passes CPU de reference;
+- le selecteur de profil accepte deja le forçage et le fallback explicite;
+- les backends WebGL2 et WebGPU restent a brancher sur le meme contrat;
+- l'orchestrateur de migration doit encore etre relie aux points d'entree de
+  l'application pour exposer le benchmark par phase et le choix de profil.
 
 Conclusion:
 
-- `M6` reste `todo`, mais avec un amorcage technique deja present.
+- `M6` est `in_progress`, avec le socle CPU et le selecteur deja en place.
 
 ## M7: Portage WGSL / Backend WebGPU Des Passes Existantes
 

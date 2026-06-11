@@ -23,6 +23,13 @@ La regle de responsabilite est la suivante:
 - le GPU execute les calculs massivement paralleles sur des buffers compacts;
 - le renderer consomme les resultats, mais ne doit pas porter la logique metier.
 
+L'orchestration compute de migration vit desormais dans `src/lib/compute`.
+Elle doit pouvoir etre branchee des l'ingestion des sources CSV et GeoJSON,
+mesurer chaque phase par profil, et laisser l'utilisateur forcer `CPU` ou
+`WebGL2` quand ces profils sont disponibles. `WebGPU` reste la cible de
+production, `WebGL2` le fallback accelere et `CPU` la reference toujours
+disponible.
+
 Le framework compute cible doit pouvoir etre pilote des les etapes
 d'ingestion CSV et GeoJSON afin de mesurer chaque phase, du chargement des
 fichiers jusqu'aux buffers de precompute. Les profils doivent pouvoir etre
