@@ -1282,6 +1282,8 @@ Etat reel observe ulterieurement:
 - le backend CPU de reference orchestre deja l'ingestion, l'assemblage, le
   `PreparedDataset`, les precomputes GeoJSON et les passes CPU de reference;
 - le selecteur de profil accepte deja le forçage et le fallback explicite;
+- l'ecran `/workspace` peut deja consommer le backend CPU de reference et
+  afficher la selection de profil ainsi que le benchmark par etape;
 - les backends WebGL2 et WebGPU restent a brancher sur le meme contrat;
 - l'orchestrateur de migration doit encore etre relie aux points d'entree de
   l'application pour exposer le benchmark par phase et le choix de profil.

@@ -30,6 +30,11 @@ mesurer chaque phase par profil, et laisser l'utilisateur forcer `CPU` ou
 production, `WebGL2` le fallback accelere et `CPU` la reference toujours
 disponible.
 
+La premiere surface applicative qui expose ce mecanisme est `/workspace`.
+Elle consomme la selection de profil, le backend CPU de reference et le
+benchmark par etape pour preparer le futur branchement `WebGL2` puis
+`WebGPU`.
+
 Le framework compute cible doit pouvoir etre pilote des les etapes
 d'ingestion CSV et GeoJSON afin de mesurer chaque phase, du chargement des
 fichiers jusqu'aux buffers de precompute. Les profils doivent pouvoir etre

@@ -7,6 +7,14 @@ import {
 	type SourceFile,
 } from '$lib/domain/data';
 import {
+	createDefaultComputeWorkflowRegistry,
+	selectComputeProfile,
+	type ComputeBenchmarkReport,
+	type ComputeProfile,
+	type ComputeProfileSelection,
+	type ComputeWorkflowResult,
+} from '$lib/compute';
+import {
 	extractGeoJsonFeatureCollections,
 	loadBundledDatasetFiles,
 	loadBundledDatasetNames,
@@ -20,6 +28,13 @@ export interface DatasetWorkspaceSnapshot {
 	files: SourceFile[];
 	pipeline: DatasetPipelineResult;
 	geojsonEntries: Array<{ fileName: string; geojson: GeoJSON.FeatureCollection }>;
+}
+
+/** Compute profile and benchmark exposed by the dataset workspace. */
+export interface DatasetWorkspaceCompute {
+	selection: ComputeProfileSelection;
+	benchmark: ComputeBenchmarkReport;
+	result: ComputeWorkflowResult;
 }
 
 /** Aggregated counts exposed by the workspace route. */
@@ -37,6 +52,14 @@ export interface DatasetWorkspaceSummary {
 	warningCount: number;
 	yearBegin: number;
 	yearEnd: number;
+}
+
+/** Profile request supported by the workspace compute preview. */
+export interface WorkspaceComputeRequest {
+	profile?: ComputeProfile;
+	forced?: ComputeProfile;
+	allowFallback?: boolean;
+	benchmark?: boolean;
 }
 
 /** Prepared transport mode exposed by the workspace route. */
@@ -97,6 +120,62 @@ export async function loadDatasetWorkspace(
 		pipeline: runDatasetPipeline(files),
 		geojsonEntries: extractGeoJsonFeatureCollections(files),
 	};
+}
+
+/**
+ * Runs the compute backend on one workspace snapshot.
+ *
+ * The current migration ships the CPU reference backend first. The same
+ * contract will later be used by WebGL2 and WebGPU without changing the
+ * workspace API.
+ *
+ * @param workspace Prepared workspace snapshot.
+ * @param request Optional profile request used to force or prefer a profile.
+ * @returns Compute selection and benchmark report.
+ */
+export async function runDatasetWorkspaceCompute(
+	workspace: DatasetWorkspaceSnapshot,
+	request: WorkspaceComputeRequest = {},
+): Promise<DatasetWorkspaceCompute> {
+	const registry = createDefaultComputeWorkflowRegistry();
+	const selection = await selectComputeProfile(
+		{
+			preferred: request.profile,
+			forced: request.forced,
+			allowFallback: request.allowFallback ?? true,
+		},
+		registry,
+	);
+	const backend = await registry.cpu.create();
+	try {
+		const result = await backend.run(
+			{
+				sourceFiles: workspace.files,
+				geojsonSources: workspace.geojsonEntries,
+			},
+			{
+				profileRequest: {
+					preferred: request.profile,
+					forced: request.forced,
+					allowFallback: request.allowFallback ?? true,
+				},
+				benchmark: request.benchmark ?? true,
+				boundaryRaycast: { azimuthSampleCount: 360 },
+				staticTown: { sectorCount: 360, neighborLimit: Math.min(Math.max(workspace.pipeline.preparedDataset.cityCount - 1, 0), 16) },
+				dynamicYear: workspace.pipeline.preparedDataset.speedTimeline.span.beginYear,
+				rawCone: undefined,
+				coneIntersection: { enabled: false },
+			},
+			selection,
+		);
+		return {
+			selection,
+			benchmark: result.benchmark,
+			result,
+		};
+	} finally {
+		await backend.dispose();
+	}
 }
 
 /**

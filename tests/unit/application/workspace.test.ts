@@ -10,11 +10,13 @@ import {
 } from '$lib/domain/data';
 import {
 	listWorkspaceCities,
+	runDatasetWorkspaceCompute,
 	listWorkspaceFields,
 	listWorkspaceModes,
 	summarizeDatasetWorkspace,
 	type DatasetWorkspaceSnapshot,
 } from '$lib/application/workspace';
+import type { ComputeProfile } from '$lib/compute';
 
 function csv(name: string, text: string): SourceFile {
 	return { name, text: text.trim() };
@@ -152,4 +154,21 @@ test('workspace mode, city, and field previews stay aligned with prepared order'
 		true,
 	);
 	assert.equal(fields.some((field) => field.column === 'cityCode' && field.characteristic), true);
+});
+
+test('workspace compute runs on the cpu reference backend and reports benchmark stages', async () => {
+	const workspace = buildWorkspace();
+	const result = await runDatasetWorkspaceCompute(workspace, {
+		profile: 'webgl2' as ComputeProfile,
+		forced: 'webgl2' as ComputeProfile,
+		allowFallback: true,
+		benchmark: true,
+	});
+
+	assert.equal(result.selection.selected, 'cpu');
+	assert.equal(result.selection.fallbackUsed, true);
+	assert.equal(result.benchmark.profile, 'cpu');
+	assert.equal(result.benchmark.timings.length > 0, true);
+	assert.equal(result.result.preparedDataset.cityCount, 2);
+	assert.equal(result.result.geojsonRuns.length, 1);
 });

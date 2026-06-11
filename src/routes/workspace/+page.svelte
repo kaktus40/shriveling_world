@@ -19,13 +19,16 @@
 		listWorkspaceModes,
 		loadDatasetWorkspace,
 		summarizeDatasetWorkspace,
+		runDatasetWorkspaceCompute,
 		type DatasetWorkspaceSnapshot,
 		type DatasetWorkspaceSummary,
+		type DatasetWorkspaceCompute,
 		type WorkspaceCitySummary,
 		type WorkspaceModeSummary,
 	} from '$lib/application/workspace';
 	import type { QueryableField } from '$lib/domain/data';
 	import type { QueryNode } from '$lib/domain/query';
+	import type { ComputeProfile } from '$lib/compute';
 
 	export let data: {
 		datasets: string[];
@@ -41,9 +44,13 @@
 	let queryTree: QueryNode | null = null;
 	let queryResult: QueryExecutionResult | null = null;
 	let queryWorker: QueryWorkerClient | null = null;
+	let workspaceCompute: DatasetWorkspaceCompute | null = null;
+	let selectedComputeProfile: ComputeProfile = 'cpu';
 	let loading = false;
+	let computeLoading = false;
 	let queryLoading = false;
 	let errorMessage = '';
+	let computeError = '';
 	let queryError = '';
 	let queryRunTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -81,6 +88,8 @@
 			queryTree = createDefaultQueryTree(querySnapshot.fields);
 			queryResult = null;
 			queryError = '';
+			computeError = '';
+			await reloadCompute();
 			scheduleQueryRun();
 		} catch (error) {
 			workspace = null;
@@ -91,10 +100,35 @@
 			querySnapshot = null;
 			queryTree = null;
 			queryResult = null;
+			workspaceCompute = null;
+			computeError = '';
 			queryError = '';
 			errorMessage = error instanceof Error ? error.message : String(error);
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function reloadCompute(): Promise<void> {
+		const currentWorkspace = workspace;
+		if (!currentWorkspace) {
+			return;
+		}
+
+		computeLoading = true;
+		computeError = '';
+		try {
+			workspaceCompute = await runDatasetWorkspaceCompute(currentWorkspace, {
+				profile: selectedComputeProfile,
+				forced: selectedComputeProfile,
+				allowFallback: true,
+				benchmark: true,
+			});
+		} catch (error) {
+			workspaceCompute = null;
+			computeError = error instanceof Error ? error.message : String(error);
+		} finally {
+			computeLoading = false;
 		}
 	}
 
@@ -233,6 +267,10 @@
 			})
 			.join(' | ');
 	}
+
+	function computeSummaryLabel(profile: ComputeProfile): string {
+		return profile.toUpperCase();
+	}
 </script>
 
 <section class="page-head">
@@ -255,6 +293,15 @@
 		</select>
 	</label>
 
+	<label>
+		<span>Compute profile</span>
+		<select bind:value={selectedComputeProfile} on:change={() => void reloadCompute()}>
+			<option value="cpu">CPU</option>
+			<option value="webgl2">WebGL2</option>
+			<option value="webgpu">WebGPU</option>
+		</select>
+	</label>
+
 	<button on:click={() => void reloadWorkspace()} disabled={loading}>
 		{loading ? 'Loading...' : 'Reload workspace'}
 	</button>
@@ -266,6 +313,13 @@
 	<section class="panel error">
 		<h2>Workspace error</h2>
 		<pre>{errorMessage}</pre>
+	</section>
+{/if}
+
+{#if computeError}
+	<section class="panel error">
+		<h2>Compute error</h2>
+		<pre>{computeError}</pre>
 	</section>
 {/if}
 
@@ -294,7 +348,48 @@
 			<p><strong>Errors:</strong> {summary.errorCount}</p>
 			<p><strong>Warnings:</strong> {summary.warningCount}</p>
 		</article>
+
+		<article class="panel">
+			<h2>Compute profile</h2>
+			<p><strong>Requested:</strong> {computeSummaryLabel(selectedComputeProfile)}</p>
+			<p>
+				<strong>Selected:</strong>
+				{workspaceCompute ? computeSummaryLabel(workspaceCompute.selection.selected) : 'none'}
+			</p>
+			<p><strong>Fallback:</strong> {workspaceCompute?.selection.fallbackUsed ? 'yes' : 'no'}</p>
+			<p><strong>Benchmark:</strong> {computeLoading ? 'running...' : 'ready'}</p>
+		</article>
 	</section>
+
+	{#if workspaceCompute}
+		<section class="panel">
+			<h2>Compute benchmark</h2>
+			<p>
+				Total duration: {workspaceCompute.benchmark.totalDurationMs.toFixed(3)} ms
+			</p>
+			<table>
+				<thead>
+					<tr>
+						<th>Stage</th>
+						<th>Scope</th>
+						<th>Duration ms</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each workspaceCompute.benchmark.timings as timing}
+						<tr>
+							<td>{timing.stage}</td>
+							<td>{timing.scope}</td>
+							<td>{timing.durationMs.toFixed(3)}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+			{#if workspaceCompute.selection.reason}
+				<p class="compute-note">{workspaceCompute.selection.reason}</p>
+			{/if}
+		</section>
+	{/if}
 
 	<section class="content-grid">
 		<article class="panel">
