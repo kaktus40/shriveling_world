@@ -166,3 +166,39 @@ export function removeQueryNodeAtPath(root: QueryNode, path: number[]): QueryNod
 		};
 	});
 }
+
+/**
+ * Moves one node designated by `path` one step up or down.
+ *
+ * The root node is kept intact and only sibling order changes.
+ *
+ * @param root Root query group.
+ * @param path Path to the node to move.
+ * @param direction Movement direction, `-1` for up and `1` for down.
+ * @returns A new tree with the reordered node when possible.
+ */
+export function moveQueryNodeAtPath(root: QueryNode, path: number[], direction: -1 | 1): QueryNode {
+	if (path.length === 0) {
+		return root;
+	}
+
+	const parentPath = path.slice(0, -1);
+	const targetIndex = path[path.length - 1];
+	const nextIndex = targetIndex + direction;
+	return updateQueryNodeAtPath(root, parentPath, (node) => {
+		if (node.nodeType !== 'group') {
+			return node;
+		}
+
+		if (nextIndex < 0 || nextIndex >= node.filters.length) {
+			return node;
+		}
+
+		const nextFilters = [...node.filters];
+		[nextFilters[targetIndex], nextFilters[nextIndex]] = [nextFilters[nextIndex], nextFilters[targetIndex]];
+		return {
+			...node,
+			filters: nextFilters,
+		};
+	});
+}

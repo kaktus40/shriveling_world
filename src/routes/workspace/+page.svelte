@@ -6,6 +6,7 @@
 		createDefaultQueryTree,
 		createQueryWorkerClient,
 		insertQueryNodeAtPath,
+		moveQueryNodeAtPath,
 		removeQueryNodeAtPath,
 		updateQueryNodeAtPath,
 		type QueryDatasetSnapshot,
@@ -171,6 +172,17 @@
 		}
 
 		queryTree = insertQueryNodeAtPath(queryTree, path, child);
+		queryResult = null;
+		queryError = '';
+		scheduleQueryRun();
+	}
+
+	function moveQueryNode(path: number[], direction: -1 | 1): void {
+		if (!queryTree) {
+			return;
+		}
+
+		queryTree = moveQueryNodeAtPath(queryTree, path, direction);
 		queryResult = null;
 		queryError = '';
 		scheduleQueryRun();
@@ -408,6 +420,7 @@
 						onChange={updateQueryNode}
 						onDelete={deleteQueryNode}
 						onInsert={insertQueryNode}
+						onMove={moveQueryNode}
 					/>
 				</article>
 

@@ -906,9 +906,9 @@ Validation:
     ecrans metier.
   - un premier editeur interactif de cet arbre est branche dans
     `src/routes/workspace/+page.svelte` via `src/lib/components/query/QueryNodeEditor.svelte`;
-    il permet de modifier la structure AST, de relancer l'execution dans le
-    `Worker` et d'afficher les diagnostics et resultats de requete dans
-    l'interface.
+    il permet de modifier la structure AST, de reordonner les noeuds,
+    de relancer l'execution dans le `Worker` et d'afficher les diagnostics et
+    resultats de requete dans l'interface.
 - Validations executees:
   - compilation TypeScript ciblee des fichiers `src/lib/domain/data/*.ts`;
   - `npm run build`.

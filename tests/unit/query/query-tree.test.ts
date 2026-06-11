@@ -5,6 +5,7 @@ import {
 	createDefaultQueryTree,
 	createLeafFromField,
 	insertQueryNodeAtPath,
+	moveQueryNodeAtPath,
 	removeQueryNodeAtPath,
 	updateQueryNodeAtPath,
 	type QueryFieldDefinition,
@@ -58,6 +59,24 @@ test('query tree helpers can insert and remove nested nodes', () => {
 	const removedRoot = removeQueryNodeAtPath(nextRoot, [1]);
 	assert.equal(removedRoot.nodeType, 'group');
 	assert.equal(removedRoot.filters.length, 1);
+});
+
+test('query tree helpers can reorder sibling nodes', () => {
+	const root = createDefaultQueryTree(fields);
+	const withTwoChildren = insertQueryNodeAtPath(root, [], {
+		nodeType: 'filter',
+		fieldKey: fields[1].fieldKey,
+		comparator: '>=',
+		value: 1500,
+	});
+
+	const movedDown = moveQueryNodeAtPath(withTwoChildren, [0], 1);
+
+	assert.equal(movedDown.nodeType, 'group');
+	assert.equal(movedDown.filters[0].nodeType, 'filter');
+	assert.equal(movedDown.filters[1].nodeType, 'filter');
+	assert.equal(movedDown.filters[0].fieldKey, fields[1].fieldKey);
+	assert.equal(movedDown.filters[1].fieldKey, fields[0].fieldKey);
 });
 
 test('query tree helpers update a node by path', () => {

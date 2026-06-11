@@ -11,9 +11,12 @@
 	export let fields: QueryFieldDefinition[] = [];
 	export let path: number[] = [];
 	export let depth = 0;
+	export let index = 0;
+	export let siblingCount = 1;
 	export let onChange: (path: number[], nextNode: QueryNode) => void = () => undefined;
 	export let onDelete: (path: number[]) => void = () => undefined;
 	export let onInsert: (path: number[], child: QueryNode) => void = () => undefined;
+	export let onMove: (path: number[], direction: -1 | 1) => void = () => undefined;
 
 	function currentField(): QueryFieldDefinition | undefined {
 		if (node.nodeType !== 'filter') {
@@ -91,6 +94,14 @@
 		onInsert(path, createEmptyGroup());
 	}
 
+	function moveUp(): void {
+		onMove(path, -1);
+	}
+
+	function moveDown(): void {
+		onMove(path, 1);
+	}
+
 	function isComparatorValueFree(): boolean {
 		return node.nodeType === 'filter' && node.comparator !== 'empty' && node.comparator !== 'not empty';
 	}
@@ -157,6 +168,10 @@
 				<button type="button" on:click={addLeaf}>Add filter</button>
 				<button type="button" on:click={addGroup}>Add group</button>
 				{#if path.length > 0}
+					<button type="button" on:click={moveUp} disabled={index === 0}>Move up</button>
+					<button type="button" on:click={moveDown} disabled={index >= siblingCount - 1}>Move down</button>
+				{/if}
+				{#if path.length > 0}
 					<button type="button" class="danger" on:click={() => onDelete(path)}>Remove</button>
 				{/if}
 			</div>
@@ -172,9 +187,12 @@
 						fields={fields}
 						path={[...path, index]}
 						depth={depth + 1}
+						index={index}
+						siblingCount={node.filters.length}
 						{onChange}
 						{onDelete}
 						{onInsert}
+						{onMove}
 					/>
 				{/each}
 			</div>
