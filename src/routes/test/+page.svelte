@@ -7,7 +7,7 @@
 		{
 			title: 'test1',
 			href: '/test/test1',
-			historicalRole: 'Load one dataset, run the merger, and verify the first visual outputs.',
+			historicalRole: 'Load one dataset, inspect the first validated outputs, and verify the data pipeline end to end.',
 			migrationRole:
 				'Load one compressed dataset, inspect files, resolve the manifest, build the lossless base network, then prepare compact buffers and boundary limits.',
 		},
@@ -34,7 +34,7 @@
 	<p>
 		The original pages were not business routes. They were engineering checkpoints. This port keeps
 		that role, but swaps the legacy `Merger`, `reader`, and `mesherEngine` for the new explicit
-		domain modules.
+		domain modules and shared workspace services.
 	</p>
 </section>
 
@@ -53,8 +53,8 @@
 	<h3>Current scope</h3>
 	<p>
 		These routes deliberately stop at the modern data and CPU precompute contracts. Babylon.js
-		rendering will plug into the same prepared buffers later, but the validation pages already let
-		us verify the core transformations independently.
+		rendering will plug into the same prepared buffers later. The query workspace now lives in the
+		application shell and is no longer part of this validation bench.
 	</p>
 	<p>{data.datasets.length} bundled datasets are immediately available for these checks.</p>
 </section>

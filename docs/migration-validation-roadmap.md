@@ -909,6 +909,10 @@ Validation:
     il permet de modifier la structure AST, de reordonner les noeuds,
     de relancer l'execution dans le `Worker` et d'afficher les diagnostics et
     resultats de requete dans l'interface.
+  - le requeteur AST est considere comme suffisamment mature pour le stade
+    actuel et n'est plus un point bloquant du jalon M3; la suite de M3 se
+    concentre sur l'extraction du reste du domaine metier et la reduction des
+    derniers couplages applicatifs.
 - Validations executees:
   - compilation TypeScript ciblee des fichiers `src/lib/domain/data/*.ts`;
   - `npm run build`.
