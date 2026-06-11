@@ -1,7 +1,11 @@
+import { existsSync } from 'node:fs';
 import { defineConfig, devices } from '@playwright/test';
 
 const port = 4173;
 const baseURL = `http://127.0.0.1:${port}`;
+const systemChromiumExecutablePath = ['/usr/bin/chromium', '/usr/bin/chromium-browser'].find((path) =>
+	existsSync(path),
+);
 
 export default defineConfig({
 	testDir: './tests/e2e',
@@ -17,11 +21,21 @@ export default defineConfig({
 	projects: [
 		{
 			name: 'chromium',
-			use: { ...devices['Desktop Chrome'] }
+			use: {
+				...devices['Desktop Chrome'],
+				...(systemChromiumExecutablePath
+					? {
+							launchOptions: {
+								executablePath: systemChromiumExecutablePath,
+								args: ['--no-sandbox']
+							}
+						}
+					: {})
+			}
 		}
 	],
 	webServer: {
-		command: `node ./node_modules/vite/bin/vite.js dev --host 127.0.0.1 --port ${port}`,
+		command: `node ./node_modules/vite/bin/vite.js dev --host 127.0.0.1 --port ${port} --configLoader runner`,
 		url: baseURL,
 		reuseExistingServer: !process.env.CI,
 		timeout: 120_000

@@ -313,15 +313,15 @@ Validation:
 - Verification ulterieure sur le worktree de migration:
   - `npm run build` passe;
   - `npm run validate` passe;
-  - `npm run test:e2e` echoue encore car le serveur declare dans
-    `playwright.config.ts` ne demarre pas.
+  - `npm run test:e2e` passe apres correction du `webServer` Playwright via
+    `--configLoader runner` et fallback explicite sur le Chromium systeme
+    disponible.
 
 Resultat:
 
 - M2 valide sur le critere build applicatif.
 - Dette explicitement ouverte: validation stricte du code legacy non portee.
-- Dette additionnelle constatee: smoke E2E Playwright non fonctionnel a ce
-  stade.
+- Le smoke E2E Playwright n'est plus une reserve ouverte sur ce worktree.
 
 Mise a jour npm:
 
@@ -1402,8 +1402,10 @@ Etat reel observe ulterieurement:
 - les pages `test1`, `test2` et `test3` existent et servent deja de validation
   interactive CPU;
 - aucune integration Babylon.js complete n'est encore branchee;
-- le smoke Playwright existe dans `tests/e2e/home.spec.ts`, mais son execution
-  echoue actuellement car le serveur Playwright ne demarre pas.
+- le smoke Playwright existe dans `tests/e2e/home.spec.ts` et passe desormais
+  sur le shell SvelteKit minimal;
+- `playwright.config.ts` demarre Vite avec `--configLoader runner` et utilise
+  le Chromium systeme si les navigateurs Playwright n'ont pas ete installes.
 
 Conclusion:
 
@@ -1427,7 +1429,7 @@ Etat constate lors de l'audit initial:
   non route pour le laboratoire heuristique;
 - `tests/unit/precompute/ray-range-heuristics.test.ts` couvrait deja ce helper
   localement;
-- `npm run test:e2e` echouait toujours parce que le `webServer` Playwright ne
+- `npm run test:e2e` echouait alors parce que le `webServer` Playwright ne
   demarrait pas.
 
 Resolution retenue:
@@ -1438,8 +1440,8 @@ Resolution retenue:
    justifiee;
 3. garder la couverture CPU unitaire minimale comme precondition a toute
    integration SvelteKit/Babylon;
-4. maintenir la dette Playwright ouverte dans `M2` et `M9` jusqu'a correction
-   effective du `webServer`.
+4. corriger `playwright.config.ts` pour demarrer Vite sans ecriture temporaire
+   sous `node_modules` et reutiliser un Chromium systeme quand disponible.
 
 Decision d'architecture:
 
