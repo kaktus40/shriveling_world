@@ -1279,18 +1279,23 @@ Etat reel observe ulterieurement:
   - `src/lib/compute/core/timing.ts`;
   - `src/lib/compute/cpu/workflow.ts`;
   - `src/lib/compute/webgl2/workflow.ts`;
+  - `src/lib/compute/webgpu/workflow.ts`;
   - `src/lib/compute/index.ts`;
   - `tests/unit/compute/profile-selector.test.ts`;
   - `tests/unit/compute/cpu-workflow.test.ts`;
   - `tests/unit/compute/webgl2-workflow.test.ts`;
+  - `tests/unit/compute/webgpu-workflow.test.ts`;
 - le backend CPU de reference orchestre deja l'ingestion, l'assemblage, le
   `PreparedDataset`, les precomputes GeoJSON et les passes CPU de reference;
 - le selecteur de profil accepte deja le forçage et le fallback explicite;
 - un premier squelette WebGL2 existe deja avec detection de contexte, contrat
   de backends et delegation temporaire au CPU de reference;
+- un premier squelette WebGPU existe deja avec compilation du shader smoke,
+  dispatch minimal et delegation temporaire au CPU de reference;
 - l'ecran `/workspace` peut deja consommer le backend CPU de reference et
   afficher la selection de profil ainsi que le benchmark par etape;
-- le backend WebGPU reste a brancher sur le meme contrat;
+- le backend WebGPU est maintenant branche sur le meme contrat, mais ses
+  passes metier restent a implémenter;
 - l'orchestrateur de migration doit encore etre relie aux points d'entree de
   l'application pour exposer le benchmark par phase et le choix de profil.
 

@@ -35,6 +35,20 @@ test('compute selector can force webgl2 when it is available', async () => {
 	expect(selection.fallbackUsed).toBe(false);
 });
 
+test('compute selector can force webgpu when it is available', async () => {
+	const selection = await selectComputeProfile(
+		{ forced: 'webgpu' },
+		{
+			webgpu: descriptor('webgpu', true),
+			webgl2: descriptor('webgl2', true),
+			cpu: descriptor('cpu', true),
+		},
+	);
+
+	expect(selection.selected).toBe('webgpu');
+	expect(selection.fallbackUsed).toBe(false);
+});
+
 test('compute selector can force cpu even when accelerators are available', async () => {
 	const selection = await selectComputeProfile(
 		{ forced: 'cpu' },

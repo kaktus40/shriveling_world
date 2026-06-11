@@ -10,6 +10,7 @@ import {
 	createDefaultComputeWorkflowRegistry,
 	selectComputeProfile,
 	createWebGl2WorkflowBackendDescriptor,
+	createWebGpuWorkflowBackendDescriptor,
 	type ComputeBenchmarkReport,
 	type ComputeProfile,
 	type ComputeProfileSelection,
@@ -185,6 +186,7 @@ function createWorkspaceComputeRegistry(): ComputeWorkflowBackendRegistry {
 	return {
 		...createDefaultComputeWorkflowRegistry(),
 		webgl2: createWebGl2WorkflowBackendDescriptor(),
+		webgpu: createWebGpuWorkflowBackendDescriptor(),
 	};
 }
 
