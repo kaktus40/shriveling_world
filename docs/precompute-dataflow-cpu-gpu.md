@@ -142,6 +142,61 @@ Conventions de buffers:
 Ces regles doivent etre appliquees dans les trois profils compute. Elles
 servent aussi de base pour les tests de conformite CPU/WebGL2/WebGPU.
 
+## Contrats Des Backends GPU
+
+Le travail GPU se decline en deux transports, mais pas en deux modeles
+metiers. Le contrat logique reste le meme:
+
+- meme ordre dense des villes;
+- meme ordre des contours;
+- meme ordre des azimuts;
+- meme ordre des paires et des faces;
+- meme unite SI;
+- meme convention `longitudeRadians, latitudeRadians`;
+- meme interpretation de `validIntersection`, des `t` et des distances.
+
+### WebGL2
+
+WebGL2 reste le fallback accelere. Il transporte les memes donnees logiques au
+moyen de:
+
+- textures de donnees ou framebuffer selon la passe;
+- uniforms explicites;
+- shaders fragment ou vertex selon l'architecture locale;
+- cache de programmes compilés.
+
+Les sorties doivent rester compatibles avec les buffers attendus par le rendu
+et par les tests de conformite. Le backend WebGL2 ne doit jamais inverser
+longitude et latitude pour compenser une convention graphique.
+
+### WebGPU
+
+WebGPU est la cible de production pour les kernels intensifs. Il transporte les
+memes donnees logiques via:
+
+- storage buffers;
+- bind groups;
+- compute pipelines;
+- dispatchs explicitement nommes par passe.
+
+Les kernels WGSL doivent consommer les buffers prepares sans reinterpréter les
+unites. Les uniforms et structs WGSL doivent expliciter les valeurs angulaires
+en radians, les longueurs en metres, et l'ordre geographique des tuples.
+
+### Contrats De Passes Communs
+
+Pour chaque passe GPU, le contrat doit documenter:
+
+1. les buffers d'entree, dans l'ordre exact de consommation;
+2. les buffers de sortie, dans l'ordre exact de production;
+3. les unites de chaque buffer;
+4. l'ordre des composantes lorsque le buffer porte des coordonnees;
+5. le stage de benchmark correspondant;
+6. le comportement attendu en cas de fallback CPU.
+
+Ces contrats sont maintenant formalises dans `src/lib/compute/gpu`,
+`src/lib/compute/webgl2` et `src/lib/compute/webgpu`.
+
 Schemas PNG:
 
 - ![Responsabilites CPU GPU Renderer](diagrams/precompute/01-responsibilities.png)

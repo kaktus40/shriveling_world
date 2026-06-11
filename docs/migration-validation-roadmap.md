@@ -1207,8 +1207,10 @@ Travail attendu:
 - initialiser la detection de capacites et la selection de profil;
 - permettre un profil force explicite, y compris `webgl2` lorsqu'il est
   disponible;
-- creer une abstraction de buffers partagee entre les profils;
-- creer une abstraction de kernel / passe partagee entre les profils;
+- creer une abstraction de buffers partagee entre les profils, avec un
+  contrat explicite sur les unites, l'ordre lon/lat et les strides;
+- creer une abstraction de kernel / passe partagee entre les profils, avec
+  un contrat explicite des entrees, sorties et stages benchmarkes;
 - creer un cache de pipelines et de programmes;
 - definir les etapes benchmarkees depuis l'ingestion CSV/GeoJSON jusqu'aux
   buffers precomputes;
