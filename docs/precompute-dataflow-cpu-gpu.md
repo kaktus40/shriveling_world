@@ -157,8 +157,8 @@ metiers. Le contrat logique reste le meme:
 
 ### WebGL2
 
-WebGL2 reste le fallback accelere. Il transporte les memes donnees logiques au
-moyen de:
+WebGL2 est le fallback accelere que l'on stabilise en premier. Il transporte
+les memes donnees logiques au moyen de:
 
 - textures de donnees ou framebuffer selon la passe;
 - uniforms explicites;
@@ -168,6 +168,32 @@ moyen de:
 Les sorties doivent rester compatibles avec les buffers attendus par le rendu
 et par les tests de conformite. Le backend WebGL2 ne doit jamais inverser
 longitude et latitude pour compenser une convention graphique.
+
+Le premier fallback WebGL2 rendu operationnel dans la migration porte deja la
+construction des matrices `cityNed2EcefMatrices` par transform feedback
+vertex. Ce kernel sert de contrat de reference pour le fallback accelere:
+il prouve le chemin canvas -> programme -> dispatch -> buffer de sortie tout en
+respectant les memes unites SI que le CPU et le WebGPU.
+
+### Schema Des Buffers WebGL2
+
+Le fallback WebGL2 actuel repose sur un premier pass reel. Le tableau ci-dessous
+fige son contrat de buffers.
+
+#### `city-ned2ecef-webgl2.vert`
+
+| Binding / canal | Buffer logique | Type | Stride | Unite / ordre | Role |
+| --- | --- | --- | --- | --- | --- |
+| `location 0` | `cityLonLatRadians` | `Float32Array` | `2` floats | `[longitudeRadians, latitudeRadians]` | Attribute d'entree par ville |
+| `uniform u_earthRadiusMeters` | `earthRadiusMeters` | `float` | `1` float | metres | Uniform scalaire |
+| transform feedback `tf_col0..3` | `cityNed2EcefMatrices` | `Float32Array` | `16` floats | matrice `NED2ECEF` column-major | Sortie par ville |
+
+Dispatch:
+
+- un sommet par ville;
+- `gl.POINTS`;
+- `transform feedback` en mode interleaved;
+- `rasterizer discard` active pendant le calcul.
 
 ### WebGPU
 

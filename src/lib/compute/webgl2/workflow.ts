@@ -1,7 +1,12 @@
+import cityNed2EcefVertexShaderSource from '../kernels/city-ned2ecef-webgl2.vert?raw';
 import {
 	createCpuWorkflowBackend,
 	type CpuComputeWorkflowBackend,
 } from '../cpu';
+import {
+	createCityNed2EcefDispatchResources,
+	createCityNed2EcefProgram,
+} from './buffers';
 import type {
 	ComputeBenchmarkReport,
 	ComputeCapabilities,
@@ -11,12 +16,16 @@ import type {
 	ComputeWorkflowInput,
 	ComputeWorkflowOptions,
 	ComputeWorkflowResult,
+	StageTiming,
 } from '../core';
+import { measureAsyncStage } from '../core/timing';
+import { EARTH_RADIUS_METERS } from '../../shared';
+import type { WebGl2ComputeContext, WebGl2ComputeResources } from './types';
 
 /** Canvas-like source used to probe or create a WebGL2 context. */
 export type WebGl2CanvasLike = HTMLCanvasElement | OffscreenCanvas;
 
-/** Options used to build the WebGL2 skeleton backend. */
+/** Options used to build the WebGL2 fallback backend. */
 export interface WebGl2WorkflowBackendOptions {
 	/** Optional pre-existing canvas used to create the WebGL2 context. */
 	readonly canvas?: WebGl2CanvasLike;
@@ -26,14 +35,17 @@ export interface WebGl2WorkflowBackendOptions {
 	readonly cpuBackend?: CpuComputeWorkflowBackend;
 }
 
-/** Lightweight WebGL2 backend skeleton for the migration. */
+/** Operational WebGL2 fallback backend for the migration. */
 export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 	readonly profile = 'webgl2' as const;
 	readonly #canvas: WebGl2CanvasLike | null;
 	readonly #cpuBackend: CpuComputeWorkflowBackend;
+	#gl: WebGL2RenderingContext | null;
+	#resources: WebGl2ComputeResources | null = null;
 
 	constructor(options: WebGl2WorkflowBackendOptions = {}) {
 		this.#canvas = options.canvas ?? options.createCanvas?.() ?? null;
+		this.#gl = probeWebGl2Context(this.#canvas);
 		this.#cpuBackend = options.cpuBackend ?? createCpuWorkflowBackend();
 	}
 
@@ -46,23 +58,31 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		if (!available) {
 			throw new Error('WebGL2 compute backend unavailable: no WebGL2 context could be created');
 		}
+
 		const delegatedSelection: ComputeProfileSelection =
 			selection ?? {
 				selected: 'webgl2',
 				fallbackUsed: false,
-				capabilities: webgl2Capabilities(),
+				capabilities: webgl2Capabilities(true),
 			};
 		const result = await this.#cpuBackend.run(input, options, delegatedSelection);
+		const extraTimings: StageTiming[] = [];
+
+		if (result.staticTown) {
+			const cityMatrixPass = await this.runCityMatrixPass(result);
+			extraTimings.push(cityMatrixPass.timing);
+		}
+
 		return {
 			...result,
 			selection: delegatedSelection,
-			benchmark: remapBenchmarkProfile(result.benchmark),
+			benchmark: remapBenchmarkProfile(result.benchmark, extraTimings),
 			diagnostics: [
 				...result.diagnostics,
 				{
 					severity: 'warning',
-					code: 'webgl2-skeleton-cpu-delegation',
-					message: 'WebGL2 backend is wired but still delegates compute stages to the CPU reference backend.',
+					code: 'webgl2-city-matrix-pass-dispatched',
+					message: 'WebGL2 backend dispatches a real city NED-to-ECEF transform-feedback pass before delegating the remaining compute stages to the CPU reference backend.',
 				},
 			],
 		};
@@ -70,10 +90,112 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 
 	async dispose(): Promise<void> {
 		await this.#cpuBackend.dispose();
+		this.#resources = null;
+		this.#gl = null;
 	}
 
 	async ensureAvailable(): Promise<boolean> {
 		return probeWebGl2Availability(this.#canvas);
+	}
+
+	async ensureResources(): Promise<WebGl2ComputeResources> {
+		if (this.#resources) {
+			return this.#resources;
+		}
+		const gl = this.ensureGl();
+		const program = createCityNed2EcefProgram(gl, cityNed2EcefVertexShaderSource);
+		this.#resources = {
+			buffers: [],
+			pipeline: {
+				passes: [
+					{
+						name: 'city-ned2ecef',
+						stage: 'static-town-precompute',
+						profile: 'webgl2',
+						inputs: [],
+						outputs: [],
+						workgroupSize: [1, 1, 1],
+						notes: ['First operational WebGL2 fallback pass: city NED-to-ECEF matrices via transform feedback.'],
+					},
+				],
+			},
+			programCache: new Map([['city-ned2ecef', program]]),
+			framebufferCache: new Map(),
+		};
+		return this.#resources;
+	}
+
+	private ensureGl(): WebGL2RenderingContext {
+		if (this.#gl) {
+			return this.#gl;
+		}
+		const gl = probeWebGl2Context(this.#canvas);
+		if (!gl) {
+			throw new Error('WebGL2 compute backend unavailable: no WebGL2 context could be created');
+		}
+		this.#gl = gl;
+		return gl;
+	}
+
+	private async runCityMatrixPass(result: ComputeWorkflowResult): Promise<{ timing: StageTiming }> {
+		const prepared = result.preparedDataset;
+		const cityCount = prepared.cityCount;
+		if (cityCount <= 0) {
+			return {
+				timing: {
+					stage: 'static-town-precompute',
+					scope: 'precompute',
+					profile: 'webgl2',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+			};
+		}
+
+		const gl = this.ensureGl();
+		const resources = await this.ensureResources();
+		const program = resources.programCache?.get('city-ned2ecef');
+		if (!program) {
+			throw new Error('WebGL2 city NED-to-ECEF program is not available');
+		}
+
+		const dispatchResources = createCityNed2EcefDispatchResources(
+			gl,
+			program,
+			new Float32Array(prepared.cityLonLatRadians),
+			cityCount,
+			EARTH_RADIUS_METERS,
+		);
+		const transformFeedback = gl.createTransformFeedback();
+		if (!transformFeedback) {
+			throw new Error('WebGL2 transform feedback allocation failed');
+		}
+
+		const { timing } = await measureAsyncStage(
+			'static-town-precompute',
+			'precompute',
+			'webgl2',
+			async () => {
+				gl.useProgram(program);
+				gl.uniform1f(dispatchResources.uniformLocation, EARTH_RADIUS_METERS);
+				gl.bindVertexArray(dispatchResources.vertexArray);
+				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, dispatchResources.outputBuffer);
+				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
+				gl.enable(gl.RASTERIZER_DISCARD);
+				gl.beginTransformFeedback(gl.POINTS);
+				gl.drawArrays(gl.POINTS, 0, cityCount);
+				gl.endTransformFeedback();
+				gl.disable(gl.RASTERIZER_DISCARD);
+				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+				gl.bindVertexArray(null);
+				gl.finish();
+				return undefined;
+			},
+		);
+
+		return { timing };
 	}
 }
 
@@ -83,21 +205,13 @@ export function webgl2Capabilities(available = false): ComputeCapabilities {
 		webgpuAvailable: false,
 		webgl2Available: available,
 		cpuAvailable: true,
-		notes: available ? ['WebGL2 skeleton backend'] : ['WebGL2 unavailable'],
+		notes: available ? ['WebGL2 fallback backend with a city NED-to-ECEF transform-feedback pass'] : ['WebGL2 unavailable'],
 	};
 }
 
 /** Probes whether a WebGL2 context can be created from a canvas-like object. */
 export function probeWebGl2Availability(canvas?: WebGl2CanvasLike | null): boolean {
-	if (!canvas) {
-		return false;
-	}
-	try {
-		const context = canvas.getContext('webgl2');
-		return context !== null;
-	} catch {
-		return false;
-	}
+	return probeWebGl2Context(canvas) !== null;
 }
 
 /** Creates a canvas-like object suitable for a WebGL2 probe when the runtime supports it. */
@@ -122,14 +236,39 @@ export function createWebGl2WorkflowBackendDescriptor(
 	};
 }
 
-function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport): ComputeBenchmarkReport {
+function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport, extraTimings: readonly StageTiming[]): ComputeBenchmarkReport {
+	const timings = [...benchmark.timings, ...extraTimings];
 	return {
 		...benchmark,
 		profile: 'webgl2',
-		timings: benchmark.timings.map((timing) => ({
+		timings: timings.map((timing) => ({
 			...timing,
 			profile: 'webgl2',
 		})),
-		notes: [...benchmark.notes, 'WebGL2 skeleton currently delegates compute stages to the CPU reference backend.'],
+		totalDurationMs: benchmark.totalDurationMs + extraTimings.reduce((sum, timing) => sum + timing.durationMs, 0),
+		notes: [
+			...benchmark.notes,
+			'WebGL2 backend dispatches a city NED-to-ECEF transform-feedback pass before delegating the remaining compute stages to the CPU reference backend.',
+		],
 	};
+}
+
+function probeWebGl2Context(canvas?: WebGl2CanvasLike | null): WebGL2RenderingContext | null {
+	if (!canvas) {
+		return null;
+	}
+	try {
+		const context = canvas.getContext('webgl2');
+		if (!context) {
+			return null;
+		}
+		if (typeof WebGL2RenderingContext !== 'undefined' && context instanceof WebGL2RenderingContext) {
+			return context;
+		}
+		return typeof (context as WebGL2RenderingContext).createBuffer === 'function'
+			? (context as WebGL2RenderingContext)
+			: null;
+	} catch {
+		return null;
+	}
 }

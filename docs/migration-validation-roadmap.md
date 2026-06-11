@@ -1288,14 +1288,15 @@ Etat reel observe ulterieurement:
 - le backend CPU de reference orchestre deja l'ingestion, l'assemblage, le
   `PreparedDataset`, les precomputes GeoJSON et les passes CPU de reference;
 - le selecteur de profil accepte deja le forçage et le fallback explicite;
-- un premier squelette WebGL2 existe deja avec detection de contexte, contrat
-  de backends et delegation temporaire au CPU de reference;
+- un fallback WebGL2 existe deja avec detection de contexte, un premier
+  dispatch reel `city-ned2ecef` en transform feedback et delegation du reste
+  au CPU de reference;
 - un premier squelette WebGPU existe deja avec compilation du premier kernel
   metier `city-ned2ecef` et delegation temporaire au CPU de reference;
 - l'ecran `/workspace` peut deja consommer le backend CPU de reference et
   afficher la selection de profil ainsi que le benchmark par etape;
-- le backend WebGPU est maintenant branche sur le meme contrat, mais ses
-  passes metier restent a implémenter;
+- le backend WebGPU est maintenant branche sur le meme contrat, mais son
+  deploiement reste secondaire par rapport au fallback WebGL2 stabilise;
 - l'orchestrateur de migration doit encore etre relie aux points d'entree de
   l'application pour exposer le benchmark par phase et le choix de profil.
 
