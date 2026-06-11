@@ -56,6 +56,13 @@ Utiliser les statuts suivants:
   `WebGPU -> WebGL2 -> CPU`.
   `WebGPU` est la cible de production, `WebGL2` le fallback accelere et `CPU`
   la reference fonctionnelle et l'oracle de tests.
+- Le profil `CPU` doit rester disponible en permanence et peut toujours etre
+  force.
+- Le profil `WebGL2` doit pouvoir etre force lorsqu'il est disponible, avec un
+  repli explicite vers `CPU` si besoin.
+- Le framework compute doit pouvoir etre active des l'ingestion CSV/GeoJSON
+  jusqu'aux precomputes derives afin de mesurer chaque etape sur tous les
+  profils disponibles.
 - La cible de runner pour la migration est `Vitest` pour les tests unitaires,
   d'integration et de conformance CPU, avec `Playwright` pour les tests E2E et
   de rendu.
@@ -1175,7 +1182,8 @@ Statut: `todo`
 Objectif:
 
 Creer le remplacement structurel de `GPUComputer` et l'orchestrateur maison
-qui selectionne les profils `WebGPU`, `WebGL2` et `CPU` avec fallback explicite.
+qui selectionne ou force les profils `WebGPU`, `WebGL2` et `CPU` avec fallback
+explicite depuis l'ingestion CSV/GeoJSON jusqu'aux buffers de precompute.
 
 Decision d'architecture:
 
@@ -1184,19 +1192,31 @@ Decision d'architecture:
 - les kernels critiques restent ecrits en WGSL pour WebGPU;
 - le backend WebGL2 est le premier fallback accelere a integrer;
 - le backend CPU reste la reference fonctionnelle et l'ultime repli;
+- le profil `CPU` reste toujours disponible et peut etre force a tout moment;
+- le profil `WebGL2` peut etre force lorsqu'il est disponible, avec un repli
+  explicite vers `CPU` si le navigateur ou la webview ne le supporte pas;
+- l'orchestrateur doit pouvoir encadrer les etapes d'ingestion CSV, d'ingestion
+  GeoJSON, d'assemblage lossless, de preparation du dataset et de precompute;
+- chaque etape doit pouvoir etre benchmarkee independamment, quel que soit le
+  profil retenu;
 - l'API doit rester compatible avec un futur backend Rust/wgpu natif;
 - le framework compute ne doit pas dependre de Babylon.js, Tauri ou SvelteKit.
 
 Travail attendu:
 
 - initialiser la detection de capacites et la selection de profil;
+- permettre un profil force explicite, y compris `webgl2` lorsqu'il est
+  disponible;
 - creer une abstraction de buffers partagee entre les profils;
 - creer une abstraction de kernel / passe partagee entre les profils;
 - creer un cache de pipelines et de programmes;
+- definir les etapes benchmarkees depuis l'ingestion CSV/GeoJSON jusqu'aux
+  buffers precomputes;
 - executer un kernel WGSL simple sur WebGPU;
 - executer une passe WebGL2 simple avec le meme contrat de buffers;
 - lire les resultats CPU pour tests et debug;
-- documenter les limitations navigateur et les conditions de fallback.
+- documenter les limitations navigateur, les profils forçables et les
+  conditions de fallback.
 
 Architecture cible:
 
@@ -1228,6 +1248,12 @@ interface ComputeBackend {
 Critere d'acceptation:
 
 - un test de selection de profil applique la chaine `WebGPU -> WebGL2 -> CPU`;
+- un test explicite couvre le forçage de `WebGL2` quand le profil est
+  disponible;
+- un test explicite couvre le forçage de `CPU` et confirme qu'il reste
+  toujours disponible;
+- un test de benchmark compare les etapes d'ingestion, d'assemblage et de
+  precompute pour au moins deux profils differents;
 - un test WebGPU simple passe quand WebGPU est disponible;
 - un skip explicite existe quand WebGPU est indisponible;
 - un backend WebGL2 simple passe avec le meme contrat de buffers;
@@ -1244,7 +1270,9 @@ Etat reel observe ulterieurement:
 - un shader de smoke existe deja dans `src/lib/compute/kernels/smoke.wgsl`;
 - l'import WGSL via Vite est deja prouve dans le shell applicatif;
 - aucun framework compute WebGPU minimal exploitable n'est encore integre au
-  domaine ou a l'orchestration applicative.
+  domaine ou a l'orchestration applicative;
+- l'orchestrateur de migration doit encore etre relie aux etapes d'ingestion
+  CSV/GeoJSON et a leur benchmark par phase.
 
 Conclusion:
 

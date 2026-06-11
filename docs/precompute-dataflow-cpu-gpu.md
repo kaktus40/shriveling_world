@@ -23,6 +23,26 @@ La regle de responsabilite est la suivante:
 - le GPU execute les calculs massivement paralleles sur des buffers compacts;
 - le renderer consomme les resultats, mais ne doit pas porter la logique metier.
 
+Le framework compute cible doit pouvoir etre pilote des les etapes
+d'ingestion CSV et GeoJSON afin de mesurer chaque phase, du chargement des
+fichiers jusqu'aux buffers de precompute. Les profils doivent pouvoir etre
+forces explicitement lorsqu'ils sont disponibles:
+
+- `CPU` reste toujours disponible;
+- `WebGL2` peut etre force si la plateforme le supporte;
+- `WebGPU` reste le profil de production quand il est disponible.
+
+Les temps doivent etre comparables par etape, notamment pour:
+
+- ingestion CSV;
+- ingestion GeoJSON;
+- assemblage lossless du reseau;
+- construction du `PreparedDataset`;
+- precompute statique;
+- precompute dynamique par annee;
+- preparation des cones bruts;
+- intersections et reductions finales.
+
 ## Vue D'Ensemble Avec Lignes De Responsabilite
 
 ```plantuml
@@ -64,6 +84,12 @@ stop
 ```
 
 Dans cette architecture, un changement de dataset relance tout le pipeline. Un changement d'annee ne relance pas la lecture CSV ni l'assemblage lossless. Il selectionne seulement le paquet dynamique de l'annee et relance les passes GPU necessaires.
+
+Le choix du profil est lui aussi explicite: l'utilisateur peut forcer `CPU`
+ou `WebGL2` si la plateforme le permet, tandis que `WebGPU` reste la cible
+preferee. Le benchmark doit enregistrer des temps par etape pour chaque profil
+disponible afin de comparer ingestion, preparation et calcul sur un meme
+dataset.
 
 Schemas PNG:
 

@@ -26,7 +26,9 @@ Le pipeline expose trois implementations d'un meme contrat:
 
 Les trois profils doivent produire les memes buffers, avec les memes strides,
 unites, conventions d'indexation et tolerances numeriques. Le choix du profil
-est porte par une strategie injectee. Les fonctions metier ne doivent pas
+est porte par une strategie injectee. L'utilisateur peut forcer explicitement
+`CPU` ou `WebGL2` si le profil est disponible; `WebGPU` reste la cible
+preferee quand la plateforme le permet. Les fonctions metier ne doivent pas
 multiplier les tests conditionnels par profil.
 
 La chaine de repli par defaut est:
@@ -37,6 +39,10 @@ WebGPU -> WebGL2 -> CPU
 
 Un choix explicite de `WebGL2` utilise `WebGL2 -> CPU`. Un choix explicite de
 `CPU` ne tente aucun backend graphique.
+
+Les mesures de benchmark doivent rester comparables par etape et par profil,
+depuis les donnees d'entree jusqu'aux buffers de sortie, afin de pouvoir
+evaluer separatement les couts d'ingestion, de preparation et de calcul.
 
 Babylon.js n'intervient pas dans ces calculs. Il consomme uniquement les
 buffers finaux necessaires au rendu.
