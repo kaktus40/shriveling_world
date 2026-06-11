@@ -6,6 +6,7 @@ export interface GpuBufferUsageFlags {
 	readonly COPY_DST: number;
 	readonly COPY_SRC: number;
 	readonly UNIFORM: number;
+	readonly MAP_READ: number;
 }
 
 /** Shared contract for a GPU buffer allocation used by the migration workflow. */

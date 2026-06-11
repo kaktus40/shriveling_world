@@ -8,6 +8,10 @@ import {
 	createBoundaryAlgebreDispatchResources,
 	createCityNed2EcefDispatchResources,
 } from './buffers';
+import {
+	compareFloat32Buffers,
+	readBackFloat32Buffer,
+} from './validation';
 import type {
 	ComputeBenchmarkReport,
 	ComputeCapabilities,
@@ -22,6 +26,7 @@ import type {
 import { measureAsyncStage } from '../core/timing';
 import { EARTH_RADIUS_METERS } from '../../shared';
 import { buildAzimuthIntervals, packAzimuthIntervals } from '../../domain/geojson';
+import type { DatasetDiagnostic } from '../../domain/data';
 import type { WebGpuComputeContext, WebGpuComputeResources } from './types';
 
 /** Options used to build the WebGPU backend. */
@@ -62,15 +67,18 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			};
 		const result = await this.#cpuBackend.run(input, options, delegatedSelection);
 		const extraTimings: StageTiming[] = [];
+		const compareDiagnostics: DatasetDiagnostic[] = [];
 
 		if (result.staticTown) {
 			const cityMatrixPass = await this.runCityMatrixPass(context, result);
 			extraTimings.push(cityMatrixPass.timing);
+			compareDiagnostics.push(...cityMatrixPass.diagnostics);
 		}
 
 		for (const geojsonRun of result.geojsonRuns) {
 			const boundaryPass = await this.runBoundaryRaycastPass(context, result, geojsonRun);
 			extraTimings.push(boundaryPass.timing);
+			compareDiagnostics.push(...boundaryPass.diagnostics);
 		}
 
 		return {
@@ -79,6 +87,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			benchmark: remapBenchmarkProfile(result.benchmark, extraTimings),
 			diagnostics: [
 				...result.diagnostics,
+				...compareDiagnostics,
 				{
 					severity: 'warning',
 					code: 'webgpu-skeleton-cpu-delegation',
@@ -168,7 +177,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 	private async runCityMatrixPass(
 		context: WebGpuComputeContext,
 		result: ComputeWorkflowResult,
-	): Promise<{ timing: StageTiming }> {
+	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
 		const prepared = result.preparedDataset;
 		const cityCount = prepared.cityCount;
 		if (cityCount <= 0) {
@@ -181,6 +190,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 					endedAtMs: 0,
 					durationMs: 0,
 				},
+				diagnostics: [],
 			};
 		}
 
@@ -227,14 +237,26 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			},
 		);
 
-		return { timing };
+		const diagnostics: DatasetDiagnostic[] = [];
+		const cityMatricesReadback = await readBackFloat32Buffer(context.device, buffers.output.buffer, cityCount * 16);
+		if (cityMatricesReadback) {
+			diagnostics.push(
+				...compareFloat32Buffers(
+					'webgpu-city-matrices',
+					result.staticTown?.cityNed2EcefMatrices ?? new Float32Array(cityCount * 16),
+					cityMatricesReadback,
+				),
+			);
+		}
+
+		return { timing, diagnostics };
 	}
 
 	private async runBoundaryRaycastPass(
 		context: WebGpuComputeContext,
 		result: ComputeWorkflowResult,
 		geojsonRun: ComputeWorkflowResult['geojsonRuns'][number],
-	): Promise<{ timing: StageTiming }> {
+	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
 		const staticTown = result.staticTown;
 		if (!staticTown) {
 			return {
@@ -246,6 +268,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 					endedAtMs: 0,
 					durationMs: 0,
 				},
+				diagnostics: [],
 			};
 		}
 
@@ -263,6 +286,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 					endedAtMs: 0,
 					durationMs: 0,
 				},
+				diagnostics: [],
 			};
 		}
 
@@ -325,7 +349,33 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			},
 		);
 
-		return { timing };
+		const diagnostics: DatasetDiagnostic[] = [];
+		const angularReadback = await readBackFloat32Buffer(
+			context.device,
+			buffers.townBoundaryAngular.buffer,
+			cityCount * azimuthSampleCount * 4,
+		);
+		const ecefReadback = await readBackFloat32Buffer(
+			context.device,
+			buffers.townBoundaryEcef.buffer,
+			cityCount * azimuthSampleCount * 4,
+		);
+		if (angularReadback && ecefReadback) {
+			diagnostics.push(
+				...compareFloat32Buffers(
+					'webgpu-boundary-angular',
+					geojsonRun.boundaryRaycast.townBoundaryAngular,
+					angularReadback,
+				),
+				...compareFloat32Buffers(
+					'webgpu-boundary-ecef',
+					geojsonRun.boundaryRaycast.townBoundaryEcef,
+					ecefReadback,
+				),
+			);
+		}
+
+		return { timing, diagnostics };
 	}
 }
 
@@ -406,6 +456,7 @@ function getGpuBufferUsage(): {
 			COPY_DST: 1 << 3,
 			COPY_SRC: 1 << 1,
 			UNIFORM: 1 << 6,
+			MAP_READ: 1 << 0,
 		}
 	);
 }
