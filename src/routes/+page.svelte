@@ -1,43 +1,11 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import smokeShader from '$lib/compute/kernels/smoke.wgsl?raw';
-	import {
-		loadDatasetWorkspace,
-		type DatasetWorkspaceSnapshot,
-	} from '$lib/application/workspace';
 
 	export let data: {
 		datasets: string[];
 	};
 
 	const shaderLineCount = smokeShader.trim().split('\n').length;
-	let selectedDataset = data.datasets[0] ?? '';
-	let workspace: DatasetWorkspaceSnapshot | null = null;
-	let loading = false;
-	let errorMessage = '';
-
-	onMount(() => {
-		if (selectedDataset) {
-			void reloadWorkspace();
-		}
-	});
-
-	async function reloadWorkspace(): Promise<void> {
-		if (!selectedDataset) {
-			return;
-		}
-
-		loading = true;
-		errorMessage = '';
-		try {
-			workspace = await loadDatasetWorkspace(fetch, selectedDataset);
-		} catch (error) {
-			workspace = null;
-			errorMessage = error instanceof Error ? error.message : String(error);
-		} finally {
-			loading = false;
-		}
-	}
 </script>
 
 <main>
@@ -45,8 +13,9 @@
 		<p class="eyebrow">Migration branch</p>
 		<h1>Shriveling world</h1>
 		<p>
-			Application shell backed by the new domain and application layers. The next routes can now
-			reuse a common dataset workspace instead of rebuilding orchestration glue page by page.
+			Application shell backed by the new domain and application layers. The first non-test screen
+			is now the dataset workspace, while the historical validation routes remain available for the
+			CPU reference pipeline.
 		</p>
 	</section>
 
@@ -61,82 +30,31 @@
 		</ul>
 	</section>
 
-	<section class="workspace">
-		<div class="workspace-head">
-			<div>
-				<p class="eyebrow">Shared workspace</p>
-				<h2>Dataset orchestration for future screens</h2>
-				<p>
-					This is no longer a pure smoke page. It exercises the common application workspace that
-					will feed future non-test routes.
-				</p>
-			</div>
+	<section class="nav-grid">
+		<article class="panel">
+			<p class="eyebrow">Application route</p>
+			<h2>Dataset workspace</h2>
+			<p>
+				Business-oriented workspace screen built on the shared orchestration layer. It exposes
+				datasets, modes, city previews, free fields, and diagnostics as application data.
+			</p>
+			<p><strong>{data.datasets.length}</strong> bundled datasets available.</p>
+			<a class="cta" href="/workspace">Open dataset workspace</a>
+		</article>
 
-			<div class="controls">
-				<label>
-					<span>Bundled dataset</span>
-					<select bind:value={selectedDataset} on:change={() => void reloadWorkspace()}>
-						{#each data.datasets as datasetName}
-							<option value={datasetName}>{datasetName}</option>
-						{/each}
-					</select>
-				</label>
-				<button on:click={() => void reloadWorkspace()} disabled={loading}>
-					{loading ? 'Loading...' : 'Reload workspace'}
-				</button>
-			</div>
-		</div>
-
-		{#if errorMessage}
-			<article class="panel error">
-				<h3>Workspace error</h3>
-				<pre>{errorMessage}</pre>
-			</article>
-		{/if}
-
-		{#if workspace}
-			<div class="workspace-grid">
-				<article class="panel">
-					<h3>Dataset</h3>
-					<p><strong>Name:</strong> {workspace.datasetName}</p>
-					<p><strong>Source files:</strong> {workspace.files.length}</p>
-					<p><strong>GeoJSON files:</strong> {workspace.geojsonEntries.length}</p>
-				</article>
-
-				<article class="panel">
-					<h3>Domain pipeline</h3>
-					<p><strong>Cities:</strong> {workspace.pipeline.preparedDataset.cityCount}</p>
-					<p><strong>Edges:</strong> {workspace.pipeline.preparedDataset.edgeCount}</p>
-					<p><strong>Modes:</strong> {workspace.pipeline.preparedDataset.modeCount}</p>
-				</article>
-
-				<article class="panel">
-					<h3>Historical span</h3>
-					<p>
-						<strong>Years:</strong>
-						{workspace.pipeline.preparedDataset.speedTimeline.span.beginYear} to
-						{workspace.pipeline.preparedDataset.speedTimeline.span.endYear}
-					</p>
-					<p><strong>Queryable fields:</strong> {workspace.pipeline.baseNetwork.fields.length}</p>
-				</article>
-			</div>
-
-			<div class="workspace-grid">
-				<article class="panel">
-					<h3>Manifest diagnostics</h3>
-					<pre>{JSON.stringify(workspace.pipeline.manifest.diagnostics, null, 2)}</pre>
-				</article>
-
-				<article class="panel">
-					<h3>Next validation routes</h3>
-					<ul>
-						<li><a href="/test/test1">test1</a>: dataset, manifest, prepared buffers, boundary limits</li>
-						<li><a href="/test/test2">test2</a>: GeoJSON contours and country meshes</li>
-						<li><a href="/test/test3">test3</a>: static, dynamic, raw and intersected CPU cones</li>
-					</ul>
-				</article>
-			</div>
-		{/if}
+		<article class="panel">
+			<p class="eyebrow">Validation routes</p>
+			<h2>CPU reference benches</h2>
+			<p>
+				Stage-by-stage inspection routes for ingestion, GeoJSON preparation, and cone precompute.
+			</p>
+			<ul>
+				<li><a href="/test/test1">test1</a></li>
+				<li><a href="/test/test2">test2</a></li>
+				<li><a href="/test/test3">test3</a></li>
+			</ul>
+			<a class="cta" href="/test">Open validation bench</a>
+		</article>
 	</section>
 </main>
 
@@ -184,46 +102,7 @@
 		background: rgba(255, 255, 255, 0.45);
 	}
 
-	.workspace {
-		display: grid;
-		gap: 1rem;
-	}
-
-	.workspace-head {
-		display: grid;
-		gap: 1rem;
-		padding: 1.5rem;
-		border: 1px solid #c8b99b;
-		background: rgba(255, 255, 255, 0.45);
-	}
-
-	.controls {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 1rem;
-		align-items: end;
-	}
-
-	label {
-		display: grid;
-		gap: 0.35rem;
-		min-width: 16rem;
-	}
-
-	select,
-	button {
-		padding: 0.7rem 0.8rem;
-		border: 1px solid #c8b99b;
-		border-radius: 0.8rem;
-		background: rgba(255, 255, 255, 0.92);
-	}
-
-	button {
-		cursor: pointer;
-		font-weight: 700;
-	}
-
-	.workspace-grid {
+	.nav-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
 		gap: 1rem;
@@ -235,17 +114,10 @@
 		background: rgba(255, 255, 255, 0.62);
 	}
 
-	.error {
-		border-color: #b05f4b;
-		background: rgba(255, 243, 239, 0.84);
-	}
-
-	code {
-		font-family: 'Courier New', monospace;
-	}
-
-	pre {
-		overflow: auto;
-		white-space: pre-wrap;
+	.cta {
+		display: inline-block;
+		margin-top: 0.75rem;
+		color: #0d6f73;
+		font-weight: 700;
 	}
 </style>

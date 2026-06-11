@@ -885,6 +885,11 @@ Validation:
     les ecrans applicatifs futurs;
   - `src/routes/+page.svelte` n'est plus un simple smoke shell et consomme ce
     `workspace` commun pour charger un dataset et exposer son resume.
+  - une premiere route applicative non `test`, `src/routes/workspace/+page.svelte`,
+    expose le dataset comme objet metier avec ses modes, villes, champs
+    requetables et diagnostics;
+  - des selecteurs de synthese metier ont ete ajoutes au `workspace`
+    applicatif pour eviter de reconstruire ces vues dans chaque ecran.
 - Validations executees:
   - compilation TypeScript ciblee des fichiers `src/lib/domain/data/*.ts`;
   - `npm run build`.
@@ -895,7 +900,8 @@ Validation:
 - Verification ulterieure sur le worktree de migration:
   - `tests/integration/data-pipeline.test.ts` passe;
   - `npm test`, `npm run test:integration`, `npm run build` et
-    `npm run validate` passent apres extraction de l'orchestration applicative;
+    `npm run validate` passent apres extraction de l'orchestration applicative
+    et ajout de la route `/workspace`;
   - `npm run test:e2e` passe apres branchement du `workspace` partage sur le
     shell racine et les routes de validation;
   - la dette M3 ne porte plus sur l'assemblage lossless, mais sur
