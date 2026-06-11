@@ -817,6 +817,8 @@ Travail attendu:
 Architecture cible:
 
 ```text
+src/lib/application/
+  validation/
 src/lib/domain/
   data/
   model/
@@ -872,14 +874,22 @@ Validation:
   - `src/lib/domain/data/types.ts`, `csv.ts`, `inspection.ts`, `assembly.ts` et `index.ts` crees;
   - code documente pour TypeDoc;
   - PapaParse retenu comme parseur CSV du domaine.
+  - orchestration applicative extraite dans
+    `src/lib/application/validation/datasets.ts`;
+  - `src/routes/test/+layout.ts`, `test1`, `test2` et `test3` consomment
+    desormais le domaine via cette couche applicative au lieu d'un helper sous
+    `src/lib/testing`.
 - Validations executees:
   - compilation TypeScript ciblee des fichiers `src/lib/domain/data/*.ts`;
   - `npm run build`.
 - Reste a faire:
-  - porter progressivement les consommateurs du `Merger`;
-  - finaliser le branchement interactif des nouveaux modules de domaine.
+  - porter progressivement les autres consommateurs applicatifs futurs du
+    domaine, au-dela des routes de validation;
+  - finaliser le branchement interactif complet hors pages de test.
 - Verification ulterieure sur le worktree de migration:
   - `tests/integration/data-pipeline.test.ts` passe;
+  - `npm test`, `npm run test:integration`, `npm run build` et
+    `npm run validate` passent apres extraction de l'orchestration applicative;
   - la dette M3 ne porte plus sur l'assemblage lossless, mais sur
     l'integration applicative et l'extraction complete du domaine.
 

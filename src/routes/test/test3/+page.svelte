@@ -8,7 +8,7 @@
 		runDatasetPipeline,
 		type ConePipelineResult,
 		type DatasetPipelineResult,
-	} from '$lib/testing/datasets';
+	} from '$lib/application/validation';
 	import type { ConeShape } from '$lib/domain/precompute';
 
 	export let data: {

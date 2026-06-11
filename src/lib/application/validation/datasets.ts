@@ -78,6 +78,9 @@ interface BundledDatasetEntry {
 /**
  * Loads the list of bundled compressed datasets generated in `static/datasets`.
  *
+ * This service is application-facing: routes and interactive validation pages
+ * use it to discover the catalog without importing data-domain internals.
+ *
  * @param fetchFn Fetch implementation provided by SvelteKit or the browser.
  * @returns Sorted dataset archive names.
  */
@@ -110,6 +113,10 @@ export async function loadBundledDatasetFiles(fetchFn: typeof fetch, datasetName
 
 /**
  * Runs the modern order-independent dataset pipeline on a source-file array.
+ *
+ * This function bridges the application layer and the data domain. Routes call
+ * one orchestrator instead of importing inspection, manifest resolution,
+ * assembly, and prepared-buffer generation separately.
  *
  * @param files Source files coming from a bundled dataset or another provider.
  * @returns Inspection, manifest, lossless network, and compact prepared dataset.

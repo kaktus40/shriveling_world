@@ -8,7 +8,7 @@
 		runDatasetPipeline,
 		type BoundaryPipelineResult,
 		type DatasetPipelineResult,
-	} from '$lib/testing/datasets';
+	} from '$lib/application/validation';
 
 	export let data: {
 		datasets: string[];
