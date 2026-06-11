@@ -190,6 +190,59 @@ Les kernels WGSL doivent consommer les buffers prepares sans reinterpréter les
 unites. Les uniforms et structs WGSL doivent expliciter les valeurs angulaires
 en radians, les longueurs en metres, et l'ordre geographique des tuples.
 
+### Schema Des Buffers WebGPU
+
+Le backend WebGPU actuel repose sur deux kernels reels. Le tableau ci-dessous
+fige le contrat de leurs bindings. Les noms de buffers sont stables et doivent
+rester identiques dans les tests, la documentation et les futures passes GPU.
+
+#### `city-ned2ecef.wgsl`
+
+| Binding | Buffer logique | Type | Stride | Unite / ordre | Role |
+| --- | --- | --- | --- | --- | --- |
+| `0` | `cityLonLatRadians` | `Float32Array` | `2` floats | `[longitudeRadians, latitudeRadians]` | Entree compacte issue de `PreparedDataset` |
+| `1` | `cityNed2EcefMatrices` | `Float32Array` | `16` floats | matrice `NED2ECEF` column-major | Sortie par ville |
+| `2` | `earthRadiusMeters` | `Float32Array(4)` | `4` floats | metres, autres composantes reservees | Uniform scalaire aligne |
+
+Dispatch:
+
+- `global_invocation_id.x = cityIndex`
+- `global_invocation_id.y = 0`
+- `global_invocation_id.z = 0`
+- taille de workgroup: `1 x 1 x 1`
+
+#### `boundary-algebre.wgsl`
+
+| Binding | Buffer logique | Type | Stride | Unite / ordre | Role |
+| --- | --- | --- | --- | --- | --- |
+| `0` | `cityNed2EcefMatrices` | `Float32Array` | `16` floats | matrice `NED2ECEF` column-major | Entree ville de reference |
+| `1` | `cityContourIndexes` | `Int32Array` | `1` entier | index de contour ou `-1` | Association ville -> contour |
+| `2` | `countryContourNVectorBuffer` | `Float32Array` | `4` floats | `[x, y, z, padding]` | Sommets de contour en n-vecteurs |
+| `3` | `countryContourOffsets` | `Int32Array` | `1` entier | offset dense | Debut de chaque contour |
+| `4` | `countryContourSizes` | `Int32Array` | `1` entier | taille dense | Nombre de sommets par contour |
+| `5` | `azimuthIntervals` | `Float32Array` | `2` floats | `[minRadians, maxRadians]` | Couples d'azimuts adjacents |
+| `6` | `uniforms` | `Float32Array(4)` | `4` floats | `[earthRadiusMeters, cityCount, azimuthIntervalCount, contourCount]` | Uniform compact de passe |
+| `7` | `townBoundaryAngular` | `Float32Array` | `4` floats | `[longitudeRadians, latitudeRadians, angularDistanceRadians, validFlag]` | Sortie angulaire |
+| `8` | `townBoundaryEcef` | `Float32Array` | `4` floats | `[xMeters, yMeters, zMeters, validFlag]` | Sortie ECEF |
+
+Dispatch:
+
+- `global_invocation_id.x = azimuthSampleIndex`
+- `global_invocation_id.y = cityIndex`
+- `global_invocation_id.z = 0`
+- taille de workgroup: `1 x 1 x 1`
+
+Rappel contractuel:
+
+- les angles internes sont toujours en radians;
+- les distances internes sont toujours en metres;
+- les buffers d'entree sont compactes et dense by city / dense by azimuth;
+- les sorties gardent la meme convention d'indices que les buffers CPU.
+
+Le helper TypeScript correspondant porte ce schema dans
+`src/lib/compute/webgpu/buffers.ts` afin de partager le contrat entre le
+workflow, les tests et les futurs backends WebGL2/WebGPU.
+
 ### Contrats De Passes Communs
 
 Pour chaque passe GPU, le contrat doit documenter:

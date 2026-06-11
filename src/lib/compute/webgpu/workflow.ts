@@ -1,8 +1,13 @@
+import boundaryAlgebreShaderSource from '../kernels/boundary-algebre.wgsl?raw';
 import cityNed2EcefShaderSource from '../kernels/city-ned2ecef.wgsl?raw';
 import {
 	createCpuWorkflowBackend,
 	type CpuComputeWorkflowBackend,
 } from '../cpu';
+import {
+	createBoundaryAlgebreDispatchResources,
+	createCityNed2EcefDispatchResources,
+} from './buffers';
 import type {
 	ComputeBenchmarkReport,
 	ComputeCapabilities,
@@ -15,9 +20,11 @@ import type {
 	StageTiming,
 } from '../core';
 import { measureAsyncStage } from '../core/timing';
+import { EARTH_RADIUS_METERS } from '../../shared';
+import { buildAzimuthIntervals, packAzimuthIntervals } from '../../domain/geojson';
 import type { WebGpuComputeContext, WebGpuComputeResources } from './types';
 
-/** Options used to build the WebGPU skeleton backend. */
+/** Options used to build the WebGPU backend. */
 export interface WebGpuWorkflowBackendOptions {
 	/** Optional pre-existing GPU device used by the backend. */
 	readonly device?: GPUDevice | null;
@@ -27,7 +34,7 @@ export interface WebGpuWorkflowBackendOptions {
 	readonly cpuBackend?: CpuComputeWorkflowBackend;
 }
 
-/** Lightweight WebGPU backend skeleton for the migration. */
+/** Lightweight WebGPU backend for the migration. */
 export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 	readonly profile = 'webgpu' as const;
 	readonly #cpuBackend: CpuComputeWorkflowBackend;
@@ -54,17 +61,28 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 				capabilities: webgpuCapabilities(true),
 			};
 		const result = await this.#cpuBackend.run(input, options, delegatedSelection);
-		const staticTownPass = await this.runCityMatrixPass(context, result);
+		const extraTimings: StageTiming[] = [];
+
+		if (result.staticTown) {
+			const cityMatrixPass = await this.runCityMatrixPass(context, result);
+			extraTimings.push(cityMatrixPass.timing);
+		}
+
+		for (const geojsonRun of result.geojsonRuns) {
+			const boundaryPass = await this.runBoundaryRaycastPass(context, result, geojsonRun);
+			extraTimings.push(boundaryPass.timing);
+		}
+
 		return {
 			...result,
 			selection: delegatedSelection,
-			benchmark: remapBenchmarkProfile(result.benchmark, staticTownPass.timing),
+			benchmark: remapBenchmarkProfile(result.benchmark, extraTimings),
 			diagnostics: [
 				...result.diagnostics,
 				{
 					severity: 'warning',
 					code: 'webgpu-skeleton-cpu-delegation',
-					message: 'WebGPU backend is wired, dispatches a city NED-to-ECEF pass, but still delegates the remaining compute stages to the CPU reference backend.',
+					message: 'WebGPU backend is wired, dispatches real city and GeoJSON boundary WGSL passes, but still delegates the remaining compute stages to the CPU reference backend.',
 				},
 			],
 		};
@@ -99,6 +117,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		}
 		const device = await this.ensureDevice();
 		const cityMatrixModule = device.createShaderModule({ code: cityNed2EcefShaderSource });
+		const boundaryModule = device.createShaderModule({ code: boundaryAlgebreShaderSource });
 		this.#resources = {
 			buffers: [],
 			pipeline: {
@@ -112,9 +131,21 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 						workgroupSize: [1, 1, 1],
 						notes: ['First real WGSL kernel: build city NED-to-ECEF matrices from lon/lat radians.'],
 					},
+					{
+						name: 'boundary-algebre',
+						stage: 'geojson-boundary-raycast',
+						profile: 'webgpu',
+						inputs: [],
+						outputs: [],
+						workgroupSize: [1, 1, 1],
+						notes: ['First real WGSL GeoJSON kernel: raycast the retained contours against azimuth samples.'],
+					},
 				],
 			},
-			shaderModuleCache: new Map([['city-ned2ecef', cityMatrixModule]]),
+			shaderModuleCache: new Map([
+				['city-ned2ecef', cityMatrixModule],
+				['boundary-algebre', boundaryModule],
+			]),
 			pipelineCache: new Map(),
 			bindGroupCache: new Map(),
 		};
@@ -134,8 +165,13 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		return this.#device;
 	}
 
-	private async runCityMatrixPass(context: WebGpuComputeContext, result: ComputeWorkflowResult): Promise<{ timing: StageTiming }> {
-		if (result.preparedDataset.cityCount <= 0) {
+	private async runCityMatrixPass(
+		context: WebGpuComputeContext,
+		result: ComputeWorkflowResult,
+	): Promise<{ timing: StageTiming }> {
+		const prepared = result.preparedDataset;
+		const cityCount = prepared.cityCount;
+		if (cityCount <= 0) {
 			return {
 				timing: {
 					stage: 'static-town-precompute',
@@ -148,27 +184,15 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			};
 		}
 
-		const prepared = result.preparedDataset;
-		const cityCount = prepared.cityCount;
 		const lonLat = new Float32Array(prepared.cityLonLatRadians);
-		const outputBytes = cityCount * 16 * Float32Array.BYTES_PER_ELEMENT;
 		const usage = getGpuBufferUsage();
-		const inputBuffer = context.device.createBuffer({
-			size: lonLat.byteLength,
-			usage: usage.STORAGE | usage.COPY_DST,
-		});
-		const outputBuffer = context.device.createBuffer({
-			size: outputBytes,
-			usage: usage.STORAGE | usage.COPY_SRC,
-		});
-		const uniformBuffer = context.device.createBuffer({
-			size: 16,
-			usage: usage.UNIFORM | usage.COPY_DST,
-		});
-
-		context.queue.writeBuffer(inputBuffer, 0, lonLat);
-		const uniformData = new Float32Array([6_371_000, 0, 0, 0]);
-		context.queue.writeBuffer(uniformBuffer, 0, uniformData);
+		const buffers = createCityNed2EcefDispatchResources(
+			context.device,
+			usage,
+			lonLat,
+			cityCount,
+			EARTH_RADIUS_METERS,
+		);
 
 		const resources = await this.ensureResources();
 		const pipeline = await context.device.createComputePipelineAsync({
@@ -181,9 +205,9 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		const bindGroup = context.device.createBindGroup({
 			layout: pipeline.getBindGroupLayout(0),
 			entries: [
-				{ binding: 0, resource: { buffer: inputBuffer } },
-				{ binding: 1, resource: { buffer: outputBuffer } },
-				{ binding: 2, resource: { buffer: uniformBuffer } },
+				{ binding: 0, resource: { buffer: buffers.input.buffer } },
+				{ binding: 1, resource: { buffer: buffers.output.buffer } },
+				{ binding: 2, resource: { buffer: buffers.uniform.buffer } },
 			],
 		});
 
@@ -205,6 +229,104 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 
 		return { timing };
 	}
+
+	private async runBoundaryRaycastPass(
+		context: WebGpuComputeContext,
+		result: ComputeWorkflowResult,
+		geojsonRun: ComputeWorkflowResult['geojsonRuns'][number],
+	): Promise<{ timing: StageTiming }> {
+		const staticTown = result.staticTown;
+		if (!staticTown) {
+			return {
+				timing: {
+					stage: 'geojson-boundary-raycast',
+					scope: 'precompute',
+					profile: 'webgpu',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+			};
+		}
+
+		const boundary = geojsonRun.boundaryPrecompute;
+		const cityCount = staticTown.cityCount;
+		const azimuthSampleCount = boundary.azimuthSampleCount;
+		const contourCount = boundary.countryContourSizes.length;
+		if (cityCount <= 0 || azimuthSampleCount <= 0) {
+			return {
+				timing: {
+					stage: 'geojson-boundary-raycast',
+					scope: 'precompute',
+					profile: 'webgpu',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+			};
+		}
+
+		const cityMatrices = staticTown.cityNed2EcefMatrices;
+		const azimuthIntervals = packAzimuthIntervals(buildAzimuthIntervals(azimuthSampleCount));
+		const usage = getGpuBufferUsage();
+		const buffers = createBoundaryAlgebreDispatchResources(
+			context.device,
+			usage,
+			{
+				cityNed2EcefMatrices: cityMatrices,
+				cityContourIndexes: boundary.cityContourIndexes,
+				countryContourNVectorBuffer: boundary.countryContourNVectorBuffer,
+				countryContourOffsets: boundary.countryContourOffsets,
+				countryContourSizes: boundary.countryContourSizes,
+				azimuthIntervals,
+				cityCount,
+				azimuthIntervalCount: azimuthSampleCount,
+				contourCount,
+				earthRadiusMeters: result.preparedDataset.cityCount > 0 ? EARTH_RADIUS_METERS : 0,
+			},
+		);
+
+		const resources = await this.ensureResources();
+		const pipeline = await context.device.createComputePipelineAsync({
+			layout: 'auto',
+			compute: {
+				module: resources.shaderModuleCache?.get('boundary-algebre') ?? context.device.createShaderModule({ code: boundaryAlgebreShaderSource }),
+				entryPoint: 'main',
+			},
+		});
+		const bindGroup = context.device.createBindGroup({
+			layout: pipeline.getBindGroupLayout(0),
+			entries: [
+				{ binding: 0, resource: { buffer: buffers.cityMatrices.buffer } },
+				{ binding: 1, resource: { buffer: buffers.cityContourIndexes.buffer } },
+				{ binding: 2, resource: { buffer: buffers.contourNVectors.buffer } },
+				{ binding: 3, resource: { buffer: buffers.contourOffsets.buffer } },
+				{ binding: 4, resource: { buffer: buffers.contourSizes.buffer } },
+				{ binding: 5, resource: { buffer: buffers.azimuthIntervals.buffer } },
+				{ binding: 6, resource: { buffer: buffers.uniform.buffer } },
+				{ binding: 7, resource: { buffer: buffers.townBoundaryAngular.buffer } },
+				{ binding: 8, resource: { buffer: buffers.townBoundaryEcef.buffer } },
+			],
+		});
+
+		const { timing } = await measureAsyncStage(
+			'geojson-boundary-raycast',
+			'precompute',
+			'webgpu',
+			async () => {
+				const encoder = context.device.createCommandEncoder();
+				const pass = encoder.beginComputePass();
+				pass.setPipeline(pipeline);
+				pass.setBindGroup(0, bindGroup);
+				pass.dispatchWorkgroups(azimuthSampleCount, cityCount, 1);
+				pass.end();
+				context.queue.submit([encoder.finish()]);
+				return undefined;
+			},
+		);
+
+		return { timing };
+	}
 }
 
 /** Returns the WebGPU capability snapshot. */
@@ -213,7 +335,7 @@ export function webgpuCapabilities(available = false): ComputeCapabilities {
 		webgpuAvailable: available,
 		webgl2Available: false,
 		cpuAvailable: true,
-		notes: available ? ['WebGPU backend with a city NED-to-ECEF pass'] : ['WebGPU unavailable'],
+		notes: available ? ['WebGPU backend with city NED-to-ECEF and GeoJSON boundary passes'] : ['WebGPU unavailable'],
 	};
 }
 
@@ -240,8 +362,8 @@ export function createWebGpuWorkflowBackendDescriptor(
 	};
 }
 
-function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport, extraTiming?: StageTiming): ComputeBenchmarkReport {
-	const timings = extraTiming ? [...benchmark.timings, extraTiming] : [...benchmark.timings];
+function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport, extraTimings: readonly StageTiming[]): ComputeBenchmarkReport {
+	const timings = [...benchmark.timings, ...extraTimings];
 	return {
 		...benchmark,
 		profile: 'webgpu',
@@ -249,10 +371,10 @@ function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport, extraTiming?: 
 			...timing,
 			profile: 'webgpu',
 		})),
-		totalDurationMs: benchmark.totalDurationMs + (extraTiming?.durationMs ?? 0),
+		totalDurationMs: benchmark.totalDurationMs + extraTimings.reduce((sum, timing) => sum + timing.durationMs, 0),
 		notes: [
 			...benchmark.notes,
-			'WebGPU backend dispatches a first real city NED-to-ECEF pass before delegating the remaining compute stages to the CPU reference backend.',
+			'WebGPU backend dispatches a city NED-to-ECEF pass and a GeoJSON boundary raycast pass before delegating the remaining compute stages to the CPU reference backend.',
 		],
 	};
 }

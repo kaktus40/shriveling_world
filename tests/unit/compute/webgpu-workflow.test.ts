@@ -141,5 +141,5 @@ test('webgpu probe becomes available with an injected device and the backend kee
 	expect(result.benchmark.profile).toBe('webgpu');
 	expect(result.benchmark.notes.some((note) => note.includes('city NED-to-ECEF pass'))).toBe(true);
 	expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'webgpu-skeleton-cpu-delegation')).toBe(true);
-	expect(fake.calls.dispatches).toBeGreaterThanOrEqual(1);
+	expect(fake.calls.dispatches).toBeGreaterThanOrEqual(2);
 });
