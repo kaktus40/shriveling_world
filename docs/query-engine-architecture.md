@@ -15,6 +15,33 @@ principe d'edition des requetes:
 
 Le principe est conserve pour `shriveling_world_migration`.
 
+## IHM Cible
+
+L'edition de requetes doit etre exposee dans l'IHM sous la forme d'un arbre
+visuel recursif.
+
+Attentes fonctionnelles:
+
+- chaque feuille edite un filtre atomique;
+- chaque groupe porte un operateur logique `AND` ou `OR`;
+- l'utilisateur peut imbriquer des groupes sans limite de principe;
+- l'interface montre en permanence la structure courante de l'AST;
+- l'interface permet d'ajouter, supprimer et reordonner les noeuds;
+- l'IHM affiche les diagnostics de validation de l'arbre;
+- l'IHM peut declencher l'execution du filtre dans le `Worker`;
+- la premiere implementation cible doit s'integrer dans `/workspace`.
+
+Principes de rendu:
+
+- la representation visuelle reste lisible par un humain avant d'etre dense;
+- les panneaux de selection des champs, comparateurs et valeurs restent proches
+  du noeud edite;
+- l'arbre doit pouvoir etre inspecte sans ouvrir le format serialise;
+- les resultats de requete doivent pouvoir etre compares au panneau de
+  construction.
+
+Cette IHM ne remplace pas le moteur. Elle n'en est que la projection visuelle.
+
 ## Difference D'Architecture
 
 La migration ne reprend pas certains choix techniques de `VoitureBDD2`:
@@ -138,6 +165,6 @@ Pour les comparateurs:
 2. snapshot serialisable par ville;
 3. `Worker` de requete;
 4. tests unitaires et integration;
-5. editeur recursif dans `/workspace`;
+5. editeur recursif dans `/workspace` avec representation visuelle de l'arbre;
 6. benchmark du moteur interprete;
 7. eventuelle optimisation compilee dans le `Worker`.

@@ -899,6 +899,11 @@ Validation:
   - un snapshot de requete serialisable par ville et un executeur applicatif
     `Worker` ont ete ajoutes dans `src/lib/application/query/` et
     `src/lib/workers/city-query.worker.ts`.
+  - l'IHM cible du moteur de requetes doit exposer dans `/workspace` un arbre
+    visuel recursif, lisible par un humain, permettant d'ajouter, supprimer et
+    imbriquer des groupes et filtres sans manipuler directement le format AST;
+    la roadmap de l'IHM doit garder ce modele comme reference pour les futurs
+    ecrans metier.
 - Validations executees:
   - compilation TypeScript ciblee des fichiers `src/lib/domain/data/*.ts`;
   - `npm run build`.
