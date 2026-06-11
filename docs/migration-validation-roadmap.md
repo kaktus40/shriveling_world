@@ -890,6 +890,10 @@ Validation:
     requetables et diagnostics;
   - des selecteurs de synthese metier ont ete ajoutes au `workspace`
     applicatif pour eviter de reconstruire ces vues dans chaque ecran.
+  - l'architecture du futur moteur de requetes a ete fixee dans
+    `docs/query-engine-architecture.md`:
+    AST explicite, evaluation pure, execution parallele dans un `Worker`, et
+    compatibilite UX avec l'arbre de requete de `VoitureBDD2`.
 - Validations executees:
   - compilation TypeScript ciblee des fichiers `src/lib/domain/data/*.ts`;
   - `npm run build`.
