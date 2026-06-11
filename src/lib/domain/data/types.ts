@@ -394,6 +394,8 @@ export interface PreparedDataset {
 	curveEdgePairs: Uint32Array;
 	/** Base-edge ids corresponding one-to-one with `curveEdgePairs`. */
 	curveEdgeIds: Uint32Array;
+	/** Dense mode indexes corresponding one-to-one with `curveEdgePairs`. */
+	curveEdgeModeIndexes: Uint32Array;
 	/** Diagnostics emitted while preparing compact compute buffers. */
 	diagnostics: DatasetDiagnostic[];
 }

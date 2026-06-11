@@ -28,6 +28,9 @@ import {
 	computeConeIntersectionAlphaAwareOrderCpu,
 	computeConeIntersectionSymmetricOrderCpu,
 	computeFinalConePrecomputeCpu,
+	prepareCurveGeometryInput,
+	prepareCurvePrecompute,
+	computeCurveVertexBufferCpu,
 	computeDynamicTownPrecomputeForYearCpu,
 	computeRawConePrecomputeCpu,
 	computeStaticTownPrecomputeCpu,
@@ -36,6 +39,7 @@ import {
 	type AlphaAwareConeIntersectionOptions,
 	type DynamicTownPrecompute,
 	type FinalConePrecompute,
+	type CurveVertexBuffer,
 	type RawConePrecompute,
 	type RawConePrecomputeOptions,
 	type StaticTownPrecompute,
@@ -143,6 +147,7 @@ export class CpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		let dynamicTown: DynamicTownPrecompute | undefined;
 		let rawCones: RawConePrecompute | undefined;
 		let coneIntersections: ConeIntersectionOraclePrecompute | undefined;
+		let curveGeometry: CurveVertexBuffer | undefined;
 
 		const dynamicYear = options.dynamicYear ?? preparedDataset.speedTimeline.span.beginYear;
 		if (Number.isFinite(dynamicYear)) {
@@ -201,6 +206,27 @@ export class CpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			});
 		}
 
+		if (options.curve?.enabled === true) {
+			const curvePrecompute = prepareCurvePrecompute(preparedDataset, staticTown);
+			const curveGeometryResult = measureStage(
+				'curve-geometry-precompute',
+				'precompute',
+				this.profile,
+				() =>
+					computeCurveVertexBufferCpu(
+						prepareCurveGeometryInput(curvePrecompute, {
+							year: options.curve?.year ?? dynamicYear,
+							pointsPerCurve: options.curve?.pointsPerCurve ?? 15,
+							curvePosition: options.curve?.curvePosition ?? 'above',
+							coefficient: options.curve?.coefficient ?? 1,
+						}),
+					),
+			);
+			curveGeometry = curveGeometryResult.value;
+			timings.push(curveGeometryResult.timing);
+			diagnostics.push(...tagDiagnostics(curvePrecompute.diagnostics, this.profile));
+		}
+
 		const benchmark: ComputeBenchmarkReport = {
 			profile: this.profile,
 			timings,
@@ -218,6 +244,7 @@ export class CpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			dynamicTown,
 			rawCones,
 			coneIntersections,
+			curveGeometry,
 		diagnostics: [
 			...tagDiagnostics(diagnostics, this.profile),
 			...tagDiagnostics(boundaryDiagnostics, this.profile),

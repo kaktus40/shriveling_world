@@ -1,4 +1,4 @@
-import type { BoundaryRaycastResult } from '../../geojson';
+import type { BoundaryRaycastResult } from '../geojson';
 import type { ConeIntersectionOraclePrecompute, FinalConePrecompute } from './types';
 
 /** Finalizes cone geometry after cone/cone clipping and optional boundary clipping. */

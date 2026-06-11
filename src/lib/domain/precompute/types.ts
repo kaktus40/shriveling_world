@@ -1,3 +1,5 @@
+import type { DatasetDiagnostic } from '../data';
+
 /** Number of float values used by one longitude/latitude pair. */
 export const CITY_LON_LAT_STRIDE = 2;
 
@@ -110,6 +112,109 @@ export interface CurveControlBuffers {
 	 * meters. The fourth component of every point is `1`.
 	 */
 	curveControlPointsEcef: Float32Array;
+}
+
+/** Supported vertical placements for render-ready curve geometry. */
+export type CurvePosition = 'above' | 'below' | 'below-when-possible' | 'stick-to-cone';
+
+/** Number of float values used by one aligned curve geometry vertex. */
+export const CURVE_GEOMETRY_VERTEX_STRIDE = 4;
+
+/**
+ * One prepared curve entry kept in stable prepared-edge order.
+ *
+ * The entry preserves the source edge identity so later dynamic curve packing
+ * can keep the same order across CPU, WebGL2, and WebGPU.
+ */
+export interface PreparedCurve {
+	/** Dense edge index in `PreparedDataset.edges`. */
+	edgeIndex: number;
+	/** Stable base-edge id used for diagnostics and source tracing. */
+	edgeId: number;
+	/** Dense origin city index. */
+	originCityIndex: number;
+	/** Dense destination city index. */
+	destinationCityIndex: number;
+	/** Dense transport-mode index in `PreparedDataset.modeIds`. */
+	modeIndex: number;
+	/** Great-circle angular distance between both cities, in radians. */
+	thetaRadians: number;
+}
+
+/**
+ * Static curve precompute shared by the curve geometry backends.
+ *
+ * The control-point buffer is reused from static-town precompute. Per-year
+ * speed ratios are kept separately so that the geometry pass can remain a
+ * pure sampling stage.
+ */
+export interface CurvePrecompute {
+	/** Known curves in prepared edge order. */
+	curves: PreparedCurve[];
+	/** Known origin/destination pairs with stride {@link CURVE_EDGE_PAIR_STRIDE}. */
+	curveEdgePairs: Uint32Array;
+	/** Stable base-edge ids for every curve in prepared edge order. */
+	curveEdgeIds: Uint32Array;
+	/** Stable mode indexes for every curve in prepared edge order. */
+	curveEdgeModeIndexes: Uint32Array;
+	/**
+	 * ECEF control points with stride {@link CURVE_CONTROL_POINT_STRIDE}.
+	 *
+	 * Each curve stores `[A, P, Q, B]` as four aligned `vec4<f32>` values in
+	 * meters. The fourth component of every point is `1`.
+	 */
+	curveControlPointsEcef: Float32Array;
+	/** Great-circle angular distance of every curve, in radians. */
+	curveThetaRadians: Float32Array;
+	/** Selected speed ratio `maxSpeed / curveSpeed` per year and per curve. */
+	speedRatioByCurveByYear: Record<string, Float32Array>;
+	/** Curve-precompute diagnostics. */
+	diagnostics: DatasetDiagnostic[];
+}
+
+/** Dynamic parameters selecting one curve-geometry slice to sample. */
+export interface CurveGeometryOptions {
+	/** Year used to select the precomputed speed ratio. */
+	year: number;
+	/** Number of curve segments sampled per curve. The output stores `pointsPerCurve + 1` vertices. */
+	pointsPerCurve: number;
+	/** Desired curve placement. */
+	curvePosition: CurvePosition;
+	/** Optional vertical coefficient used by the historical curve model. */
+	coefficient?: number;
+}
+
+/**
+ * Packed curve-geometry input ready to be dispatched by a CPU or GPU backend.
+ *
+ * Curves with missing yearly speed ratios are filtered out before packing so
+ * the geometry pass can remain a dense, branch-light sampling stage.
+ */
+export interface CurveGeometryInput extends CurveGeometryOptions {
+	/** Number of visible curves packed into the dense buffers. */
+	curveCount: number;
+	/** Curve ids preserved for traceability and picking. */
+	curveIds: Uint32Array;
+	/** Packed control points for the visible curves only. */
+	curveControlPointsEcef: Float32Array;
+	/** Packed theta values for the visible curves only, in radians. */
+	curveThetaRadians: Float32Array;
+	/** Packed speed ratios `maxSpeed / curveSpeed` for the visible curves only. */
+	curveSpeedRatio: Float32Array;
+}
+
+/** Render-ready curve vertices produced by the curve geometry pass. */
+export interface CurveVertexBuffer {
+	/** Number of visible curves represented by the buffer. */
+	curveCount: number;
+	/** Number of segments sampled for every curve. */
+	pointsPerCurve: number;
+	/**
+	 * Curve vertices as aligned `vec4<f32>` values in meters.
+	 *
+	 * Layout is dense by curve then sample. The fourth component is always `1`.
+	 */
+	positions: Float32Array;
 }
 
 /** First CPU tranche of the static-town precompute contract. */

@@ -1,5 +1,5 @@
 import type { ComputeGpuBufferContract } from '../gpu';
-import type { ConeShape } from '../../domain/precompute';
+import type { ConeShape, CurveGeometryInput, CurvePosition } from '../../domain/precompute';
 
 /** WebGL2 resources required by the city NED-to-ECEF fallback pass. */
 export interface WebGl2CityNed2EcefDispatchResources {
@@ -137,6 +137,28 @@ export interface WebGl2FinalConesDispatchResources {
 	readonly finalConeGeometryEcefContract: ComputeGpuBufferContract;
 }
 
+/** Input bundle required by the curve-geometry WebGL2 pass. */
+export interface WebGl2CurveGeometryDispatchInput extends CurveGeometryInput {
+	readonly earthRadiusMeters: number;
+}
+
+/** WebGL2 resources required by the curve-geometry fallback pass. */
+export interface WebGl2CurveGeometryDispatchResources {
+	readonly vertexArray: WebGLVertexArrayObject;
+	readonly program: WebGLProgram;
+	readonly curveControlPointsEcefTexture: WebGLTexture;
+	readonly curveThetaRadiansTexture: WebGLTexture;
+	readonly curveSpeedRatioTexture: WebGLTexture;
+	readonly curveIdsTexture: WebGLTexture;
+	readonly outputBuffer: WebGLBuffer;
+	readonly uniformLocation: WebGLUniformLocation;
+	readonly curveControlPointsEcefContract: ComputeGpuBufferContract;
+	readonly curveThetaRadiansContract: ComputeGpuBufferContract;
+	readonly curveSpeedRatioContract: ComputeGpuBufferContract;
+	readonly curveIdsContract: ComputeGpuBufferContract;
+	readonly outputContract: ComputeGpuBufferContract;
+}
+
 /** Compiles the WebGL2 transform-feedback program for city NED-to-ECEF matrices. */
 export function createCityNed2EcefProgram(
 	gl: WebGL2RenderingContext,
@@ -242,6 +264,28 @@ export function createFinalConesProgram(
 		const message = gl.getProgramInfoLog(program) ?? 'unknown WebGL2 link error';
 		gl.deleteProgram(program);
 		throw new Error(`WebGL2 final cones program link failed: ${message}`);
+	}
+	gl.deleteShader(vertexShader);
+	return program;
+}
+
+/** Compiles the WebGL2 transform-feedback program for curve geometry. */
+export function createCurveGeometryProgram(
+	gl: WebGL2RenderingContext,
+	vertexShaderSource: string,
+): WebGLProgram {
+	const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+	const program = gl.createProgram();
+	if (!program) {
+		throw new Error('WebGL2 curve geometry program creation failed');
+	}
+	gl.attachShader(program, vertexShader);
+	gl.transformFeedbackVaryings(program, ['tf_curveVertexPosition'], gl.SEPARATE_ATTRIBS);
+	gl.linkProgram(program);
+	if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+		const message = gl.getProgramInfoLog(program) ?? 'unknown WebGL2 link error';
+		gl.deleteProgram(program);
+		throw new Error(`WebGL2 curve geometry program link failed: ${message}`);
 	}
 	gl.deleteShader(vertexShader);
 	return program;
@@ -825,6 +869,112 @@ export function createFinalConesDispatchResources(
 	};
 }
 
+/** Creates the GPU allocations required by the curve-geometry WebGL2 pass. */
+export function createCurveGeometryDispatchResources(
+	gl: WebGL2RenderingContext,
+	program: WebGLProgram,
+	input: WebGl2CurveGeometryDispatchInput,
+): WebGl2CurveGeometryDispatchResources {
+	const vertexArray = gl.createVertexArray();
+	const curveControlPointsEcefTexture = createFloatTexture2D(
+		gl,
+		gl.RGBA32F,
+		gl.RGBA,
+		4,
+		input.curveCount,
+		input.curveControlPointsEcef,
+	);
+	const curveThetaRadiansTexture = createFloatTexture2D(
+		gl,
+		gl.RGBA32F,
+		gl.RGBA,
+		input.curveCount,
+		1,
+		packScalarsAsRgba(input.curveThetaRadians),
+	);
+	const curveSpeedRatioTexture = createFloatTexture2D(
+		gl,
+		gl.RGBA32F,
+		gl.RGBA,
+		input.curveCount,
+		1,
+		packScalarsAsRgba(input.curveSpeedRatio),
+	);
+	const curveIdsTexture = createIntTexture2D(
+		gl,
+		gl.R32UI,
+		gl.RED_INTEGER,
+		gl.UNSIGNED_INT,
+		input.curveCount,
+		1,
+		packScalarsAsUintRgba(input.curveIds),
+	);
+	const outputBuffer = gl.createBuffer();
+	const uniformLocation = gl.getUniformLocation(program, 'u_uniforms');
+	if (!vertexArray || !outputBuffer || !uniformLocation) {
+		throw new Error('WebGL2 curve geometry resource allocation failed');
+	}
+
+	const outputCount = Math.max(input.curveCount * (input.pointsPerCurve + 1), 1);
+
+	gl.bindVertexArray(vertexArray);
+	gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, outputBuffer);
+	gl.bufferData(gl.TRANSFORM_FEEDBACK_BUFFER, outputCount * 4 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_COPY);
+	gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, null);
+	gl.bindVertexArray(null);
+
+	return {
+		vertexArray,
+		program,
+		curveControlPointsEcefTexture,
+		curveThetaRadiansTexture,
+		curveSpeedRatioTexture,
+		curveIdsTexture,
+		outputBuffer,
+		uniformLocation,
+		curveControlPointsEcefContract: {
+			name: 'curveControlPointsEcef',
+			elementType: 'float32',
+			strideBytes: 16 * Float32Array.BYTES_PER_ELEMENT,
+			count: input.curveCount,
+			linearUnit: 'meters',
+			coordinateOrder: 'ecef',
+			notes: ['Packed [A, P, Q, B] control points per curve'],
+		},
+		curveThetaRadiansContract: {
+			name: 'curveThetaRadians',
+			elementType: 'float32',
+			strideBytes: Float32Array.BYTES_PER_ELEMENT,
+			count: input.curveCount,
+			angularUnit: 'radians',
+			notes: ['Great-circle angular distance per curve'],
+		},
+		curveSpeedRatioContract: {
+			name: 'curveSpeedRatio',
+			elementType: 'float32',
+			strideBytes: Float32Array.BYTES_PER_ELEMENT,
+			count: input.curveCount,
+			notes: ['Yearly ratio maxSpeed / curveSpeed per curve'],
+		},
+		curveIdsContract: {
+			name: 'curveIds',
+			elementType: 'uint32',
+			strideBytes: Uint32Array.BYTES_PER_ELEMENT,
+			count: input.curveCount,
+			notes: ['Stable curve ids for traceability'],
+		},
+		outputContract: {
+			name: 'curveVertexPositions',
+			elementType: 'float32',
+			strideBytes: 4 * Float32Array.BYTES_PER_ELEMENT,
+			count: input.curveCount * (input.pointsPerCurve + 1),
+			linearUnit: 'meters',
+			coordinateOrder: 'ecef',
+			notes: ['Render-ready curve vertices in ECEF meters'],
+		},
+	};
+}
+
 function createFloatTexture2D(
 	gl: WebGL2RenderingContext,
 	internalFormat: number,
@@ -895,4 +1045,20 @@ function shapeToCode(shape: ConeShape): number {
 		return 1;
 	}
 	return 2;
+}
+
+function packScalarsAsRgba(values: Float32Array): Float32Array {
+	const packed = new Float32Array(values.length * 4);
+	for (let index = 0; index < values.length; index += 1) {
+		packed[index * 4] = values[index];
+	}
+	return packed;
+}
+
+function packScalarsAsUintRgba(values: Uint32Array): Uint32Array {
+	const packed = new Uint32Array(values.length * 4);
+	for (let index = 0; index < values.length; index += 1) {
+		packed[index * 4] = values[index];
+	}
+	return packed;
 }

@@ -20,6 +20,8 @@ import type {
 	AlphaAwareBlockPrunedConeIntersectionOptions,
 	DynamicTownPrecompute,
 	FinalConePrecompute,
+	CurveGeometryOptions,
+	CurveVertexBuffer,
 	RawConePrecompute,
 	RawConePrecomputeOptions,
 	SymmetricConeIntersectionPrecompute,
@@ -51,6 +53,7 @@ export type ComputeStage =
 	| 'raw-cones-precompute'
 	| 'cone-intersections-precompute'
 	| 'final-cones-precompute'
+	| 'curve-geometry-precompute'
 	| 'total';
 
 /** Phase family used to classify benchmark timings. */
@@ -139,6 +142,9 @@ export interface ComputePrecomputeOptions {
 export interface ComputeWorkflowOptions extends ComputeBoundaryOptions, ComputePrecomputeOptions {
 	readonly profileRequest?: ComputeProfileRequest;
 	readonly benchmark?: boolean;
+	readonly curve?: {
+		readonly enabled?: boolean;
+	} & Partial<CurveGeometryOptions>;
 }
 
 /** Result of one GeoJSON boundary run. */
@@ -165,6 +171,7 @@ export interface ComputeWorkflowResult {
 		| SymmetricConeIntersectionPrecompute
 		| AlphaAwareConeIntersectionPrecompute
 		| AlphaAwareBlockPrunedConeIntersectionPrecompute;
+	readonly curveGeometry?: CurveVertexBuffer;
 	readonly diagnostics: readonly DatasetDiagnostic[];
 	readonly benchmark: ComputeBenchmarkReport;
 }

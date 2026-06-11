@@ -102,6 +102,7 @@ export function prepareDataset(
 	const edgeYearEnds = new Int32Array(edgeCount);
 	const curvePairs: number[] = [];
 	const curveEdgeIdValues: number[] = [];
+	const curveEdgeModeIndexValues: number[] = [];
 
 	validEdges.forEach((edge, edgeIndex) => {
 		const originCityIndex = edge.originCityId as number;
@@ -146,6 +147,7 @@ export function prepareDataset(
 		if (modeIndex !== speedTimeline.roadModeId) {
 			curvePairs.push(originCityIndex, destinationCityIndex);
 			curveEdgeIdValues.push(edge.id);
+			curveEdgeModeIndexValues.push(modeIndex);
 		}
 	});
 
@@ -169,6 +171,7 @@ export function prepareDataset(
 		speedTimeline,
 		curveEdgePairs: Uint32Array.from(curvePairs),
 		curveEdgeIds: Uint32Array.from(curveEdgeIdValues),
+		curveEdgeModeIndexes: Uint32Array.from(curveEdgeModeIndexValues),
 		diagnostics,
 	};
 }

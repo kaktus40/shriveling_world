@@ -4,6 +4,7 @@ import boundaryAlgebreVertexShaderSource from '../kernels/boundary-algebre-webgl
 import rayIntersectTriangleWebGl2ShaderSource from '../kernels/ray-intersect-triangle-webgl2.glsl?raw';
 import ciseledConesVertexShaderSource from '../kernels/ciseled-cones-webgl2.vert?raw';
 import finalConesVertexShaderSource from '../kernels/final-cones-webgl2.vert?raw';
+import curveGeometryVertexShaderSource from '../kernels/curve-geometry-webgl2.vert?raw';
 import {
 	createCpuWorkflowBackend,
 	type CpuComputeWorkflowBackend,
@@ -19,8 +20,11 @@ import {
 	createRawConeAlphasProgram,
 	createFinalConesDispatchResources,
 	createFinalConesProgram,
+	createCurveGeometryDispatchResources,
+	createCurveGeometryProgram,
 	type WebGl2CiseledConesDispatchResources,
 	type WebGl2BoundaryAlgebreDispatchResources,
+	type WebGl2CurveGeometryDispatchResources,
 	type WebGl2FinalConesDispatchResources,
 	type WebGl2RawConeAlphaDispatchResources,
 } from './buffers';
@@ -42,6 +46,7 @@ import type {
 import { measureAsyncStage } from '../core/timing';
 import { EARTH_RADIUS_METERS } from '../../shared';
 import { buildAzimuthIntervals, packAzimuthIntervals } from '../../domain/geojson';
+import { prepareCurveGeometryInput, prepareCurvePrecompute } from '../../domain/precompute';
 import type { ConeShape } from '../../domain/precompute';
 import type { DatasetDiagnostic } from '../../domain/data';
 import type { WebGl2ComputeContext, WebGl2ComputeResources } from './types';
@@ -116,6 +121,12 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 			}
 		}
 
+		if (options.curve?.enabled === true && result.staticTown && result.curveGeometry) {
+			const curvePass = await this.runCurveGeometryPass(result, options);
+			extraTimings.push(curvePass.timing);
+			compareDiagnostics.push(...curvePass.diagnostics);
+		}
+
 		for (const geojsonRun of result.geojsonRuns) {
 			const boundaryPass = await this.runBoundaryRaycastPass(result, geojsonRun);
 			extraTimings.push(boundaryPass.timing);
@@ -186,6 +197,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 			gl,
 			finalConesVertexShaderSource,
 		);
+		const curveGeometryProgram = createCurveGeometryProgram(gl, curveGeometryVertexShaderSource);
 		this.#resources = {
 			buffers: [],
 			pipeline: {
@@ -235,6 +247,15 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 						workgroupSize: [1, 1, 1],
 						notes: ['Final operational WebGL2 geometry-emission pass: merge boundary clipping into the final render-ready cone geometry.'],
 					},
+					{
+						name: 'curve-geometry',
+						stage: 'curve-geometry-precompute',
+						profile: 'webgl2',
+						inputs: [],
+						outputs: [],
+						workgroupSize: [1, 1, 1],
+						notes: ['Curve geometry WebGL2 pass: sample render-ready curve vertices from prepared curve controls and yearly speed ratios.'],
+					},
 				],
 			},
 			programCache: new Map([['city-ned2ecef', program]]),
@@ -244,6 +265,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		this.#resources.programCache?.set('raw-cone-alphas', rawConeAlphaProgram);
 		this.#resources.programCache?.set('ciseled-cones', ciseledConesProgram);
 		this.#resources.programCache?.set('final-cones', finalConesProgram);
+		this.#resources.programCache?.set('curve-geometry', curveGeometryProgram);
 		return this.#resources;
 	}
 
@@ -425,7 +447,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		}
 
 		const cityCount = staticTown.cityCount;
-		const azimuthSampleCount = geojsonRun.boundaryRaycast.azimuthSampleCount;
+		const azimuthSampleCount = geojsonRun.boundaryRaycast.azimuthIntervalCount;
 		if (cityCount <= 0 || azimuthSampleCount <= 0) {
 			return {
 				timing: {
@@ -506,6 +528,114 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 				),
 			);
 		}
+		return { timing, diagnostics };
+	}
+
+	private async runCurveGeometryPass(
+		result: ComputeWorkflowResult,
+		options: ComputeWorkflowOptions,
+	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
+		const staticTown = result.staticTown;
+		const curveGeometry = result.curveGeometry;
+		if (!staticTown || !curveGeometry) {
+			return {
+				timing: {
+					stage: 'curve-geometry-precompute',
+					scope: 'precompute',
+					profile: 'webgl2',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+				diagnostics: [],
+			};
+		}
+
+		const curvePrecompute = prepareCurvePrecompute(result.preparedDataset, staticTown);
+		const curveInput = prepareCurveGeometryInput(curvePrecompute, {
+			year: options.curve?.year ?? result.dynamicTown?.year ?? result.preparedDataset.speedTimeline.span.beginYear,
+			pointsPerCurve: options.curve?.pointsPerCurve ?? curveGeometry.pointsPerCurve,
+			curvePosition: options.curve?.curvePosition ?? 'above',
+			coefficient: options.curve?.coefficient ?? 1,
+		});
+		if (curveInput.curveCount <= 0) {
+			return {
+				timing: {
+					stage: 'curve-geometry-precompute',
+					scope: 'precompute',
+					profile: 'webgl2',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+				diagnostics: tagDiagnostics(curvePrecompute.diagnostics, this.profile),
+			};
+		}
+
+		const gl = this.ensureGl();
+		const resources = await this.ensureResources();
+		const program = resources.programCache?.get('curve-geometry');
+		if (!program) {
+			throw new Error('WebGL2 curve geometry program is not available');
+		}
+
+		const dispatchResources = createCurveGeometryDispatchResources(gl, program, {
+			...curveInput,
+			earthRadiusMeters: EARTH_RADIUS_METERS,
+		});
+		const transformFeedback = gl.createTransformFeedback();
+		if (!transformFeedback) {
+			throw new Error('WebGL2 transform feedback allocation failed');
+		}
+
+		const { timing } = await measureAsyncStage(
+			'curve-geometry-precompute',
+			'precompute',
+			'webgl2',
+			async () => {
+				gl.useProgram(program);
+				gl.uniform4f(
+					dispatchResources.uniformLocation,
+					EARTH_RADIUS_METERS,
+					curveInput.pointsPerCurve,
+					curvePositionToCode(curveInput.curvePosition),
+					curveInput.coefficient ?? 1,
+				);
+				bindCurveGeometryTextures(gl, dispatchResources);
+				gl.bindVertexArray(dispatchResources.vertexArray);
+				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, dispatchResources.outputBuffer);
+				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
+				gl.enable(gl.RASTERIZER_DISCARD);
+				gl.beginTransformFeedback(gl.POINTS);
+				gl.drawArraysInstanced(gl.POINTS, 0, curveInput.pointsPerCurve + 1, curveInput.curveCount);
+				gl.endTransformFeedback();
+				gl.disable(gl.RASTERIZER_DISCARD);
+				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+				gl.bindVertexArray(null);
+				gl.finish();
+				return undefined;
+			},
+		);
+
+		const diagnostics: DatasetDiagnostic[] = [];
+		const readback = readBackFloat32Buffer(
+			gl,
+			gl.TRANSFORM_FEEDBACK_BUFFER,
+			dispatchResources.outputBuffer,
+			curveInput.curveCount * (curveInput.pointsPerCurve + 1) * 4,
+		);
+		if (readback) {
+			diagnostics.push(
+				...compareFloat32Buffers(
+					'webgl2-curve-geometry',
+					curveGeometry.positions,
+					readback,
+				),
+			);
+		}
+
+		diagnostics.push(...tagDiagnostics(curvePrecompute.diagnostics, this.profile));
 		return { timing, diagnostics };
 	}
 
@@ -1045,6 +1175,34 @@ function bindCiseledConesTextures(
 	gl.uniform1i(rawConeRimEcefLocation, 3);
 }
 
+function bindCurveGeometryTextures(
+	gl: WebGL2RenderingContext,
+	resources: WebGl2CurveGeometryDispatchResources,
+): void {
+	gl.activeTexture(gl.TEXTURE0);
+	gl.bindTexture(gl.TEXTURE_2D, resources.curveControlPointsEcefTexture);
+	const controlPointsLocation = gl.getUniformLocation(resources.program, 'u_curveControlPointsEcef');
+	const thetaLocation = gl.getUniformLocation(resources.program, 'u_curveThetaRadians');
+	const speedRatioLocation = gl.getUniformLocation(resources.program, 'u_curveSpeedRatio');
+	const idsLocation = gl.getUniformLocation(resources.program, 'u_curveIds');
+	if (!controlPointsLocation || !thetaLocation || !speedRatioLocation || !idsLocation) {
+		throw new Error('WebGL2 curve geometry uniform lookup failed');
+	}
+	gl.uniform1i(controlPointsLocation, 0);
+
+	gl.activeTexture(gl.TEXTURE1);
+	gl.bindTexture(gl.TEXTURE_2D, resources.curveThetaRadiansTexture);
+	gl.uniform1i(thetaLocation, 1);
+
+	gl.activeTexture(gl.TEXTURE2);
+	gl.bindTexture(gl.TEXTURE_2D, resources.curveSpeedRatioTexture);
+	gl.uniform1i(speedRatioLocation, 2);
+
+	gl.activeTexture(gl.TEXTURE3);
+	gl.bindTexture(gl.TEXTURE_2D, resources.curveIdsTexture);
+	gl.uniform1i(idsLocation, 3);
+}
+
 function shapeToCode(shape: ConeShape): number {
 	if (shape === 'road') {
 		return 0;
@@ -1053,6 +1211,19 @@ function shapeToCode(shape: ConeShape): number {
 		return 1;
 	}
 	return 2;
+}
+
+function curvePositionToCode(position: 'above' | 'below' | 'below-when-possible' | 'stick-to-cone'): number {
+	switch (position) {
+		case 'above':
+			return 0;
+		case 'below':
+			return 1;
+		case 'below-when-possible':
+			return 2;
+		case 'stick-to-cone':
+			return 3;
+	}
 }
 
 function probeWebGl2Context(canvas?: WebGl2CanvasLike | null): WebGL2RenderingContext | null {

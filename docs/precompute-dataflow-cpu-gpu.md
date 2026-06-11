@@ -1398,8 +1398,8 @@ benchmarkee dans les trois profils `WebGPU -> WebGL2 -> CPU`.
 
 Le tableau ci-dessous resume les passes prevues et leur responsabilite
 principale. Les noms WebGL2 reprennent les passes historiques ou leurs
-equivalents metier. Le futur kernel WGSL peut reutiliser la meme responsabilite
-sans reproduire le nom de fichier a l'identique.
+equivalents metier. Le kernel WGSL partage la meme responsabilite sans
+reproduire obligatoirement le nom de fichier a l'identique.
 
 | Passe | Role principal | Entrees principales | Sorties principales | Etat migration | Profil cible | Remarque |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1410,7 +1410,7 @@ sans reproduire le nom de fichier a l'identique.
 | `rawCones.frag` | Generer les cones bruts avant toute intersection | villes statiques, villes dynamiques, alphas, longueurs, intervalles d'azimut | `RawConeBuffer` | Porte | CPU -> WebGL2 -> WebGPU | Une invocation correspond a un couple `(ville, azimut)`. La selection d'alpha est la partie la plus parallele et la plus interessante a accelerer. |
 | `ciseledCones.frag` | Cisailler les cones bruts sur les cones voisins et les supports choisis | `RawConeBuffer`, voisins statiques, BVH circulaire, invariants de paires | `CiseledConeBuffer`, diagnostics de coupe, `t` retenus | Porte | CPU -> WebGL2 -> WebGPU | Passe critique de filtrage. Elle garde la valeur minimale utile sans changer le contrat geometrique. |
 | `finalCones.frag` | Finaliser la geometrie decoupee et emettre la geometrie finale 3D | cones ciseles, limites pays, acceptation du clipping | `FinalConeGeometryBuffer` | Porte | CPU -> WebGL2 -> WebGPU | Cette passe fusionne la reduction finale et l'emission de la geometrie prete a afficher. Elle reste independante du moteur de rendu. |
-| `curveMeshShader.ts` | Construire les courbes entre villes ou modes | points de controle, vitesses, annee, position sur la courbe | `CurveVertexBuffer` | Non porte | CPU -> WebGL2 -> WebGPU | Peut etre partagee entre CPU, WebGL2 et WebGPU. Elle echantillonne les courbes et n'est pas liee aux cones. |
+| `curveMeshShader.ts` | Construire les courbes entre villes ou modes | points de controle, vitesses, annee, position sur la courbe | `CurveVertexBuffer` | Porte | CPU -> WebGL2 -> WebGPU | Passe compute partagee entre CPU, WebGL2 et WebGPU. Elle echantillonne les courbes en geometrie ECEF render-ready et reste independante du moteur de rendu. |
 | `rayIntersectTriangle.glsl` | Primitive d'intersection rayon/triangle | rayon, triangle, seuils numeriques | `t`, hit flag, point d'intersection | Porte comme primitive partagee GLSL/WGSL | CPU -> WebGL2 -> WebGPU | Ce n'est pas un passe autonome, mais une primitive partagee par les passes de coupe. |
 
 ### Lecture Pratique De L'Inventaire
@@ -1423,7 +1423,7 @@ Pour les profils GPU, l'ordre de responsabilite attendu est:
 4. `rawCones` fabrique la geometrie brute massivement parallele;
 5. `ciseledCones` retire les parties invalides ou trop longues, avec un portage WebGL2 fallback et un portage WebGPU oracle;
 6. `finalCones` applique la reduction finale, integre le clipping pays et emet la geometrie 3D prete a afficher, independamment du moteur de rendu;
-7. `curveMeshShader` prepare les courbes de representation;
+7. `curveMeshShader` prepare les courbes de representation sous forme de geometrie ECEF render-ready;
 8. `rayIntersectTriangle` fournit le test de base commun aux coupes.
 
 Sur le profil CPU, les memes responsabilites existent sous forme de fonctions
@@ -1848,17 +1848,18 @@ curves --> CurveVertexBuffer : GPU\nparallel curve x sample
 @enduml
 ```
 
-Les courbes peuvent suivre une migration progressive. Le calcul de leurs
-controles est limite aux arêtes connues, ce qui ramene ce travail de `O(N²)` a
-`O(E)`. Une premiere implementation peut conserver plusieurs controles
+Les courbes suivent la meme logique de migration que les cones: le calcul des
+controles reste limite aux arêtes connues, ce qui ramene ce travail de `O(N²)`
+a `O(E)`. Une premiere implementation peut conserver plusieurs controles
 identiques lorsque plusieurs modes partagent la meme origine et destination;
 la deduplication pourra etre ajoutee sans changer le contrat public.
 
 La reference CPU est implementee dans
 `src/lib/domain/precompute/curve-cpu.ts`. Elle reproduit les points historiques
 `P` et `Q` par midpoints normalises successifs et produit directement
-`[A, P, Q, B]` en ECEF metres. Les profils WebGL2 et WebGPU ne sont pas encore
-implementes.
+`[A, P, Q, B]` en ECEF metres. Les profils WebGL2 et WebGPU utilisent le meme
+contrat pour echantillonner les courbes en geometrie render-ready, sans
+dependre du moteur de rendu.
 
 ## Etape 11: Affichage Babylon.js
 

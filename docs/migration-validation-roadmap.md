@@ -93,7 +93,7 @@ Utiliser les statuts suivants:
 | M4.1 | validated | Socle de tests CPU et contrats de buffers |
 | M5 | deferred | Prototype comparatif de rendu Babylon.js / luma.gl |
 | M6 | in_progress | Framework compute multi-profil et fallback WebGPU -> WebGL2 -> CPU |
-| M7 | todo | Portage WGSL / backend WebGPU des passes existantes |
+| M7 | in_progress | Portage WGSL / backend WebGPU des passes existantes |
 | M8 | in_progress | Nouveau pipeline d'intersections |
 | M9 | todo | Integration interactive complete |
 | M9.1 | todo | Packaging client lourd Tauri |
@@ -1331,6 +1331,14 @@ Passes prioritaires:
 - limites geographiques;
 - geometrie finale des cones;
 - clipping.
+
+Travail deja realise:
+
+- la geometrie des courbes est portee et benchmarkee sur CPU, WebGL2 et
+  WebGPU avec le meme contrat de sortie render-ready;
+- les passes cones principales sont deja en place sur les trois profils;
+- la prochaine phase de M7 consiste surtout a durcir les comparaisons et a
+  finir les derniers kernels utilitaires encore partiellement portés.
 
 Travail attendu:
 

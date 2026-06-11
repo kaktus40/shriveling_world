@@ -1,6 +1,7 @@
 import rawConeAlphasShaderSource from '../kernels/raw-cone-alphas.wgsl?raw';
 import boundaryAlgebreShaderSource from '../kernels/boundary-algebre.wgsl?raw';
 import cityNed2EcefShaderSource from '../kernels/city-ned2ecef.wgsl?raw';
+import curveGeometryShaderSource from '../kernels/curve-geometry.wgsl?raw';
 import finalConesShaderSource from '../kernels/final-cones.wgsl?raw';
 import rayIntersectTriangleShaderSource from '../kernels/ray-intersect-triangle.wgsl?raw';
 import ciseledConesShaderSource from '../kernels/ciseled-cones.wgsl?raw';
@@ -12,6 +13,7 @@ import {
 	createBoundaryAlgebreDispatchResources,
 	createCityNed2EcefDispatchResources,
 	createCiseledConesDispatchResources,
+	createCurveGeometryDispatchResources,
 	createFinalConesDispatchResources,
 	createRawConeAlphaDispatchResources,
 	type GpuBufferAllocation,
@@ -35,6 +37,10 @@ import { measureAsyncStage } from '../core/timing';
 import { EARTH_RADIUS_METERS } from '../../shared';
 import { buildAzimuthIntervals, packAzimuthIntervals } from '../../domain/geojson';
 import type { DatasetDiagnostic } from '../../domain/data';
+import {
+	prepareCurveGeometryInput,
+	prepareCurvePrecompute,
+} from '../../domain/precompute';
 import type { WebGpuComputeContext, WebGpuComputeResources } from './types';
 
 /** Options used to build the WebGPU backend. */
@@ -100,6 +106,12 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			}
 		}
 
+		if (options.curve?.enabled === true && result.staticTown && result.curveGeometry) {
+			const curvePass = await this.runCurveGeometryPass(context, result, options);
+			extraTimings.push(curvePass.timing);
+			compareDiagnostics.push(...curvePass.diagnostics);
+		}
+
 		for (const geojsonRun of result.geojsonRuns) {
 			const boundaryPass = await this.runBoundaryRaycastPass(context, result, geojsonRun);
 			extraTimings.push(boundaryPass.timing);
@@ -161,6 +173,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		});
 		const finalConeModule = device.createShaderModule({ code: finalConesShaderSource });
 		const boundaryModule = device.createShaderModule({ code: boundaryAlgebreShaderSource });
+		const curveGeometryModule = device.createShaderModule({ code: curveGeometryShaderSource });
 		this.#resources = {
 			buffers: [],
 			pipeline: {
@@ -210,6 +223,15 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 						workgroupSize: [1, 1, 1],
 						notes: ['Final real WGSL geometry-emission kernel: merge boundary clipping into the final render-ready cone geometry.'],
 					},
+					{
+						name: 'curve-geometry',
+						stage: 'curve-geometry-precompute',
+						profile: 'webgpu',
+						inputs: [],
+						outputs: [],
+						workgroupSize: [1, 1, 1],
+						notes: ['Curve geometry WGSL kernel: sample render-ready curve vertices from prepared curve controls and yearly speed ratios.'],
+					},
 				],
 			},
 			shaderModuleCache: new Map([
@@ -218,6 +240,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 				['ciseled-cones', ciseledConeModule],
 				['final-cones', finalConeModule],
 				['boundary-algebre', boundaryModule],
+				['curve-geometry', curveGeometryModule],
 			]),
 			pipelineCache: new Map(),
 			bindGroupCache: new Map(),
@@ -740,6 +763,112 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			};
 		}
 
+		return { timing, diagnostics };
+	}
+
+	private async runCurveGeometryPass(
+		context: WebGpuComputeContext,
+		result: ComputeWorkflowResult,
+		options: ComputeWorkflowOptions,
+	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
+		const staticTown = result.staticTown;
+		const curveGeometry = result.curveGeometry;
+		if (!staticTown || !curveGeometry) {
+			return {
+				timing: {
+					stage: 'curve-geometry-precompute',
+					scope: 'precompute',
+					profile: 'webgpu',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+				diagnostics: [],
+			};
+		}
+
+		const curvePrecompute = prepareCurvePrecompute(result.preparedDataset, staticTown);
+		const curveInput = prepareCurveGeometryInput(curvePrecompute, {
+			year: options.curve?.year ?? result.dynamicTown?.year ?? result.preparedDataset.speedTimeline.span.beginYear,
+			pointsPerCurve: options.curve?.pointsPerCurve ?? curveGeometry.pointsPerCurve,
+			curvePosition: options.curve?.curvePosition ?? 'above',
+			coefficient: options.curve?.coefficient ?? 1,
+		});
+
+		if (curveInput.curveCount <= 0) {
+			return {
+				timing: {
+					stage: 'curve-geometry-precompute',
+					scope: 'precompute',
+					profile: 'webgpu',
+					startedAtMs: 0,
+					endedAtMs: 0,
+					durationMs: 0,
+				},
+				diagnostics: tagDiagnostics(curvePrecompute.diagnostics, this.profile),
+			};
+		}
+
+		const usage = getGpuBufferUsage();
+		const dispatchResources = createCurveGeometryDispatchResources(context.device, usage, {
+			...curveInput,
+			earthRadiusMeters: EARTH_RADIUS_METERS,
+		});
+		const resources = await this.ensureResources();
+		const pipeline = await context.device.createComputePipelineAsync({
+			layout: 'auto',
+			compute: {
+				module:
+					resources.shaderModuleCache?.get('curve-geometry') ??
+					context.device.createShaderModule({ code: curveGeometryShaderSource }),
+				entryPoint: 'main',
+			},
+		});
+		const bindGroup = context.device.createBindGroup({
+			layout: pipeline.getBindGroupLayout(0),
+			entries: [
+				{ binding: 0, resource: { buffer: dispatchResources.curveControlPointsEcef.buffer } },
+				{ binding: 1, resource: { buffer: dispatchResources.curveThetaRadians.buffer } },
+				{ binding: 2, resource: { buffer: dispatchResources.curveSpeedRatio.buffer } },
+				{ binding: 3, resource: { buffer: dispatchResources.curveIds.buffer } },
+				{ binding: 4, resource: { buffer: dispatchResources.uniform.buffer } },
+				{ binding: 5, resource: { buffer: dispatchResources.curveVertexPositions.buffer } },
+			],
+		});
+
+		const { timing } = await measureAsyncStage(
+			'curve-geometry-precompute',
+			'precompute',
+			'webgpu',
+			async () => {
+				const encoder = context.device.createCommandEncoder();
+				const pass = encoder.beginComputePass();
+				pass.setPipeline(pipeline);
+				pass.setBindGroup(0, bindGroup);
+				pass.dispatchWorkgroups(curveInput.pointsPerCurve + 1, curveInput.curveCount, 1);
+				pass.end();
+				context.queue.submit([encoder.finish()]);
+				return undefined;
+			},
+		);
+
+		const diagnostics: DatasetDiagnostic[] = [];
+		const readback = await readBackFloat32Buffer(
+			context.device,
+			dispatchResources.curveVertexPositions.buffer,
+			curveInput.curveCount * (curveInput.pointsPerCurve + 1) * 4,
+		);
+		if (readback) {
+			diagnostics.push(
+				...compareFloat32Buffers(
+					'webgpu-curve-geometry',
+					curveGeometry.positions,
+					readback,
+				),
+			);
+		}
+
+		diagnostics.push(...tagDiagnostics(curvePrecompute.diagnostics, this.profile));
 		return { timing, diagnostics };
 	}
 }
