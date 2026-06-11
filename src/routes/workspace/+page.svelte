@@ -271,6 +271,10 @@
 	function computeSummaryLabel(profile: ComputeProfile): string {
 		return profile.toUpperCase();
 	}
+
+	function computeDiagnosticCount(severity: 'error' | 'warning'): number {
+		return workspaceCompute?.result.diagnostics.filter((diagnostic) => diagnostic.severity === severity).length ?? 0;
+	}
 </script>
 
 <section class="page-head">
@@ -358,6 +362,7 @@
 			</p>
 			<p><strong>Fallback:</strong> {workspaceCompute?.selection.fallbackUsed ? 'yes' : 'no'}</p>
 			<p><strong>Benchmark:</strong> {computeLoading ? 'running...' : 'ready'}</p>
+			<p><strong>Diagnostics:</strong> {workspaceCompute ? workspaceCompute.result.diagnostics.length : 0}</p>
 		</article>
 	</section>
 
@@ -389,6 +394,26 @@
 				<p class="compute-note">{workspaceCompute.selection.reason}</p>
 			{/if}
 		</section>
+
+		<details class="panel diagnostic-panel" open>
+			<summary>
+				<h2>Compute diagnostics</h2>
+				<span>runtime validation and fallback notes</span>
+			</summary>
+			<p>
+				{workspaceCompute.result.diagnostics.length} item(s), including
+				{computeDiagnosticCount('error')} error(s) and {computeDiagnosticCount('warning')} warning(s).
+			</p>
+			<div class="diagnostic-list">
+				{#each workspaceCompute.result.diagnostics as diagnostic}
+					<div class={`diagnostic-card ${diagnostic.severity}`}>
+						<strong>{diagnostic.severity}</strong>
+						<span>{diagnostic.code}</span>
+						<pre>{JSON.stringify(diagnostic, null, 2)}</pre>
+					</div>
+				{/each}
+			</div>
+		</details>
 	{/if}
 
 	<section class="content-grid">
