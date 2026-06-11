@@ -44,6 +44,7 @@
 	let queryLoading = false;
 	let errorMessage = '';
 	let queryError = '';
+	let queryRunTimer: ReturnType<typeof setTimeout> | null = null;
 
 	onMount(() => {
 		queryWorker = createQueryWorkerClient();
@@ -52,6 +53,10 @@
 		}
 
 		return () => {
+			if (queryRunTimer) {
+				clearTimeout(queryRunTimer);
+				queryRunTimer = null;
+			}
 			queryWorker?.terminate();
 			queryWorker = null;
 		};
@@ -75,7 +80,7 @@
 			queryTree = createDefaultQueryTree(querySnapshot.fields);
 			queryResult = null;
 			queryError = '';
-			await runQuery();
+			scheduleQueryRun();
 		} catch (error) {
 			workspace = null;
 			summary = null;
@@ -112,6 +117,21 @@
 		}
 	}
 
+	function scheduleQueryRun(): void {
+		if (!workspace || !querySnapshot || !queryTree || !queryWorker) {
+			return;
+		}
+
+		if (queryRunTimer) {
+			clearTimeout(queryRunTimer);
+		}
+
+		queryRunTimer = setTimeout(() => {
+			queryRunTimer = null;
+			void runQuery();
+		}, 80);
+	}
+
 	function resetQuery(): void {
 		if (!querySnapshot) {
 			return;
@@ -120,6 +140,7 @@
 		queryTree = createDefaultQueryTree(querySnapshot.fields);
 		queryResult = null;
 		queryError = '';
+		scheduleQueryRun();
 	}
 
 	function updateQueryNode(path: number[], nextNode: QueryNode): void {
@@ -130,6 +151,7 @@
 		queryTree = updateQueryNodeAtPath(queryTree, path, () => nextNode);
 		queryResult = null;
 		queryError = '';
+		scheduleQueryRun();
 	}
 
 	function deleteQueryNode(path: number[]): void {
@@ -140,6 +162,7 @@
 		queryTree = removeQueryNodeAtPath(queryTree, path);
 		queryResult = null;
 		queryError = '';
+		scheduleQueryRun();
 	}
 
 	function insertQueryNode(path: number[], child: QueryNode): void {
@@ -150,6 +173,7 @@
 		queryTree = insertQueryNodeAtPath(queryTree, path, child);
 		queryResult = null;
 		queryError = '';
+		scheduleQueryRun();
 	}
 
 	function degrees(valueRadians: number): string {
@@ -162,17 +186,40 @@
 
 	function queryMatchRows(limit = 10): Array<{ cityIndex: number; cityId: number; cityCode: number }> {
 		const currentWorkspace = workspace;
-		if (!currentWorkspace || !queryResult) {
+		const currentQuerySnapshot = querySnapshot;
+		if (!currentWorkspace || !currentQuerySnapshot || !queryResult) {
 			return [];
 		}
 
 		return Array.from(queryResult.matchedCityIndexes)
 			.slice(0, limit)
 			.map((cityIndex) => ({
-			cityIndex,
-			cityId: currentWorkspace.pipeline.preparedDataset.cityIds[cityIndex],
-			cityCode: currentWorkspace.pipeline.preparedDataset.cityCodes[cityIndex],
-		}));
+				cityIndex,
+				cityId: currentWorkspace.pipeline.preparedDataset.cityIds[cityIndex],
+				cityCode: currentWorkspace.pipeline.preparedDataset.cityCodes[cityIndex],
+			}));
+	}
+
+	function queryMatchPreview(cityIndex: number, limit = 3): string {
+		const currentQuerySnapshot = querySnapshot;
+		if (!currentQuerySnapshot) {
+			return '';
+		}
+
+		const city = currentQuerySnapshot.cities[cityIndex];
+		if (!city) {
+			return '';
+		}
+
+		return currentQuerySnapshot.fields
+			.filter((field) => field.characteristic || field.multiValued)
+			.slice(0, limit)
+			.map((field) => {
+				const values = city.valuesByFieldKey[field.fieldKey] ?? [];
+				const value = values.find((candidate) => candidate !== null);
+				return `${field.label}: ${String(value ?? 'null')}`;
+			})
+			.join(' | ');
 	}
 </script>
 
@@ -407,6 +454,7 @@
 									<th>Idx</th>
 									<th>City id</th>
 									<th>City code</th>
+									<th>Preview</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -415,11 +463,20 @@
 										<td>{match.cityIndex}</td>
 										<td>{match.cityId}</td>
 										<td>{match.cityCode}</td>
+										<td>{queryMatchPreview(match.cityIndex)}</td>
 									</tr>
 								{/each}
 							</tbody>
 						</table>
-						<pre>{JSON.stringify(currentQueryResult.diagnostics, null, 2)}</pre>
+						<div class="diagnostic-list">
+							{#each currentQueryResult.diagnostics as diagnostic}
+								<div class={`diagnostic-card ${diagnostic.severity}`}>
+									<strong>{diagnostic.severity}</strong>
+									<span>{diagnostic.code}</span>
+									<pre>{JSON.stringify(diagnostic, null, 2)}</pre>
+								</div>
+							{/each}
+						</div>
 					{:else}
 						<p>No query executed yet.</p>
 					{/if}
@@ -526,6 +583,28 @@
 
 	.inline-error {
 		margin-bottom: 1rem;
+	}
+
+	.diagnostic-list {
+		display: grid;
+		gap: 0.75rem;
+	}
+
+	.diagnostic-card {
+		padding: 0.7rem 0.8rem;
+		border-radius: 0.8rem;
+		border: 1px solid rgba(28, 36, 40, 0.14);
+		background: rgba(255, 255, 255, 0.92);
+	}
+
+	.diagnostic-card.warning {
+		border-color: rgba(175, 128, 54, 0.3);
+		background: rgba(255, 248, 230, 0.95);
+	}
+
+	.diagnostic-card.error {
+		border-color: rgba(176, 95, 75, 0.3);
+		background: rgba(255, 243, 239, 0.95);
 	}
 
 	pre {
