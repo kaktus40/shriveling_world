@@ -87,10 +87,11 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			benchmark: remapBenchmarkProfile(result.benchmark, extraTimings),
 			diagnostics: [
 				...result.diagnostics,
-				...compareDiagnostics,
+				...tagDiagnostics(compareDiagnostics, this.profile),
 				{
 					severity: 'warning',
 					code: 'webgpu-skeleton-cpu-delegation',
+					profile: this.profile,
 					message: 'WebGPU backend is wired, dispatches real city and GeoJSON boundary WGSL passes, but still delegates the remaining compute stages to the CPU reference backend.',
 				},
 			],
@@ -427,6 +428,12 @@ function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport, extraTimings: 
 			'WebGPU backend dispatches a city NED-to-ECEF pass and a GeoJSON boundary raycast pass before delegating the remaining compute stages to the CPU reference backend.',
 		],
 	};
+}
+
+function tagDiagnostics<T extends { profile?: string }>(diagnostics: readonly T[], profile: string): T[] {
+	return diagnostics.map((diagnostic) =>
+		diagnostic.profile === profile ? diagnostic : { ...diagnostic, profile },
+	);
 }
 
 async function defaultRequestWebGpuAdapter(): Promise<GPUAdapter | null> {

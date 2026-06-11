@@ -26,7 +26,7 @@
 		type WorkspaceCitySummary,
 		type WorkspaceModeSummary,
 	} from '$lib/application/workspace';
-	import type { QueryableField } from '$lib/domain/data';
+	import type { DatasetDiagnostic, QueryableField } from '$lib/domain/data';
 	import type { QueryNode } from '$lib/domain/query';
 	import type { ComputeProfile } from '$lib/compute';
 
@@ -46,6 +46,7 @@
 	let queryWorker: QueryWorkerClient | null = null;
 	let workspaceCompute: DatasetWorkspaceCompute | null = null;
 	let selectedComputeProfile: ComputeProfile = 'cpu';
+	let selectedComputeDiagnosticProfile: ComputeProfile | 'all' = 'all';
 	let loading = false;
 	let computeLoading = false;
 	let queryLoading = false;
@@ -53,6 +54,14 @@
 	let computeError = '';
 	let queryError = '';
 	let queryRunTimer: ReturnType<typeof setTimeout> | null = null;
+	let computeDiagnostics: DatasetDiagnostic[] = [];
+	let filteredComputeDiagnostics: DatasetDiagnostic[] = [];
+	let computeDiagnosticCounts = {
+		all: 0,
+		cpu: 0,
+		webgl2: 0,
+		webgpu: 0,
+	};
 
 	onMount(() => {
 		queryWorker = createQueryWorkerClient();
@@ -108,6 +117,15 @@
 			loading = false;
 		}
 	}
+
+	$: computeDiagnostics = workspaceCompute?.result.diagnostics ?? [];
+	$: computeDiagnosticCounts = summarizeComputeDiagnostics(computeDiagnostics);
+	$: filteredComputeDiagnostics =
+		selectedComputeDiagnosticProfile === 'all'
+			? computeDiagnostics
+			: computeDiagnostics.filter(
+					(diagnostic) => classifyComputeDiagnostic(diagnostic) === selectedComputeDiagnosticProfile,
+				);
 
 	async function reloadCompute(): Promise<void> {
 		const currentWorkspace = workspace;
@@ -273,7 +291,52 @@
 	}
 
 	function computeDiagnosticCount(severity: 'error' | 'warning'): number {
-		return workspaceCompute?.result.diagnostics.filter((diagnostic) => diagnostic.severity === severity).length ?? 0;
+		return computeDiagnostics.filter((diagnostic) => diagnostic.severity === severity).length;
+	}
+
+	function summarizeComputeDiagnostics(diagnostics: readonly DatasetDiagnostic[]): {
+		all: number;
+		cpu: number;
+		webgl2: number;
+		webgpu: number;
+	} {
+		return diagnostics.reduce(
+			(summary, diagnostic) => {
+				const profile = classifyComputeDiagnostic(diagnostic);
+				summary.all += 1;
+				summary[profile] += 1;
+				return summary;
+			},
+			{
+				all: 0,
+				cpu: 0,
+				webgl2: 0,
+				webgpu: 0,
+			},
+		);
+	}
+
+	function classifyComputeDiagnostic(diagnostic: DatasetDiagnostic): ComputeProfile {
+		if (diagnostic.profile === 'cpu' || diagnostic.profile === 'webgl2' || diagnostic.profile === 'webgpu') {
+			return diagnostic.profile;
+		}
+		const code = diagnostic.code.toLowerCase();
+		if (code.startsWith('webgl2-')) {
+			return 'webgl2';
+		}
+		if (code.startsWith('webgpu-')) {
+			return 'webgpu';
+		}
+		return 'cpu';
+	}
+
+	function diagnosticProfileLabel(profile: ComputeProfile | 'all'): string {
+		return profile === 'all' ? 'All profiles' : profile.toUpperCase();
+	}
+
+	function diagnosticMessage(diagnostic: DatasetDiagnostic): string | null {
+		const message = diagnostic.message;
+		return typeof message === 'string' && message.length > 0 ? message : null;
 	}
 </script>
 
@@ -400,18 +463,48 @@
 				<h2>Compute diagnostics</h2>
 				<span>runtime validation and fallback notes</span>
 			</summary>
-			<p>
-				{workspaceCompute.result.diagnostics.length} item(s), including
-				{computeDiagnosticCount('error')} error(s) and {computeDiagnosticCount('warning')} warning(s).
-			</p>
+			<div class="diagnostic-toolbar">
+				<label>
+					<span>Profile</span>
+					<select bind:value={selectedComputeDiagnosticProfile}>
+						<option value="all">All profiles</option>
+						<option value="cpu">CPU</option>
+						<option value="webgl2">WebGL2</option>
+						<option value="webgpu">WebGPU</option>
+					</select>
+				</label>
+				<p>
+					{computeDiagnosticCounts.all} item(s), including
+					{computeDiagnosticCount('error')} error(s) and {computeDiagnosticCount('warning')}
+					warning(s).
+				</p>
+			</div>
+			<div class="diagnostic-summary">
+				<span>CPU {computeDiagnosticCounts.cpu}</span>
+				<span>WebGL2 {computeDiagnosticCounts.webgl2}</span>
+				<span>WebGPU {computeDiagnosticCounts.webgpu}</span>
+			</div>
 			<div class="diagnostic-list">
-				{#each workspaceCompute.result.diagnostics as diagnostic}
+				{#each filteredComputeDiagnostics as diagnostic}
+					{@const message = diagnosticMessage(diagnostic)}
 					<div class={`diagnostic-card ${diagnostic.severity}`}>
-						<strong>{diagnostic.severity}</strong>
-						<span>{diagnostic.code}</span>
-						<pre>{JSON.stringify(diagnostic, null, 2)}</pre>
+						<div class="diagnostic-card-head">
+							<strong>{diagnostic.severity}</strong>
+							<span>{diagnosticProfileLabel(classifyComputeDiagnostic(diagnostic))}</span>
+						</div>
+						<p class="diagnostic-code">{diagnostic.code}</p>
+						{#if message}
+							<p class="diagnostic-message">{message}</p>
+						{/if}
+						<details>
+							<summary>Show raw payload</summary>
+							<pre>{JSON.stringify(diagnostic, null, 2)}</pre>
+						</details>
 					</div>
 				{/each}
+				{#if filteredComputeDiagnostics.length === 0}
+					<p class="diagnostic-empty">No diagnostics for the selected profile.</p>
+				{/if}
 			</div>
 		</details>
 	{/if}
@@ -735,11 +828,66 @@
 		padding-right: 0.25rem;
 	}
 
+	.diagnostic-toolbar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: end;
+		justify-content: space-between;
+		gap: 0.75rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.diagnostic-toolbar label {
+		display: grid;
+		gap: 0.25rem;
+		min-width: 10rem;
+	}
+
+	.diagnostic-toolbar span,
+	.diagnostic-summary span {
+		color: #9fb1b7;
+		font-size: 0.82rem;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+
+	.diagnostic-summary {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin-bottom: 0.75rem;
+	}
+
 	.diagnostic-card {
 		padding: 0.7rem 0.8rem;
 		border-radius: 0.8rem;
 		border: 1px solid rgba(138, 168, 178, 0.18);
 		background: rgba(9, 14, 20, 0.88);
+	}
+
+	.diagnostic-card-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+	}
+
+	.diagnostic-card-head span {
+		color: #8ae0dc;
+		font-size: 0.76rem;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+
+	.diagnostic-code {
+		margin: 0.45rem 0 0.25rem;
+		font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+		font-size: 0.92rem;
+	}
+
+	.diagnostic-message {
+		margin: 0 0 0.5rem;
+		color: #d7e2e4;
 	}
 
 	.diagnostic-card.warning {
@@ -783,6 +931,11 @@
 
 	.diagnostic-panel pre {
 		max-height: 20rem;
+	}
+
+	.diagnostic-empty {
+		margin: 0.25rem 0 0;
+		color: #8ea3aa;
 	}
 
 	.query-panel {

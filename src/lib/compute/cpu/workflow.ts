@@ -185,7 +185,10 @@ export class CpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			dynamicTown,
 			rawCones,
 			coneIntersections,
-			diagnostics: [...diagnostics, ...boundaryDiagnostics],
+			diagnostics: [
+				...tagDiagnostics(diagnostics, this.profile),
+				...tagDiagnostics(boundaryDiagnostics, this.profile),
+			],
 			benchmark,
 		};
 	}
@@ -266,7 +269,13 @@ function resolveGeojsonSources(
 				fileName: file.originalName,
 				geojson: JSON.parse(sourceFile.text) as GeoJSON.FeatureCollection,
 			};
-		});
+	});
+}
+
+function tagDiagnostics<T extends { profile?: string }>(diagnostics: readonly T[], profile: string): T[] {
+	return diagnostics.map((diagnostic) =>
+		diagnostic.profile === profile ? diagnostic : { ...diagnostic, profile },
+	);
 }
 
 function runBoundaryWorkflow(

@@ -97,15 +97,17 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 			benchmark: remapBenchmarkProfile(result.benchmark, extraTimings),
 			diagnostics: [
 				...result.diagnostics,
-				...compareDiagnostics,
+				...tagDiagnostics(compareDiagnostics, this.profile),
 				{
 					severity: 'warning',
 					code: 'webgl2-city-matrix-pass-dispatched',
+					profile: this.profile,
 					message: 'WebGL2 backend dispatches a real city NED-to-ECEF transform-feedback pass before delegating the remaining compute stages to the CPU reference backend.',
 				},
 				{
 					severity: 'warning',
 					code: 'webgl2-boundary-raycast-pass-dispatched',
+					profile: this.profile,
 					message: 'WebGL2 backend dispatches a real GeoJSON boundary transform-feedback pass before delegating the remaining compute stages to the CPU reference backend.',
 				},
 			],
@@ -434,6 +436,12 @@ function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport, extraTimings: 
 			'WebGL2 backend dispatches a city NED-to-ECEF transform-feedback pass and a GeoJSON boundary transform-feedback pass before delegating the remaining compute stages to the CPU reference backend.',
 		],
 	};
+}
+
+function tagDiagnostics<T extends { profile?: string }>(diagnostics: readonly T[], profile: string): T[] {
+	return diagnostics.map((diagnostic) =>
+		diagnostic.profile === profile ? diagnostic : { ...diagnostic, profile },
+	);
 }
 
 function bindBoundaryTextures(

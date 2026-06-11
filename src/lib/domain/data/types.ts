@@ -43,6 +43,8 @@ export interface DatasetDiagnostic {
 	severity: DatasetDiagnosticSeverity;
 	/** Stable machine-readable diagnostic code. */
 	code: string;
+	/** Optional origin profile used by compute and workspace diagnostics. */
+	profile?: string;
 	/** Additional diagnostic context. */
 	[key: string]: unknown;
 }

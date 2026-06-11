@@ -899,6 +899,9 @@ Validation:
   - une premiere route applicative non `test`, `src/routes/workspace/+page.svelte`,
     expose le dataset comme objet metier avec ses modes, villes, champs
     requetables et diagnostics;
+  - la vue des diagnostics compute de `/workspace` dispose maintenant d'un
+    filtrage par profil (`cpu`, `webgl2`, `webgpu`) et d'un affichage plus
+    lisible des messages runtime;
   - des selecteurs de synthese metier ont ete ajoutes au `workspace`
     applicatif pour eviter de reconstruire ces vues dans chaque ecran.
   - l'architecture du futur moteur de requetes a ete fixee dans
