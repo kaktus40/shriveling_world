@@ -52,6 +52,10 @@ Utiliser les statuts suivants:
 - Les changements scientifiques intentionnels sont documentes.
 - Les tests de regression sont mis a jour avant les migrations risquées.
 - La strategie de tests est documentee dans `docs/migration-test-strategy.md` et guide les validations de jalons.
+- Le moteur de calcul est organise en trois profils obligatoires:
+  `WebGPU -> WebGL2 -> CPU`.
+  `WebGPU` est la cible de production, `WebGL2` le fallback accelere et `CPU`
+  la reference fonctionnelle et l'oracle de tests.
 - La cible de runner pour la migration est `Vitest` pour les tests unitaires,
   d'integration et de conformance CPU, avec `Playwright` pour les tests E2E et
   de rendu.
@@ -81,8 +85,8 @@ Utiliser les statuts suivants:
 | M4 | in_progress | Architecture explicite de precalcul |
 | M4.1 | validated | Socle de tests CPU et contrats de buffers |
 | M5 | deferred | Prototype comparatif de rendu Babylon.js / luma.gl |
-| M6 | todo | Framework WebGPU compute minimal |
-| M7 | todo | Portage WGSL des passes existantes |
+| M6 | todo | Framework compute multi-profil et fallback WebGPU -> WebGL2 -> CPU |
+| M7 | todo | Portage WGSL / backend WebGPU des passes existantes |
 | M8 | in_progress | Nouveau pipeline d'intersections |
 | M9 | todo | Integration interactive complete |
 | M9.1 | todo | Packaging client lourd Tauri |
@@ -1164,30 +1168,35 @@ Validation:
 - Jalon volontairement differe jusqu'a stabilisation des buffers finaux pays,
   villes, cones et courbes.
 
-## M6: Framework WebGPU Compute Minimal
+## M6: Framework Compute Multi-Profil Et Fallback
 
 Statut: `todo`
 
 Objectif:
 
-Creer le remplacement structurel de `GPUComputer`, sans encore porter tout le modele.
+Creer le remplacement structurel de `GPUComputer` et l'orchestrateur maison
+qui selectionne les profils `WebGPU`, `WebGL2` et `CPU` avec fallback explicite.
 
 Decision d'architecture:
 
-- l'implementation initiale est un backend WebGPU orchestre en TypeScript;
-- les kernels sont ecrits en WGSL;
+- l'implementation initiale est un orchestrateur TypeScript qui pilote les
+  backends compute;
+- les kernels critiques restent ecrits en WGSL pour WebGPU;
+- le backend WebGL2 est le premier fallback accelere a integrer;
+- le backend CPU reste la reference fonctionnelle et l'ultime repli;
 - l'API doit rester compatible avec un futur backend Rust/wgpu natif;
 - le framework compute ne doit pas dependre de Babylon.js, Tauri ou SvelteKit.
 
 Travail attendu:
 
-- initialiser `GPUAdapter` et `GPUDevice`;
-- creer une abstraction de buffers;
-- creer une abstraction de kernel;
-- creer un cache de pipelines;
-- executer un kernel WGSL simple;
-- lire les resultats CPU pour tests;
-- documenter les limitations navigateur.
+- initialiser la detection de capacites et la selection de profil;
+- creer une abstraction de buffers partagee entre les profils;
+- creer une abstraction de kernel / passe partagee entre les profils;
+- creer un cache de pipelines et de programmes;
+- executer un kernel WGSL simple sur WebGPU;
+- executer une passe WebGL2 simple avec le meme contrat de buffers;
+- lire les resultats CPU pour tests et debug;
+- documenter les limitations navigateur et les conditions de fallback.
 
 Architecture cible:
 
@@ -1197,6 +1206,10 @@ src/lib/compute/core/
   BufferStore.ts
   Kernel.ts
   PipelineCache.ts
+  ProfileSelector.ts
+  fallback.ts
+src/lib/compute/webgl2/
+src/lib/compute/webgpu/
 src/lib/compute/kernels/
   smoke.wgsl
 ```
@@ -1205,6 +1218,7 @@ Interface cible indicative:
 
 ```ts
 interface ComputeBackend {
+  readonly profile: 'webgpu' | 'webgl2' | 'cpu';
   prepareStaticBuffers(prepared: PreparedDataset): Promise<PreparedGpuResources>;
   computeFrame(input: InteractiveComputeInput): Promise<ComputedFrame>;
   dispose(): Promise<void>;
@@ -1213,10 +1227,12 @@ interface ComputeBackend {
 
 Critere d'acceptation:
 
+- un test de selection de profil applique la chaine `WebGPU -> WebGL2 -> CPU`;
 - un test WebGPU simple passe quand WebGPU est disponible;
 - un skip explicite existe quand WebGPU est indisponible;
+- un backend WebGL2 simple passe avec le meme contrat de buffers;
 - le framework compute ne depend pas de Babylon;
-- le framework compute ne depend pas de SvelteKit.
+- le framework compute ne depend pas de SvelteKit;
 - l'API ne bloque pas l'ajout futur d'un backend Rust/wgpu.
 
 Validation:
@@ -1234,13 +1250,13 @@ Conclusion:
 
 - `M6` reste `todo`, mais avec un amorcage technique deja present.
 
-## M7: Portage WGSL Des Passes Existantes
+## M7: Portage WGSL / Backend WebGPU Des Passes Existantes
 
 Statut: `todo`
 
 Objectif:
 
-Porter les calculs intensifs historiques GLSL/WebGL2 vers WebGPU/WGSL.
+Porter les calculs intensifs historiques vers le backend WebGPU/WGSL.
 
 Passes prioritaires:
 
@@ -1252,16 +1268,20 @@ Passes prioritaires:
 
 Travail attendu:
 
-- traduire les fonctions GLSL communes en WGSL;
+- traduire les fonctions communes en WGSL;
 - remplacer les textures de donnees par des storage buffers;
 - expliciter les uniforms dans des structs WGSL;
+- brancher les passes sur l'orchestrateur de M6;
 - ajouter des tests de comparaison avec les snapshots M1;
-- mesurer les performances.
+- mesurer les performances;
+- garder le backend CPU comme oracle et le backend WebGL2 comme fallback.
 
 Critere d'acceptation:
 
 - les sorties WGSL correspondent aux sorties historiques dans les tolerances definies;
 - les passes interactives peuvent etre lancees sans reconstruire le precalcul;
+- le backend WebGPU s'integre dans la chaine de fallback sans modifier les
+  contrats de buffers;
 - les readbacks CPU ne sont utilises que pour tests/debug.
 
 Validation:
