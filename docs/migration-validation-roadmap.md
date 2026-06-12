@@ -95,7 +95,7 @@ Utiliser les statuts suivants:
 | M6 | in_progress | Framework compute multi-profil et fallback WebGPU -> WebGL2 -> CPU |
 | M7 | in_progress | Portage WGSL / backend WebGPU des passes existantes |
 | M8 | in_progress | Nouveau pipeline d'intersections |
-| M9.0 | todo | Modularisation UI en deux pans (workspace / app) |
+| M9.0 | in_progress | Modularisation UI en deux pans (workspace / app) |
 | M9 | todo | Integration interactive complete |
 | M9.1 | todo | Packaging client lourd Tauri |
 | M10 | todo | Nettoyage, documentation utilisateur et stabilisation |
@@ -1536,7 +1536,7 @@ Validation:
 
 ## M9.0: Modularisation UI En Deux Pans
 
-Statut: `todo`
+Statut: `in_progress`
 
 Objectif:
 
@@ -1560,6 +1560,17 @@ Travail attendu:
   sous-parties;
 - garder les pages de test comme vues fines de validation, pas comme containers
   d orchestration.
+
+Travail deja realise:
+
+- extraction des panneaux `workspace` vers:
+  - `src/lib/components/workspace/WorkspaceSummaryGrid.svelte`;
+  - `src/lib/components/workspace/WorkspaceComputePanel.svelte`;
+  - `src/lib/components/workspace/WorkspaceDatasetDetails.svelte`;
+  - `src/lib/components/workspace/WorkspaceQueryPanel.svelte`;
+- reduction de `src/routes/workspace/+page.svelte` a un role
+  d orchestration;
+- maintien des contrats metier et compute identiques.
 
 Critere d acceptance:
 
