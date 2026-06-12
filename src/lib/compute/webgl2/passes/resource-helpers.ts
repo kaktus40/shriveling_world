@@ -1,19 +1,4 @@
-/** Compiles a WebGL2 shader and throws with the info log on failure. */
-export function compileShader(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader {
-	const shader = gl.createShader(type);
-	if (!shader) {
-		throw new Error('WebGL2 shader creation failed');
-	}
-	gl.shaderSource(shader, source);
-	gl.compileShader(shader);
-	if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-		const message = gl.getShaderInfoLog(shader) ?? 'unknown WebGL2 compile error';
-		gl.deleteShader(shader);
-		throw new Error(`WebGL2 shader compile failed: ${message}`);
-	}
-	return shader;
-}
-
+/** Shared WebGL2 texture packing helpers for pass-local resource builders. */
 /** Creates a floating-point 2D texture with nearest filtering and clamp-to-edge wrap. */
 export function createFloatTexture2D(
 	gl: WebGL2RenderingContext,
