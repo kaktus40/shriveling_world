@@ -27,6 +27,8 @@ export interface WebGl2BoundaryRaycastPassResult {
 	readonly timing: StageTiming;
 	readonly extraTimings?: StageTiming[];
 	readonly diagnostics: DatasetDiagnostic[];
+	readonly townBoundaryAngularBuffer?: WebGLBuffer;
+	readonly townBoundaryEcefBuffer?: WebGLBuffer;
 }
 
 export async function runWebGl2BoundaryRaycastPass(
@@ -147,5 +149,10 @@ export async function runWebGl2BoundaryRaycastPass(
 		);
 	}
 
-	return { timing, diagnostics };
+	return {
+		timing,
+		diagnostics,
+		townBoundaryAngularBuffer: dispatchResources.angularOutputBuffer,
+		townBoundaryEcefBuffer: dispatchResources.ecefOutputBuffer,
+	};
 }

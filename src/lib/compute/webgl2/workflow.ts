@@ -24,6 +24,8 @@ import {
 } from './buffers';
 import { createWebGl2ComputeResources } from './resources';
 import { runWebGl2CityMatrixPass } from './passes/city-matrix';
+import { runWebGl2BoundaryRaycastPass } from './passes/boundary-algebre';
+import { runWebGl2CiseledConePass } from './passes/ciseled-cones';
 import { runWebGl2RawConeAlphaPass } from './passes/raw-cone-alpha';
 import {
 	compareFloat32Buffers,
@@ -191,140 +193,29 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		result: ComputeWorkflowResult,
 		geojsonRun: ComputeWorkflowResult['geojsonRuns'][number],
 	): Promise<{ timing: StageTiming; extraTimings?: StageTiming[]; diagnostics: DatasetDiagnostic[] }> {
-		const staticTown = result.staticTown;
-		if (!staticTown) {
-			return {
-				timing: {
-					stage: 'geojson-boundary-raycast',
-					scope: 'precompute',
-					profile: 'webgl2',
-					startedAtMs: 0,
-					endedAtMs: 0,
-					durationMs: 0,
-				},
-				extraTimings: [],
-				diagnostics: [],
-			};
-		}
-
-		const boundary = geojsonRun.boundaryPrecompute;
-		const cityCount = staticTown.cityCount;
-		const azimuthSampleCount = boundary.azimuthSampleCount;
-		const contourCount = boundary.countryContourSizes.length;
-		if (cityCount <= 0 || azimuthSampleCount <= 0) {
-			return {
-				timing: {
-					stage: 'geojson-boundary-raycast',
-					scope: 'precompute',
-					profile: 'webgl2',
-					startedAtMs: 0,
-					endedAtMs: 0,
-					durationMs: 0,
-				},
-				extraTimings: [],
-				diagnostics: [],
-			};
-		}
-
-		const gl = this.ensureGl();
-		const resources = await this.ensureResources();
-		const program = resources.programCache?.get('boundary-algebre');
-		if (!program) {
-			throw new Error('WebGL2 boundary raycast program is not available');
-		}
-
-		const dispatchResources = createBoundaryAlgebreDispatchResources(
-			gl,
-			program,
-			{
-				cityNed2EcefMatrices: staticTown.cityNed2EcefMatrices,
-				cityContourIndexes: boundary.cityContourIndexes,
-				countryContourNVectorBuffer: boundary.countryContourNVectorBuffer,
-				countryContourOffsets: boundary.countryContourOffsets,
-				countryContourSizes: boundary.countryContourSizes,
-				azimuthIntervals: packAzimuthIntervals(buildAzimuthIntervals(azimuthSampleCount)),
-				cityCount,
-				azimuthIntervalCount: azimuthSampleCount,
-				contourCount,
-				earthRadiusMeters: EARTH_RADIUS_METERS,
-			},
-		);
-
-		const { timing } = await measureAsyncStage(
-			'geojson-boundary-raycast',
-			'precompute',
-			'webgl2',
-			async () => {
-				gl.useProgram(program);
-				gl.uniform4f(
-					dispatchResources.uniformLocation,
-					EARTH_RADIUS_METERS,
-					cityCount,
-					azimuthSampleCount,
-					contourCount,
-				);
-				bindBoundaryTextures(gl, dispatchResources);
-				gl.bindVertexArray(dispatchResources.vertexArray);
-				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, dispatchResources.angularOutputBuffer);
-				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, dispatchResources.ecefOutputBuffer);
-				const transformFeedback = gl.createTransformFeedback();
-				if (!transformFeedback) {
-					throw new Error('WebGL2 transform feedback allocation failed');
-				}
-				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
-				gl.enable(gl.RASTERIZER_DISCARD);
-				gl.beginTransformFeedback(gl.POINTS);
-				gl.drawArraysInstanced(gl.POINTS, 0, 1, cityCount * azimuthSampleCount);
-				gl.endTransformFeedback();
-				gl.disable(gl.RASTERIZER_DISCARD);
-				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
-				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
-				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
-				gl.bindVertexArray(null);
-				gl.finish();
-				return undefined;
-			},
-		);
-
-		const diagnostics: DatasetDiagnostic[] = [];
-		const angularReadback = readBackFloat32Buffer(
-			gl,
-			gl.TRANSFORM_FEEDBACK_BUFFER,
-			dispatchResources.angularOutputBuffer,
-			cityCount * azimuthSampleCount * 4,
-		);
-		const ecefReadback = readBackFloat32Buffer(
-			gl,
-			gl.TRANSFORM_FEEDBACK_BUFFER,
-			dispatchResources.ecefOutputBuffer,
-			cityCount * azimuthSampleCount * 4,
-		);
-		if (angularReadback && ecefReadback) {
-			diagnostics.push(
-				...compareFloat32Buffers(
-					'webgl2-boundary-angular',
-					geojsonRun.boundaryRaycast.townBoundaryAngular,
-					angularReadback,
-				),
-				...compareFloat32Buffers(
-					'webgl2-boundary-ecef',
-					geojsonRun.boundaryRaycast.townBoundaryEcef,
-					ecefReadback,
-				),
-			);
-		}
+		const boundaryPass = await runWebGl2BoundaryRaycastPass({
+			gl: this.ensureGl(),
+			result,
+			geojsonRun,
+			resources: await this.ensureResources(),
+		});
 
 		if (this.#ciseledConeRimEcefBuffer && geojsonRun.finalCones) {
-			const finalPass = await this.runFinalConePass(result, geojsonRun, this.#ciseledConeRimEcefBuffer, dispatchResources.angularOutputBuffer, dispatchResources.ecefOutputBuffer);
-			diagnostics.push(...finalPass.diagnostics);
+			const finalPass = await this.runFinalConePass(
+				result,
+				geojsonRun,
+				this.#ciseledConeRimEcefBuffer,
+				boundaryPass.townBoundaryAngularBuffer ?? (() => { throw new Error('WebGL2 boundary angular buffer unavailable'); })(),
+				boundaryPass.townBoundaryEcefBuffer ?? (() => { throw new Error('WebGL2 boundary ecef buffer unavailable'); })(),
+			);
 			return {
-				timing,
+				timing: boundaryPass.timing,
 				extraTimings: [finalPass.timing],
-				diagnostics,
+				diagnostics: [...boundaryPass.diagnostics, ...finalPass.diagnostics],
 			};
 		}
 
-		return { timing, diagnostics };
+		return boundaryPass;
 	}
 
 	private async runFinalConePass(
@@ -611,125 +502,11 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 	}
 
 	private async runCiseledConePass(result: ComputeWorkflowResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[]; ciseledConeRimEcefBuffer?: WebGLBuffer }> {
-		const staticTown = result.staticTown;
-		const rawCones = result.rawCones;
-		const coneIntersections = result.coneIntersections;
-		if (!staticTown || !rawCones || !coneIntersections) {
-			return {
-				timing: {
-					stage: 'cone-intersections-precompute',
-					scope: 'interactive',
-					profile: 'webgl2',
-					startedAtMs: 0,
-					endedAtMs: 0,
-					durationMs: 0,
-				},
-				diagnostics: [],
-			};
-		}
-
-		const cityCount = rawCones.cityCount;
-		const azimuthSampleCount = rawCones.azimuthSampleCount;
-		if (cityCount <= 0 || azimuthSampleCount <= 0) {
-			return {
-				timing: {
-					stage: 'cone-intersections-precompute',
-					scope: 'interactive',
-					profile: 'webgl2',
-					startedAtMs: 0,
-					endedAtMs: 0,
-					durationMs: 0,
-				},
-				diagnostics: [],
-			};
-		}
-
-		const gl = this.ensureGl();
-		const resources = await this.ensureResources();
-		const program = resources.programCache?.get('ciseled-cones');
-		if (!program) {
-			throw new Error('WebGL2 ciseled cones program is not available');
-		}
-
-		const dispatchResources = createCiseledConesDispatchResources(
-			gl,
-			program,
-			{
-				cityNed2EcefMatrices: staticTown.cityNed2EcefMatrices,
-				overlapCandidates: staticTown.overlapCandidates,
-				overlapCandidateCounts: staticTown.overlapCandidateCounts,
-				rawConeRimEcef: rawCones.rawConeRimEcef,
-				cityCount,
-				azimuthSampleCount,
-				neighborLimit: staticTown.neighborLimit,
-			},
-		);
-		const transformFeedback = gl.createTransformFeedback();
-		if (!transformFeedback) {
-			throw new Error('WebGL2 transform feedback allocation failed');
-		}
-
-		const { timing } = await measureAsyncStage(
-			'cone-intersections-precompute',
-			'interactive',
-			'webgl2',
-			async () => {
-				gl.useProgram(program);
-				gl.uniform4f(
-					dispatchResources.uniformLocation,
-					cityCount,
-					azimuthSampleCount,
-					staticTown.neighborLimit,
-					0,
-				);
-				bindCiseledConesTextures(gl, dispatchResources);
-				gl.bindVertexArray(dispatchResources.vertexArray);
-				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, dispatchResources.coneIntersectionDistanceMetersBuffer);
-				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, dispatchResources.ciseledConeRimEcefBuffer);
-				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
-				gl.enable(gl.RASTERIZER_DISCARD);
-				gl.beginTransformFeedback(gl.POINTS);
-				gl.drawArraysInstanced(gl.POINTS, 0, 1, cityCount * azimuthSampleCount);
-				gl.endTransformFeedback();
-				gl.disable(gl.RASTERIZER_DISCARD);
-				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
-				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
-				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
-				gl.bindVertexArray(null);
-				gl.finish();
-				return undefined;
-			},
-		);
-
-		const diagnostics: DatasetDiagnostic[] = [];
-		const distanceReadback = readBackFloat32Buffer(
-			gl,
-			gl.TRANSFORM_FEEDBACK_BUFFER,
-			dispatchResources.coneIntersectionDistanceMetersBuffer,
-			cityCount * azimuthSampleCount,
-		);
-		const rimReadback = readBackFloat32Buffer(
-			gl,
-			gl.TRANSFORM_FEEDBACK_BUFFER,
-			dispatchResources.ciseledConeRimEcefBuffer,
-			cityCount * azimuthSampleCount * 4,
-		);
-		if (distanceReadback && rimReadback) {
-			diagnostics.push(
-				...compareFloat32Buffers(
-					'webgl2-cone-intersection-distance',
-					coneIntersections.coneIntersectionDistanceMeters,
-					distanceReadback,
-				),
-				...compareFloat32Buffers(
-					'webgl2-ciseled-cone-rim',
-					coneIntersections.ciseledConeRimEcef,
-					rimReadback,
-				),
-			);
-		}
-
-		return { timing, diagnostics, ciseledConeRimEcefBuffer: dispatchResources.ciseledConeRimEcefBuffer };
+		return runWebGl2CiseledConePass({
+			gl: this.ensureGl(),
+			result,
+			resources: await this.ensureResources(),
+		});
 	}
 }
 

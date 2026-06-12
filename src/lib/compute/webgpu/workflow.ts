@@ -8,14 +8,14 @@ import {
 	type CpuComputeWorkflowBackend,
 } from '../cpu';
 import {
-	createBoundaryAlgebreDispatchResources,
-	createCiseledConesDispatchResources,
 	createCurveGeometryDispatchResources,
 	createFinalConesDispatchResources,
 	type GpuBufferAllocation,
 } from './buffers';
 import { createWebGpuComputeResources } from './resources';
 import { runWebGpuCityMatrixPass } from './passes/city-matrix';
+import { runWebGpuBoundaryRaycastPass } from './passes/boundary-algebre';
+import { runWebGpuCiseledConePass } from './passes/ciseled-cones';
 import { runWebGpuRawConeAlphaPass } from './passes/raw-cone-alpha';
 import {
 	compareFloat32Buffers,
@@ -210,120 +210,12 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		context: WebGpuComputeContext,
 		result: ComputeWorkflowResult,
 	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[]; ciseledConeRimEcef?: GpuBufferAllocation }> {
-		const staticTown = result.staticTown;
-		const rawCones = result.rawCones;
-		const reference = result.coneIntersections;
-		if (!staticTown || !rawCones || !reference) {
-			return {
-				timing: {
-					stage: 'cone-intersections-precompute',
-					scope: 'interactive',
-					profile: 'webgpu',
-					startedAtMs: 0,
-					endedAtMs: 0,
-					durationMs: 0,
-				},
-				diagnostics: [],
-			};
-		}
-
-		const cityCount = rawCones.cityCount;
-		const azimuthSampleCount = rawCones.azimuthSampleCount;
-		if (cityCount <= 0 || azimuthSampleCount <= 0) {
-			return {
-				timing: {
-					stage: 'cone-intersections-precompute',
-					scope: 'interactive',
-					profile: 'webgpu',
-					startedAtMs: 0,
-					endedAtMs: 0,
-					durationMs: 0,
-				},
-				diagnostics: [],
-			};
-		}
-
-		const usage = getGpuBufferUsage();
-		const resources = createCiseledConesDispatchResources(
-			context.device,
-			usage,
-			{
-				cityNed2EcefMatrices: staticTown.cityNed2EcefMatrices,
-				overlapCandidates: staticTown.overlapCandidates,
-				overlapCandidateCounts: staticTown.overlapCandidateCounts,
-				rawConeRimEcef: rawCones.rawConeRimEcef,
-				cityCount,
-				azimuthSampleCount,
-				neighborLimit: staticTown.neighborLimit,
-			},
-		);
-
-		const resourcesCache = await this.ensureResources();
-		const pipeline = await context.device.createComputePipelineAsync({
-			layout: 'auto',
-			compute: {
-				module:
-					resourcesCache.shaderModuleCache?.get('ciseled-cones') ??
-					context.device.createShaderModule({ code: ciseledConesShaderSource }),
-				entryPoint: 'main',
-			},
+		return runWebGpuCiseledConePass({
+			context,
+			result,
+			resources: await this.ensureResources(),
+			usage: getGpuBufferUsage(),
 		});
-		const bindGroup = context.device.createBindGroup({
-			layout: pipeline.getBindGroupLayout(0),
-			entries: [
-				{ binding: 0, resource: { buffer: resources.cityMatrices.buffer } },
-				{ binding: 1, resource: { buffer: resources.overlapCandidates.buffer } },
-				{ binding: 2, resource: { buffer: resources.overlapCandidateCounts.buffer } },
-				{ binding: 3, resource: { buffer: resources.rawConeRimEcef.buffer } },
-				{ binding: 4, resource: { buffer: resources.uniform.buffer } },
-				{ binding: 5, resource: { buffer: resources.coneIntersectionDistanceMeters.buffer } },
-				{ binding: 6, resource: { buffer: resources.ciseledConeRimEcef.buffer } },
-			],
-		});
-
-		const { timing } = await measureAsyncStage(
-			'cone-intersections-precompute',
-			'interactive',
-			'webgpu',
-			async () => {
-				const encoder = context.device.createCommandEncoder();
-				const pass = encoder.beginComputePass();
-				pass.setPipeline(pipeline);
-				pass.setBindGroup(0, bindGroup);
-				pass.dispatchWorkgroups(azimuthSampleCount, cityCount, 1);
-				pass.end();
-				context.queue.submit([encoder.finish()]);
-				return undefined;
-			},
-		);
-
-		const diagnostics: DatasetDiagnostic[] = [];
-		const distanceReadback = await readBackFloat32Buffer(
-			context.device,
-			resources.coneIntersectionDistanceMeters.buffer,
-			cityCount * azimuthSampleCount,
-		);
-		const rimReadback = await readBackFloat32Buffer(
-			context.device,
-			resources.ciseledConeRimEcef.buffer,
-			cityCount * azimuthSampleCount * 4,
-		);
-		if (distanceReadback && rimReadback) {
-			diagnostics.push(
-				...compareFloat32Buffers(
-					'webgpu-cone-intersection-distance',
-					reference.coneIntersectionDistanceMeters,
-					distanceReadback,
-				),
-				...compareFloat32Buffers(
-					'webgpu-ciseled-cone-rim',
-					reference.ciseledConeRimEcef,
-					rimReadback,
-				),
-			);
-		}
-
-		return { timing, diagnostics, ciseledConeRimEcef: resources.ciseledConeRimEcef };
 	}
 
 	private async runBoundaryRaycastPass(
@@ -331,195 +223,12 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		result: ComputeWorkflowResult,
 		geojsonRun: ComputeWorkflowResult['geojsonRuns'][number],
 	): Promise<{ timing: StageTiming; extraTimings?: StageTiming[]; diagnostics: DatasetDiagnostic[] }> {
-		const staticTown = result.staticTown;
-		if (!staticTown) {
-			return {
-				timing: {
-					stage: 'geojson-boundary-raycast',
-					scope: 'precompute',
-					profile: 'webgpu',
-					startedAtMs: 0,
-					endedAtMs: 0,
-					durationMs: 0,
-				},
-				extraTimings: [],
-				diagnostics: [],
-			};
-		}
-
-		const boundary = geojsonRun.boundaryPrecompute;
-		const cityCount = staticTown.cityCount;
-		const azimuthSampleCount = boundary.azimuthSampleCount;
-		const contourCount = boundary.countryContourSizes.length;
-		if (cityCount <= 0 || azimuthSampleCount <= 0) {
-			return {
-				timing: {
-					stage: 'geojson-boundary-raycast',
-					scope: 'precompute',
-					profile: 'webgpu',
-					startedAtMs: 0,
-					endedAtMs: 0,
-					durationMs: 0,
-				},
-				extraTimings: [],
-				diagnostics: [],
-			};
-		}
-
-		const cityMatrices = staticTown.cityNed2EcefMatrices;
-		const azimuthIntervals = packAzimuthIntervals(buildAzimuthIntervals(azimuthSampleCount));
-		const usage = getGpuBufferUsage();
-		const buffers = createBoundaryAlgebreDispatchResources(
-			context.device,
-			usage,
-			{
-				cityNed2EcefMatrices: cityMatrices,
-				cityContourIndexes: boundary.cityContourIndexes,
-				countryContourNVectorBuffer: boundary.countryContourNVectorBuffer,
-				countryContourOffsets: boundary.countryContourOffsets,
-				countryContourSizes: boundary.countryContourSizes,
-				azimuthIntervals,
-				cityCount,
-				azimuthIntervalCount: azimuthSampleCount,
-				contourCount,
-				earthRadiusMeters: result.preparedDataset.cityCount > 0 ? EARTH_RADIUS_METERS : 0,
-			},
-		);
-
-		const resources = await this.ensureResources();
-		const pipeline = await context.device.createComputePipelineAsync({
-			layout: 'auto',
-			compute: {
-				module: resources.shaderModuleCache?.get('boundary-algebre') ?? context.device.createShaderModule({ code: boundaryAlgebreShaderSource }),
-				entryPoint: 'main',
-			},
+		return runWebGpuBoundaryRaycastPass({
+			context,
+			result,
+			geojsonRun,
+			resources: await this.ensureResources(),
 		});
-		const bindGroup = context.device.createBindGroup({
-			layout: pipeline.getBindGroupLayout(0),
-			entries: [
-				{ binding: 0, resource: { buffer: buffers.cityMatrices.buffer } },
-				{ binding: 1, resource: { buffer: buffers.cityContourIndexes.buffer } },
-				{ binding: 2, resource: { buffer: buffers.contourNVectors.buffer } },
-				{ binding: 3, resource: { buffer: buffers.contourOffsets.buffer } },
-				{ binding: 4, resource: { buffer: buffers.contourSizes.buffer } },
-				{ binding: 5, resource: { buffer: buffers.azimuthIntervals.buffer } },
-				{ binding: 6, resource: { buffer: buffers.uniform.buffer } },
-				{ binding: 7, resource: { buffer: buffers.townBoundaryAngular.buffer } },
-				{ binding: 8, resource: { buffer: buffers.townBoundaryEcef.buffer } },
-			],
-		});
-
-		const { timing } = await measureAsyncStage(
-			'geojson-boundary-raycast',
-			'precompute',
-			'webgpu',
-			async () => {
-				const encoder = context.device.createCommandEncoder();
-				const pass = encoder.beginComputePass();
-				pass.setPipeline(pipeline);
-				pass.setBindGroup(0, bindGroup);
-				pass.dispatchWorkgroups(azimuthSampleCount, cityCount, 1);
-				pass.end();
-				context.queue.submit([encoder.finish()]);
-				return undefined;
-			},
-		);
-
-		const diagnostics: DatasetDiagnostic[] = [];
-		const angularReadback = await readBackFloat32Buffer(
-			context.device,
-			buffers.townBoundaryAngular.buffer,
-			cityCount * azimuthSampleCount * 4,
-		);
-		const ecefReadback = await readBackFloat32Buffer(
-			context.device,
-			buffers.townBoundaryEcef.buffer,
-			cityCount * azimuthSampleCount * 4,
-		);
-		if (angularReadback && ecefReadback) {
-			diagnostics.push(
-				...compareFloat32Buffers(
-					'webgpu-boundary-angular',
-					geojsonRun.boundaryRaycast.townBoundaryAngular,
-					angularReadback,
-				),
-				...compareFloat32Buffers(
-					'webgpu-boundary-ecef',
-					geojsonRun.boundaryRaycast.townBoundaryEcef,
-					ecefReadback,
-				),
-			);
-		}
-
-		if (this.#ciseledConeRimEcef && geojsonRun.finalCones) {
-			const finalResources = createFinalConesDispatchResources(
-				context.device,
-				usage,
-				{
-					ciseledConeRimEcef: this.#ciseledConeRimEcef,
-					townBoundaryAngular: buffers.townBoundaryAngular,
-					townBoundaryEcef: buffers.townBoundaryEcef,
-					cityCount,
-					azimuthSampleCount,
-					earthRadiusMeters: EARTH_RADIUS_METERS,
-				},
-			);
-			const finalPipeline = await context.device.createComputePipelineAsync({
-				layout: 'auto',
-				compute: {
-					module:
-						resources.shaderModuleCache?.get('final-cones') ??
-						context.device.createShaderModule({ code: finalConesShaderSource }),
-					entryPoint: 'main',
-				},
-			});
-			const finalBindGroup = context.device.createBindGroup({
-				layout: finalPipeline.getBindGroupLayout(0),
-				entries: [
-					{ binding: 0, resource: { buffer: finalResources.ciseledConeRimEcef.buffer } },
-					{ binding: 1, resource: { buffer: finalResources.townBoundaryAngular.buffer } },
-					{ binding: 2, resource: { buffer: finalResources.townBoundaryEcef.buffer } },
-					{ binding: 3, resource: { buffer: finalResources.uniform.buffer } },
-					{ binding: 4, resource: { buffer: finalResources.finalConeGeometryEcef.buffer } },
-				],
-			});
-			const finalTiming = await measureAsyncStage(
-				'final-cones-precompute',
-				'precompute',
-				'webgpu',
-				async () => {
-					const encoder = context.device.createCommandEncoder();
-					const pass = encoder.beginComputePass();
-					pass.setPipeline(finalPipeline);
-					pass.setBindGroup(0, finalBindGroup);
-					pass.dispatchWorkgroups(azimuthSampleCount, cityCount, 1);
-					pass.end();
-					context.queue.submit([encoder.finish()]);
-					return undefined;
-				},
-			);
-			const finalReadback = await readBackFloat32Buffer(
-				context.device,
-				finalResources.finalConeGeometryEcef.buffer,
-				cityCount * azimuthSampleCount * 4,
-			);
-			if (finalReadback) {
-				diagnostics.push(
-					...compareFloat32Buffers(
-						'webgpu-final-cone-geometry',
-						geojsonRun.finalCones.finalConeGeometryEcef,
-						finalReadback,
-					),
-				);
-			}
-			return {
-				timing,
-				extraTimings: [finalTiming.timing],
-				diagnostics,
-			};
-		}
-
-		return { timing, diagnostics };
 	}
 
 	private async runCurveGeometryPass(
