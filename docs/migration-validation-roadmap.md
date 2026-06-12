@@ -994,8 +994,13 @@ Travail deja realise:
   qui opere uniquement sur un `DatasetWorkspaceSnapshot` deja prepare;
 - le helper `runDatasetWorkspacePrecompute` reutilise le snapshot prepare et ne
   remonte que les tranches de precalcul dependantes de l'annee ou des options;
+- `src/lib/application/workspace/invalidation.ts` formalise les tranches
+  invalides par changement de requete de precompute;
 - `tests/unit/application/workspace-precompute.test.ts` caracterise la reuse
   du snapshot prepare et la variation isolee de la tranche annuelle.
+- `tests/unit/application/workspace-invalidation.test.ts` verrouille la
+  classification des changements qui impactent ou non les differentes tranches
+  de precompute.
 
 Changements qui relancent le precalcul:
 
@@ -1013,6 +1018,17 @@ Changements qui ne relancent pas le precalcul:
 - `zCoeff`;
 - affichage ou masquage des couches;
 - forme interactive des cones si les donnees necessaires sont deja preparees.
+
+Changements de requete qui ne relancent jamais `prepareDataset`:
+
+- changement d'annee;
+- changement de `boundaryAzimuthSampleCount` seulement: invalide la tranche
+  GeoJSON et la geometrie finale, pas le dataset prepare;
+- changement de `sectorCount` ou `neighborLimit`: invalide la tranche
+  `staticTown`, puis les tranches aval, mais pas le dataset prepare;
+- changement de `shape`, `azimuthSampleCount`, `coneLengthMeters` ou
+  `attenuationRadians`: invalide `rawCones` et les tranches aval, mais pas le
+  dataset prepare.
 
 Critere d'acceptation:
 
