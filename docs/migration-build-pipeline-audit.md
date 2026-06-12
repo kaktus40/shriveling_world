@@ -282,7 +282,7 @@ Avant ou pendant la migration SvelteKit:
 
 Etat `M2`:
 
-- import WGSL minimal prouve avec `src/lib/compute/kernels/city-ned2ecef.wgsl?raw`;
+- import WGSL minimal prouve avec `src/lib/compute/kernels/city-ned2ecef/webgpu.wgsl?raw`;
 - declarations TypeScript shader ajoutees dans `src/vite-env.d.ts`;
 - compression datasets portee dans `scripts/build-datasets.mjs`;
 - service worker Sapper supprime;

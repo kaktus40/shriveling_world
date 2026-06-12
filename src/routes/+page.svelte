@@ -1,5 +1,5 @@
 <script lang="ts">
-	import cityNed2EcefShader from '$lib/compute/kernels/city-ned2ecef.wgsl?raw';
+	import cityNed2EcefShader from '$lib/compute/kernels/city-ned2ecef/webgpu.wgsl?raw';
 
 	export let data: {
 		datasets: string[];

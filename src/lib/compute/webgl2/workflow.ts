@@ -1,10 +1,10 @@
-import rawConeAlphasVertexShaderSource from '../kernels/raw-cone-alphas-webgl2.vert?raw';
-import cityNed2EcefVertexShaderSource from '../kernels/city-ned2ecef-webgl2.vert?raw';
-import boundaryAlgebreVertexShaderSource from '../kernels/boundary-algebre-webgl2.vert?raw';
-import rayIntersectTriangleWebGl2ShaderSource from '../kernels/ray-intersect-triangle-webgl2.glsl?raw';
-import ciseledConesVertexShaderSource from '../kernels/ciseled-cones-webgl2.vert?raw';
-import finalConesVertexShaderSource from '../kernels/final-cones-webgl2.vert?raw';
-import curveGeometryVertexShaderSource from '../kernels/curve-geometry-webgl2.vert?raw';
+import rawConeAlphasVertexShaderSource from '../kernels/raw-cone-alphas/webgl2.vert?raw';
+import cityNed2EcefVertexShaderSource from '../kernels/city-ned2ecef/webgl2.vert?raw';
+import boundaryAlgebreVertexShaderSource from '../kernels/boundary-algebre/webgl2.vert?raw';
+import rayIntersectTriangleWebGl2ShaderSource from '../kernels/shared/ray-intersect-triangle/webgl2.glsl?raw';
+import ciseledConesVertexShaderSource from '../kernels/ciseled-cones/webgl2.vert?raw';
+import finalConesVertexShaderSource from '../kernels/final-cones/webgl2.vert?raw';
+import curveGeometryVertexShaderSource from '../kernels/curve-geometry/webgl2.vert?raw';
 import {
 	createCpuWorkflowBackend,
 	type CpuComputeWorkflowBackend,

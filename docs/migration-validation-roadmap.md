@@ -1265,7 +1265,27 @@ src/lib/compute/core/
 src/lib/compute/webgl2/
 src/lib/compute/webgpu/
 src/lib/compute/kernels/
-  city-ned2ecef.wgsl
+  city-ned2ecef/
+    webgpu.wgsl
+    webgl2.vert
+  boundary-algebre/
+    webgpu.wgsl
+    webgl2.vert
+  raw-cone-alphas/
+    webgpu.wgsl
+    webgl2.vert
+  ciseled-cones/
+    webgpu.wgsl
+    webgl2.vert
+  final-cones/
+    webgpu.wgsl
+    webgl2.vert
+  curve-geometry/
+    webgpu.wgsl
+    webgl2.vert
+  shared/ray-intersect-triangle/
+    webgpu.wgsl
+    webgl2.glsl
 ```
 
 Interface cible indicative:
@@ -1301,7 +1321,7 @@ Validation:
 
 Etat reel observe ulterieurement:
 
-- un premier kernel WGSL metier existe deja dans `src/lib/compute/kernels/city-ned2ecef.wgsl`;
+- un premier kernel WGSL metier existe deja dans `src/lib/compute/kernels/city-ned2ecef/webgpu.wgsl`;
 - l'import WGSL via Vite est deja prouve dans le shell applicatif;
 - le framework compute est amorce dans `src/lib/compute/core` et
   `src/lib/compute/cpu/workflow.ts`;

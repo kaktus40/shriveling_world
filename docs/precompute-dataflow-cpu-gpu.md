@@ -178,14 +178,14 @@ respectant les memes unites SI que le CPU et le WebGPU.
 
 ### Schema Des Buffers WebGL2
 
-Le fallback WebGL2 actuel repose sur trois passes reelles. Le tableau ci-dessous
+Le fallback WebGL2 actuel repose sur plusieurs passes reelles deja stabilisees. Le tableau ci-dessous
 fige leurs contrats de buffers.
 
 Quand l'API runtime expose `getBufferSubData`, le backend peut relire les
 buffers de transform feedback et les comparer a l'oracle CPU, sans changer le
 contrat logique des passes.
 
-#### `city-ned2ecef-webgl2.vert`
+#### `city-ned2ecef/webgl2.vert`
 
 | Binding / canal | Buffer logique | Type | Stride | Unite / ordre | Role |
 | --- | --- | --- | --- | --- | --- |
@@ -200,7 +200,7 @@ Dispatch:
 - `transform feedback` en mode interleaved;
 - `rasterizer discard` active pendant le calcul.
 
-#### `boundary-algebre-webgl2.vert`
+#### `boundary-algebre/webgl2.vert`
 
 | Binding / canal | Buffer logique | Type | Stride | Unite / ordre | Role |
 | --- | --- | --- | --- | --- | --- |
@@ -222,7 +222,7 @@ Dispatch:
 - `transform feedback` en mode separate attribs;
 - `rasterizer discard` active pendant le calcul.
 
-#### `ciseled-cones-webgl2.vert`
+#### `ciseled-cones/webgl2.vert`
 
 | Binding / canal | Buffer logique | Type | Stride | Unite / ordre | Role |
 | --- | --- | --- | --- | --- | --- |
@@ -265,11 +265,11 @@ en radians, les longueurs en metres, et l'ordre geographique des tuples.
 
 ### Schema Des Buffers WebGPU
 
-Le backend WebGPU actuel repose sur deux kernels reels. Le tableau ci-dessous
+Le backend WebGPU actuel repose sur plusieurs kernels reels deja stabilises. Le tableau ci-dessous
 fige le contrat de leurs bindings. Les noms de buffers sont stables et doivent
 rester identiques dans les tests, la documentation et les futures passes GPU.
 
-#### `city-ned2ecef.wgsl`
+#### `city-ned2ecef/webgpu.wgsl`
 
 | Binding | Buffer logique | Type | Stride | Unite / ordre | Role |
 | --- | --- | --- | --- | --- | --- |
@@ -284,7 +284,7 @@ Dispatch:
 - `global_invocation_id.z = 0`
 - taille de workgroup: `1 x 1 x 1`
 
-#### `boundary-algebre.wgsl`
+#### `boundary-algebre/webgpu.wgsl`
 
 | Binding | Buffer logique | Type | Stride | Unite / ordre | Role |
 | --- | --- | --- | --- | --- | --- |
