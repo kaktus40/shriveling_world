@@ -1,6 +1,6 @@
 import { TWO_PI } from '../../../shared';
+import { positiveAngle, positiveModulo, signedAngleDelta } from '../../../shared/math';
 import { ALPHA_SUPPORT_EPSILON_RADIANS } from './cone-intersection-constants';
-import { positiveAngle, positiveModulo, signedAngleDelta } from './cone-intersection-angular';
 import { validateAlphaAwareValues } from './cone-intersection-validation';
 
 /** Characterization of one exhaustive alpha-aware face traversal. */

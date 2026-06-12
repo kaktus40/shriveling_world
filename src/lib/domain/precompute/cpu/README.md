@@ -9,8 +9,8 @@ Conventions:
 Current layout:
 
 ```text
+src/lib/shared/math/angles.ts
 cone-intersection-constants.ts
-cone-intersection-angular.ts
 cone-intersection-validation.ts
 cone-intersection-support.ts
 cone-intersection-oracle.ts
@@ -25,3 +25,5 @@ raw-cone-cpu.ts
 cone-intersection-cpu.ts
 final-cone-cpu.ts
 ```
+
+Angles are now part of the shared math layer, not a precompute-only helper.

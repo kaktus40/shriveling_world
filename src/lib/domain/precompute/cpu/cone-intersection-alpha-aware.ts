@@ -11,7 +11,7 @@ import {
 	ALPHA_SUPPORT_EPSILON_RADIANS,
 	RAY_ORIGIN_EPSILON_METERS,
 } from './cone-intersection-constants';
-import { positiveAngle, signedAngleDelta } from './cone-intersection-angular';
+import { positiveAngle, signedAngleDelta } from '../../../shared/math';
 import { validateAlphaAwareValues } from './cone-intersection-validation';
 import {
 	buildAlphaAwareFaceTraversalFromFastFaces,

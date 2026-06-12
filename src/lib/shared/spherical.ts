@@ -1,4 +1,5 @@
-import { EARTH_RADIUS_METERS, PI, TWO_PI } from './constants';
+import { EARTH_RADIUS_METERS, PI } from './constants';
+import { positiveAngle } from './math';
 import { add3, clamp, cross3, dot3, norm3, normalize3, scale3 } from './vector3';
 import type { Vec3 } from './vector3';
 
@@ -22,8 +23,7 @@ export function lonLatToNVector([longitude, latitude]: LonLatRadians): Vec3 {
 export function nVectorToLonLat(vector: Vec3): LonLatRadians {
 	const normalized = normalize3(vector);
 	const latitude = Math.atan2(normalized[2], Math.sqrt(normalized[0] * normalized[0] + normalized[1] * normalized[1]));
-	let longitude = Math.atan2(normalized[1], normalized[0]);
-	longitude = ((((longitude - PI) % TWO_PI) + TWO_PI) % TWO_PI) - PI;
+	const longitude = positiveAngle(Math.atan2(normalized[1], normalized[0]) - PI) - PI;
 	return [longitude, latitude];
 }
 
@@ -100,24 +100,5 @@ export function greatCircleFromBearing(townNVector: Vec3, north: Vec3, east: Vec
 export function initialBearingRadians(north: Vec3, east: Vec3, targetNVector: Vec3): number {
 	const sine = dot3(targetNVector, east);
 	const cosine = dot3(targetNVector, north);
-	return (Math.atan2(sine, cosine) + TWO_PI) % TWO_PI;
-}
-
-/** Shifts an angle by full turns so it is numerically close to a reference angle. */
-export function shiftAngleNear(angleRadians: number, referenceRadians: number): number {
-	let shifted = angleRadians;
-	while (shifted - referenceRadians > PI) {
-		shifted -= TWO_PI;
-	}
-	while (referenceRadians - shifted > PI) {
-		shifted += TWO_PI;
-	}
-	return shifted;
-}
-
-/** Tests whether an angle belongs to a continuous interval, in radians. */
-export function isAngleInsideContinuousInterval(angleRadians: number, minRadians: number, maxRadians: number): boolean {
-	const centerRadians = (minRadians + maxRadians) / 2;
-	const shifted = shiftAngleNear(angleRadians, centerRadians);
-	return shifted >= minRadians && shifted <= maxRadians;
+	return positiveAngle(Math.atan2(sine, cosine));
 }

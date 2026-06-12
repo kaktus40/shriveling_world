@@ -7,7 +7,7 @@ import {
 } from '../types';
 import { RAW_CONE_RIM_ECEF_STRIDE, getRawConeAzimuthRadians } from './raw-cone-cpu';
 import { RAY_ORIGIN_EPSILON_METERS } from './cone-intersection-constants';
-import { positiveAngle, positiveModulo, signedAngleDelta } from './cone-intersection-angular';
+import { positiveAngle, signedAngleDelta } from '../../../shared/math';
 import {
 	isPreferredIntersection,
 	readCitySummit,

@@ -1,4 +1,5 @@
 import { FLOAT32_ANGULAR_EPSILON_RADIANS, TWO_PI } from '../../../shared';
+import { positiveAngle } from '../../../shared/math';
 import {
 	CITY_NED2ECEF_MATRIX_STRIDE,
 	type ConeAlphaSampleBuffers,
@@ -205,11 +206,6 @@ function selectConeAlpha(
 	const span = lowerDistance + upperDistance;
 	const interpolation = span === 0 ? 0 : smoothstep(0, span, lowerDistance);
 	return lowerAlpha + interpolation * (upperAlpha - lowerAlpha);
-}
-
-function positiveAngle(angleRadians: number): number {
-	const remainder = angleRadians % TWO_PI;
-	return remainder < 0 ? remainder + TWO_PI : remainder;
 }
 
 function smoothstep(minimum: number, maximum: number, value: number): number {

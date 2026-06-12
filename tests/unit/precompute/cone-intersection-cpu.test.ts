@@ -9,7 +9,6 @@ import {
 	benchmarkConeIntersectionOracleCpu,
 	benchmarkConeIntersectionSymmetricOrderCpu,
 	buildAlphaAwareFaceTraversal,
-	positiveAngle,
 	buildSymmetricFaceTraversal,
 	classifyFastConeFaces,
 	computeConeIntersectionAlphaAwareBlockPrunedCpu,
@@ -17,7 +16,6 @@ import {
 	computeConeIntersectionOracleCpu,
 	computeConeIntersectionSymmetricOrderCpu,
 	intersectRayTriangleDoubleSided,
-	signedAngleDelta,
 	type ConeIntersectionStaticInput,
 	type RawConePrecompute,
 	type SymmetricConeIntersectionStaticInput,
@@ -116,12 +114,6 @@ test('symmetric face traversal starts at phiB0 and follows the shortest directio
 	assert.deepEqual(Array.from(buildSymmetricFaceTraversal(Math.PI, Math.PI * 1.25, 8)), [4, 5, 6, 7, 0, 1, 2, 3]);
 	assert.deepEqual(Array.from(buildSymmetricFaceTraversal(Math.PI, Math.PI * 0.75, 8)), [4, 3, 2, 1, 0, 7, 6, 5]);
 	assert.deepEqual(Array.from(buildSymmetricFaceTraversal(-Math.PI / 8, 0, 8)), [7, 0, 1, 2, 3, 4, 5, 6]);
-});
-
-test('centralized angular helpers normalize positive angles and signed deltas consistently', () => {
-	assert.equal(positiveAngle(-Math.PI / 2), (3 * Math.PI) / 2);
-	assert.equal(signedAngleDelta((3 * Math.PI) / 2), -Math.PI / 2);
-	assert.equal(signedAngleDelta(Math.PI / 2), Math.PI / 2);
 });
 
 test('fast-face classification includes both faces touching a fast alpha sample', () => {

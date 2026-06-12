@@ -124,10 +124,11 @@ Regles non negociables:
   d'import humain ou de rendu d'interface;
 - les constantes communes sont partagees par TypeScript et WGSL:
   `PI`, `TWO_PI`, `HALF_PI`, `EARTH_RADIUS_METERS`.
-- les helpers math shaders partages vivent dans
-  `src/lib/compute/kernels/shared/math/` et sont concatenés aux passes
-  `raw-cone-alphas` et `boundary-algebre` pour garder une lecture uniforme
-  entre WebGPU et WebGL2.
+- les helpers math partages vivent dans `src/lib/shared/math/` cote TypeScript;
+  leurs miroirs shader vivent dans `src/lib/compute/kernels/shared/math/`.
+  Ces deux noyaux sont independants des passes et sont reutilises par
+  `raw-cone-alphas`, `boundary-algebre` et les autres tranches qui ont besoin
+  des memes primitives.
 
 Conventions de buffers:
 
