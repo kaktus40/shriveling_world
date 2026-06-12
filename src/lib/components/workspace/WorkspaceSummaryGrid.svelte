@@ -4,6 +4,7 @@
 		DatasetWorkspaceSummary,
 	} from '$lib/application/workspace';
 	import type { ComputeConeIntersectionStrategy, ComputeProfile } from '$lib/compute';
+	import WorkspaceSummaryCard from './WorkspaceSummaryCard.svelte';
 
 	export let summary: DatasetWorkspaceSummary | null = null;
 	export let workspaceCompute: DatasetWorkspaceCompute | null = null;
@@ -31,32 +32,28 @@
 
 {#if summary}
 	<section class="summary-grid">
-		<article class="panel">
-			<h2>Dataset</h2>
+		<WorkspaceSummaryCard title="Dataset">
 			<p><strong>Name:</strong> {summary.datasetName}</p>
 			<p><strong>Source files:</strong> {summary.sourceFileCount}</p>
 			<p><strong>GeoJSON files:</strong> {summary.geojsonFileCount}</p>
 			<p><strong>Inspected files:</strong> {summary.inspectedFileCount}</p>
-		</article>
+		</WorkspaceSummaryCard>
 
-		<article class="panel">
-			<h2>Prepared entities</h2>
+		<WorkspaceSummaryCard title="Prepared entities">
 			<p><strong>Cities:</strong> {summary.cityCount}</p>
 			<p><strong>Edges:</strong> {summary.edgeCount}</p>
 			<p><strong>Modes:</strong> {summary.modeCount}</p>
 			<p><strong>Queryable fields:</strong> {summary.queryableFieldCount}</p>
-		</article>
+		</WorkspaceSummaryCard>
 
-		<article class="panel">
-			<h2>Prepared span</h2>
+		<WorkspaceSummaryCard title="Prepared span">
 			<p><strong>Begin:</strong> {summary.yearBegin}</p>
 			<p><strong>End:</strong> {summary.yearEnd}</p>
 			<p><strong>Errors:</strong> {summary.errorCount}</p>
 			<p><strong>Warnings:</strong> {summary.warningCount}</p>
-		</article>
+		</WorkspaceSummaryCard>
 
-		<article class="panel">
-			<h2>Compute profile</h2>
+		<WorkspaceSummaryCard title="Compute profile">
 			<p><strong>Requested:</strong> {computeSummaryLabel(selectedComputeProfile)}</p>
 			<p><strong>Cone strategy:</strong> {computeStrategyLabel(selectedConeIntersectionStrategy)}</p>
 			<p>
@@ -66,7 +63,7 @@
 			<p><strong>Fallback:</strong> {workspaceCompute?.selection.fallbackUsed ? 'yes' : 'no'}</p>
 			<p><strong>Benchmark:</strong> {computeLoading ? 'running...' : 'ready'}</p>
 			<p><strong>Diagnostics:</strong> {workspaceCompute ? workspaceCompute.result.diagnostics.length : 0}</p>
-		</article>
+		</WorkspaceSummaryCard>
 	</section>
 {/if}
 
@@ -78,21 +75,4 @@
 		margin-bottom: 1rem;
 	}
 
-	.panel {
-		padding: 1.1rem 1.2rem;
-		background: rgba(12, 19, 26, 0.8);
-		border: 1px solid rgba(138, 168, 178, 0.2);
-		border-radius: 1rem;
-		overflow: auto;
-		min-width: 0;
-	}
-
-	.panel h2,
-	.panel p {
-		margin-top: 0;
-	}
-
-	.panel p:last-child {
-		margin-bottom: 0;
-	}
 </style>

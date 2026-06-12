@@ -1568,6 +1568,11 @@ Travail deja realise:
   - `src/lib/components/workspace/WorkspaceComputePanel.svelte`;
   - `src/lib/components/workspace/WorkspaceDatasetDetails.svelte`;
   - `src/lib/components/workspace/WorkspaceQueryPanel.svelte`;
+- extraction de sous-panneaux de synthese `workspace` vers:
+  - `src/lib/components/workspace/WorkspaceSummaryCard.svelte`;
+- extraction de sous-panneaux `query` vers:
+  - `src/lib/components/query/QuerySnapshotFieldsPanel.svelte`;
+  - `src/lib/components/query/QueryExecutionResultPanel.svelte`;
 - extraction de panneaux communs reutilisables vers:
   - `src/lib/components/shared/DiagnosticsDetails.svelte`;
   - `src/lib/components/shared/MetricCardGrid.svelte`;
