@@ -1,8 +1,11 @@
 import { PI, TWO_PI } from '../../../shared';
+import { ALPHA_SUPPORT_EPSILON_RADIANS } from './cone-intersection-constants';
 import {
-	ALPHA_SUPPORT_EPSILON_RADIANS,
-	validateRoadAlphaRadians,
-} from './cone-intersection-constants';
+	positiveModulo,
+	wrapPositive,
+	wrapSigned,
+} from './cone-intersection-angular';
+import { validateAlphaAwareValues } from './cone-intersection-validation';
 
 /** Characterization of one exhaustive alpha-aware face traversal. */
 export interface AlphaAwareFaceTraversal {
@@ -83,9 +86,7 @@ export function buildAlternatingFaceTraversal(
 	return traversal;
 }
 
-/**
- * Classifies faces touching an alpha sample strictly faster than Road.
- */
+/** Classifies faces touching an alpha sample strictly faster than Road. */
 export function classifyFastConeFaces(
 	coneAlphaRadians: ArrayLike<number>,
 	roadAlphaRadians: number,
@@ -108,9 +109,7 @@ export function classifyFastConeFaces(
 	return fastFaces;
 }
 
-/**
- * Builds the exhaustive alpha-aware order for one ray of A against cone B.
- */
+/** Builds the exhaustive alpha-aware order for one ray of A against cone B. */
 export function buildAlphaAwareFaceTraversal(
 	phiB0Radians: number,
 	gammaBARadians: number,
@@ -140,6 +139,9 @@ export function buildAlphaAwareFaceTraversal(
 	);
 }
 
+/**
+ * Builds the exhaustive alpha-aware order from an already classified fast-face mask.
+ */
 export function buildAlphaAwareFaceTraversalFromFastFaces(
 	phiB0Radians: number,
 	gammaBARadians: number,
@@ -198,37 +200,4 @@ export function buildAlphaAwareFaceTraversalFromFastFaces(
 		priorityFaceCount: priority.length,
 		priorityFastFaceCount: priority.reduce((count, faceIndex) => count + fastFaces[faceIndex], 0),
 	};
-}
-
-export function validateAlphaAwareValues(
-	faceCount: number,
-	roadAlphaRadians: number,
-	bilateralNeighborhoodFaceCount: number,
-	alphaEpsilonRadians: number,
-): void {
-	if (!Number.isSafeInteger(faceCount) || faceCount < 3) {
-		throw new RangeError('alpha-aware traversal requires at least three azimuth samples');
-	}
-	validateRoadAlphaRadians(roadAlphaRadians);
-	if (!Number.isSafeInteger(bilateralNeighborhoodFaceCount) || bilateralNeighborhoodFaceCount < 0) {
-		throw new RangeError('bilateralNeighborhoodFaceCount must be a non-negative safe integer');
-	}
-	if (!Number.isFinite(alphaEpsilonRadians) || alphaEpsilonRadians < 0) {
-		throw new RangeError('alphaEpsilonRadians must be finite and non-negative');
-	}
-}
-
-export function wrapPositive(angleRadians: number): number {
-	const remainder = angleRadians % TWO_PI;
-	return remainder < 0 ? remainder + TWO_PI : remainder;
-}
-
-export function wrapSigned(angleRadians: number): number {
-	const positive = wrapPositive(angleRadians);
-	return positive > PI ? positive - TWO_PI : positive;
-}
-
-export function positiveModulo(value: number, modulus: number): number {
-	const remainder = value % modulus;
-	return remainder < 0 ? remainder + modulus : remainder;
 }

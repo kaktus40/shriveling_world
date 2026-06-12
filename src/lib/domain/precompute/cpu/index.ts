@@ -6,4 +6,6 @@ export * from './raw-cone-cpu';
 export * from './cone-intersection-cpu';
 export * from './final-cone-cpu';
 export * from './cone-intersection-traversal';
+export * from './cone-intersection-angular';
+export * from './cone-intersection-validation';
 export * from './cone-intersection-constants';

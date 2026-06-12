@@ -19,13 +19,15 @@ import {
 	RAY_TRIANGLE_DETERMINANT_EPSILON,
 } from './cone-intersection-constants';
 import {
+	wrapPositive,
+	wrapSigned,
+} from './cone-intersection-angular';
+import { validateAlphaAwareValues } from './cone-intersection-validation';
+import {
 	buildAlphaAwareFaceTraversal,
 	buildAlphaAwareFaceTraversalFromFastFaces,
 	buildSymmetricFaceTraversal,
 	classifyFastConeFaces,
-	validateAlphaAwareValues,
-	wrapPositive,
-	wrapSigned,
 } from './cone-intersection-traversal';
 
 /** Three-dimensional vector accepted by the CPU intersection primitive. */
@@ -205,6 +207,12 @@ export function computeConeIntersectionOracleCpu(
 	};
 }
 
+/**
+ * Clips cones exhaustively while visiting B faces in symmetric-ray order.
+ *
+ * The order changes only the traversal priority; it never removes a face and
+ * therefore remains a pure characterization of the oracle.
+ */
 export function computeConeIntersectionSymmetricOrderCpu(
 	staticInput: SymmetricConeIntersectionStaticInput,
 	rawCones: RawConePrecompute,
@@ -313,6 +321,13 @@ export function computeConeIntersectionSymmetricOrderCpu(
 	};
 }
 
+/**
+ * Clips cones exhaustively while prioritizing the alpha-aware search window.
+ *
+ * The traversal still visits every face exactly once. The additional outputs
+ * measure how often the proposal window finds the winning face early enough to
+ * justify later pruning heuristics.
+ */
 export function computeConeIntersectionAlphaAwareOrderCpu(
 	staticInput: SymmetricConeIntersectionStaticInput,
 	rawCones: RawConePrecompute,
@@ -456,6 +471,13 @@ export function computeConeIntersectionAlphaAwareOrderCpu(
 	};
 }
 
+/**
+ * Clips cones exhaustively while pruning conservative alpha-aware blocks.
+ *
+ * A block is rejected only when its conservative entry bound cannot beat the
+ * current best intersection distance, so the result remains conformant with
+ * the oracle while exposing block-level benchmark counters.
+ */
 export function computeConeIntersectionAlphaAwareBlockPrunedCpu(
 	staticInput: SymmetricConeIntersectionStaticInput,
 	rawCones: RawConePrecompute,

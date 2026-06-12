@@ -9,6 +9,12 @@ export const RAY_ORIGIN_EPSILON_METERS = 1e-5;
 /** Default tolerance used to distinguish fast alpha samples from Road alpha. */
 export const ALPHA_SUPPORT_EPSILON_RADIANS = 1e-6;
 
+/**
+ * Validates the canonical Road alpha range used by cone traversal heuristics.
+ *
+ * The value is a normalized angular bound in radians and must stay inside the
+ * closed interval `[0, PI / 2]` to preserve the cone geometry contract.
+ */
 export function validateRoadAlphaRadians(roadAlphaRadians: number): void {
 	if (!Number.isFinite(roadAlphaRadians) || roadAlphaRadians < 0 || roadAlphaRadians > PI / 2) {
 		throw new RangeError('roadAlphaRadians must be finite and within [0, PI / 2]');

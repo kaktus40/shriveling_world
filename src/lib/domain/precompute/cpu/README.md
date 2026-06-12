@@ -9,6 +9,9 @@ Conventions:
 Current layout:
 
 ```text
+cone-intersection-constants.ts
+cone-intersection-angular.ts
+cone-intersection-validation.ts
 static-town-cpu.ts
 overlap-cpu.ts
 curve-cpu.ts
