@@ -100,7 +100,7 @@ Utiliser les statuts suivants:
 | M4 | validated | Architecture explicite de precalcul |
 | M4.1 | validated | Socle de tests CPU et contrats de buffers |
 | M5 | deferred | Prototype comparatif de rendu Babylon.js / luma.gl |
-| M6 | in_progress | Framework compute multi-profil et fallback WebGPU -> WebGL2 -> CPU |
+| M6 | validated | Framework compute multi-profil et fallback WebGPU -> WebGL2 -> CPU |
 | M7 | in_progress | Portage WGSL / backend WebGPU des passes existantes |
 | M8 | in_progress | Nouveau pipeline d'intersections |
 | M9.0 | in_progress | Modularisation UI en deux pans (workspace / app) |
@@ -1409,18 +1409,18 @@ Travail deja realise:
 - la geometrie des courbes est portee et benchmarkee sur CPU, WebGL2 et
   WebGPU avec le meme contrat de sortie render-ready;
 - les passes cones principales sont deja en place sur les trois profils;
-- la prochaine phase de M7 consiste surtout a durcir les comparaisons et a
-  finir les derniers kernels utilitaires encore partiellement portés.
+- les helpers math partages existent deja en TS et WGSL/GLSL;
+- la prochaine phase de M7 consiste surtout a durcir les comparaisons,
+  harmoniser les derniers helpers math/shader encore locaux et consolider les
+  readbacks de validation.
 
 Travail attendu:
 
-- traduire les fonctions communes en WGSL;
-- remplacer les textures de donnees par des storage buffers;
-- expliciter les uniforms dans des structs WGSL;
 - brancher les passes sur l'orchestrateur de M6;
-- porter la selection d'alpha des raw cones;
-- ajouter des tests de comparaison avec les snapshots M1;
-- mesurer les performances;
+- supprimer les derniers doublons de primitives geometriques entre passes;
+- expliciter les uniforms dans des structs WGSL et des contrats de buffers;
+- ajouter des tests de comparaison stables pour les passes deja portees;
+- mesurer les performances de maniere comparable par profil;
 - garder le backend CPU comme oracle et le backend WebGL2 comme fallback.
 
 Critere d'acceptation:
@@ -1429,8 +1429,8 @@ Critere d'acceptation:
 - les passes interactives peuvent etre lancees sans reconstruire le precalcul;
 - le backend WebGPU s'integre dans la chaine de fallback sans modifier les
   contrats de buffers;
-- la selection d'alpha des raw cones est benchmarkee sur le meme contrat que
-  la reference CPU;
+- les passes deja portees sont benchmarkees sur le meme contrat que la
+  reference CPU;
 - les readbacks CPU ne sont utilises que pour tests/debug.
 
 Validation:
@@ -1858,3 +1858,4 @@ Entrees:
 - 2026-06-04 - M3.1 - in_progress - commit `465e71d` - scripts dataset raccordes au module TypeScript documente; pipeline CSV complet non valide.
 - 2026-06-07 - M3.1 - validated - commit `0bd9ca0` - tests d'integration du pipeline lossless, invariance a l'ordre et diagnostics complets.
 - 2026-06-07 - M3/M4/M8 - in_progress - commit `ff17606` - routes SvelteKit `test1/test2/test3` portees sur le pipeline moderne et pile legacy Sapper/Three/Rollup supprimee.
+- 2026-06-12 - M6 - validated - commit `b104449` - contrat compute canonique fige, orchestrateur explicite partage entre workspace et future app.
