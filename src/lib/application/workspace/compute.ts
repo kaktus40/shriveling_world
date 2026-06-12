@@ -2,12 +2,11 @@ import {
 	createDefaultComputeBackendRegistry,
 	createWebGl2ComputeBackendDescriptor,
 	createWebGpuComputeBackendDescriptor,
-	selectComputeProfile,
+	createComputeOrchestrator,
 	type ComputeBenchmarkReport,
 	type ComputeConeIntersectionStrategy,
 	type ComputeProfile,
 	type ComputeProfileSelection,
-	type ComputeBackend,
 	type ComputeBackendRegistry,
 	type ComputeResult,
 } from '$lib/compute';
@@ -41,54 +40,45 @@ export async function computeWorkspaceDataset(
 	workspace: WorkspaceDatasetSnapshot,
 	request: WorkspaceComputeRequest = {},
 ): Promise<WorkspaceComputeResult> {
-	const registry = createWorkspaceComputeBackendRegistry();
-	const selection = await selectComputeProfile(
+	const orchestrator = createComputeOrchestrator(createWorkspaceComputeBackendRegistry());
+	const coneOptions = createDefaultConePipelineOptions(workspace.pipeline.preparedDataset);
+	const result = await orchestrator.computeFrame(
+		{
+			sourceFiles: workspace.files,
+			geojsonSources: workspace.geojsonEntries,
+		},
+		{
+			profileRequest: {
+				preferred: request.profile,
+				forced: request.forced,
+				allowFallback: request.allowFallback ?? true,
+			},
+			benchmark: request.benchmark ?? true,
+			boundaryRaycast: { azimuthSampleCount: 360 },
+			staticTown: { sectorCount: 360, neighborLimit: Math.min(Math.max(workspace.pipeline.preparedDataset.cityCount - 1, 0), 16) },
+			dynamicYear: workspace.pipeline.preparedDataset.speedTimeline.span.beginYear,
+			rawCone: {
+				shape: coneOptions.shape,
+				azimuthSampleCount: coneOptions.azimuthSampleCount,
+				coneLengthMeters: coneOptions.coneLengthMeters,
+				attenuationRadians: coneOptions.attenuationRadians,
+			},
+			coneIntersection: {
+				enabled: true,
+				strategy: request.coneIntersectionStrategy ?? 'oracle',
+			},
+		},
 		{
 			preferred: request.profile,
 			forced: request.forced,
 			allowFallback: request.allowFallback ?? true,
 		},
-		registry,
 	);
-	const backend = await resolveSelectedBackend(registry, selection);
-	try {
-		const coneOptions = createDefaultConePipelineOptions(workspace.pipeline.preparedDataset);
-		const result = await backend.computeFrame(
-			{
-				sourceFiles: workspace.files,
-				geojsonSources: workspace.geojsonEntries,
-			},
-			{
-				profileRequest: {
-					preferred: request.profile,
-					forced: request.forced,
-					allowFallback: request.allowFallback ?? true,
-				},
-				benchmark: request.benchmark ?? true,
-				boundaryRaycast: { azimuthSampleCount: 360 },
-				staticTown: { sectorCount: 360, neighborLimit: Math.min(Math.max(workspace.pipeline.preparedDataset.cityCount - 1, 0), 16) },
-				dynamicYear: workspace.pipeline.preparedDataset.speedTimeline.span.beginYear,
-				rawCone: {
-					shape: coneOptions.shape,
-					azimuthSampleCount: coneOptions.azimuthSampleCount,
-					coneLengthMeters: coneOptions.coneLengthMeters,
-					attenuationRadians: coneOptions.attenuationRadians,
-				},
-				coneIntersection: {
-					enabled: true,
-					strategy: request.coneIntersectionStrategy ?? 'oracle',
-				},
-			},
-			selection,
-		);
-		return {
-			selection,
-			benchmark: result.benchmark,
-			result,
-		};
-	} finally {
-		await backend.dispose();
-	}
+	return {
+		selection: result.selection,
+		benchmark: result.benchmark,
+		result,
+	};
 }
 
 function createWorkspaceComputeBackendRegistry(): ComputeBackendRegistry {
@@ -97,14 +87,4 @@ function createWorkspaceComputeBackendRegistry(): ComputeBackendRegistry {
 		webgl2: createWebGl2ComputeBackendDescriptor(),
 		webgpu: createWebGpuComputeBackendDescriptor(),
 	};
-}
-
-async function resolveSelectedBackend(
-	registry: ComputeBackendRegistry,
-	selection: ComputeProfileSelection,
-): Promise<ComputeBackend> {
-	if (selection.selected === 'webgl2' && registry.webgl2) {
-		return registry.webgl2.create();
-	}
-	return registry.cpu.create();
 }

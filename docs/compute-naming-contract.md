@@ -44,18 +44,20 @@ Forbidden public verbs in the final compute API:
 - `process`
 - `workflow`
 
+The canonical orchestrator exposes:
+
+- `selectProfile(request)`
+- `computeFrame(input, options, request)`
+
 ## Application
 
-The canonical public surface planned for M6 is:
+The canonical public surface fixed for M6 is:
 
 - `ComputeBackend`
 - `ComputeOrchestrator`
 - `ComputeInput`
 - `ComputeOptions`
 - `ComputeResult`
-- `ComputeBackendResources`
-- `ComputeFrameRequest`
-- `ComputeFrameResult`
 - `ComputeProfileRequest`
 - `ComputeProfileSelection`
 - `ComputeCapabilities`

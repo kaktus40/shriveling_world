@@ -66,9 +66,8 @@ Utiliser les statuts suivants:
 - La nomenclature publique compute est fixee par
   `docs/compute-naming-contract.md`:
   `Backend`, `Orchestrator`, `Profile`, `Selection`, `Capabilities`, `Input`,
-  `Options`, `Resources`, `Frame`, `Result`, `Report`, `Descriptor`,
-  `Registry`.
-  `Backend` et `run(...)` ne doivent pas rester dans l'API publique finale.
+  `Options`, `Result`, `Report`, `Descriptor`, `Registry`.
+  `run(...)` et `workflow` ne doivent pas rester dans l'API publique finale.
 - La cible de runner pour la migration est `Vitest` pour les tests unitaires,
   d'integration et de conformance CPU, avec `Playwright` pour les tests E2E et
   de rendu.
@@ -1304,8 +1303,21 @@ Interface cible canonique:
 ```ts
 interface ComputeBackend {
   readonly profile: 'webgpu' | 'webgl2' | 'cpu';
-  prepareStaticBuffers(prepared: PreparedDataset): Promise<ComputeBackendResources>;
-  computeFrame(input: ComputeFrameRequest): Promise<ComputeFrameResult>;
+  computeFrame(
+    input: ComputeInput,
+    options?: ComputeOptions,
+    selection?: ComputeProfileSelection,
+  ): Promise<ComputeResult>;
+  dispose(): Promise<void>;
+}
+
+interface ComputeOrchestrator {
+  selectProfile(request: ComputeProfileRequest): Promise<ComputeProfileSelection>;
+  computeFrame(
+    input: ComputeInput,
+    options?: ComputeOptions,
+    request?: ComputeProfileRequest,
+  ): Promise<ComputeResult>;
   dispose(): Promise<void>;
 }
 ```
