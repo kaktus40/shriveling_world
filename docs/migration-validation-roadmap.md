@@ -1570,6 +1570,10 @@ Travail deja realise:
   - `src/lib/components/workspace/WorkspaceQueryPanel.svelte`;
 - extraction de l orchestration applicative de page vers:
   - `src/lib/application/workspace/page.ts`;
+- extraction de la barre de controle `workspace` vers:
+  - `src/lib/components/workspace/WorkspaceControls.svelte`;
+- extraction des panneaux de statut `workspace` vers:
+  - `src/lib/components/workspace/WorkspaceNoticePanel.svelte`;
 - extraction de sous-panneaux de synthese `workspace` vers:
   - `src/lib/components/workspace/WorkspaceSummaryCard.svelte`;
 - extraction de sous-panneaux `query` vers:

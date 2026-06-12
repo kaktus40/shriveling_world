@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import WorkspaceControls from '$lib/components/workspace/WorkspaceControls.svelte';
+	import WorkspaceNoticePanel from '$lib/components/workspace/WorkspaceNoticePanel.svelte';
 	import WorkspaceSummaryGrid from '$lib/components/workspace/WorkspaceSummaryGrid.svelte';
 	import WorkspaceComputePanel from '$lib/components/workspace/WorkspaceComputePanel.svelte';
 	import WorkspaceDatasetDetails from '$lib/components/workspace/WorkspaceDatasetDetails.svelte';
@@ -114,6 +116,28 @@
 
 	$: computeDiagnostics = workspaceCompute?.result.diagnostics ?? [];
 
+	function refreshWorkspaceQueryTree(): void {
+		if (!querySnapshot) {
+			return;
+		}
+
+		queryTree = createDefaultQueryTree(querySnapshot.fields);
+		queryResult = null;
+		queryError = '';
+		scheduleQueryRun();
+	}
+
+	function clearWorkspaceQueryMutationState(): void {
+		queryResult = null;
+		queryError = '';
+	}
+
+	function applyQueryMutation(mutator: () => void): void {
+		mutator();
+		clearWorkspaceQueryMutationState();
+		scheduleQueryRun();
+	}
+
 	async function reloadCompute(): Promise<void> {
 		const currentWorkspace = workspace;
 		if (!currentWorkspace) {
@@ -168,14 +192,7 @@
 	}
 
 	function resetQuery(): void {
-		if (!querySnapshot) {
-			return;
-		}
-
-		queryTree = createDefaultQueryTree(querySnapshot.fields);
-		queryResult = null;
-		queryError = '';
-		scheduleQueryRun();
+		refreshWorkspaceQueryTree();
 	}
 
 	function updateQueryNode(path: number[], nextNode: QueryNode): void {
@@ -183,10 +200,9 @@
 			return;
 		}
 
-		queryTree = updateQueryNodeAtPath(queryTree, path, () => nextNode);
-		queryResult = null;
-		queryError = '';
-		scheduleQueryRun();
+		applyQueryMutation(() => {
+			queryTree = updateQueryNodeAtPath(queryTree as QueryNode, path, () => nextNode);
+		});
 	}
 
 	function deleteQueryNode(path: number[]): void {
@@ -194,10 +210,9 @@
 			return;
 		}
 
-		queryTree = removeQueryNodeAtPath(queryTree, path);
-		queryResult = null;
-		queryError = '';
-		scheduleQueryRun();
+		applyQueryMutation(() => {
+			queryTree = removeQueryNodeAtPath(queryTree as QueryNode, path);
+		});
 	}
 
 	function insertQueryNode(path: number[], child: QueryNode): void {
@@ -205,10 +220,9 @@
 			return;
 		}
 
-		queryTree = insertQueryNodeAtPath(queryTree, path, child);
-		queryResult = null;
-		queryError = '';
-		scheduleQueryRun();
+		applyQueryMutation(() => {
+			queryTree = insertQueryNodeAtPath(queryTree as QueryNode, path, child);
+		});
 	}
 
 	function moveQueryNode(path: number[], direction: -1 | 1): void {
@@ -216,10 +230,9 @@
 			return;
 		}
 
-		queryTree = moveQueryNodeAtPath(queryTree, path, direction);
-		queryResult = null;
-		queryError = '';
-		scheduleQueryRun();
+		applyQueryMutation(() => {
+			queryTree = moveQueryNodeAtPath(queryTree as QueryNode, path, direction);
+		});
 	}
 </script>
 
@@ -233,54 +246,22 @@
 	</p>
 </section>
 
-<section class="controls panel">
-	<label>
-		<span>Bundled dataset</span>
-		<select bind:value={selectedDataset} on:change={() => void reloadWorkspace()}>
-			{#each data.datasets as datasetName}
-				<option value={datasetName}>{datasetName}</option>
-			{/each}
-		</select>
-	</label>
-
-	<label>
-		<span>Compute profile</span>
-		<select bind:value={selectedComputeProfile} on:change={() => void reloadCompute()}>
-			<option value="cpu">CPU</option>
-			<option value="webgl2">WebGL2</option>
-			<option value="webgpu">WebGPU</option>
-		</select>
-	</label>
-
-	<label>
-		<span>Cone strategy</span>
-		<select bind:value={selectedConeIntersectionStrategy} on:change={() => void reloadCompute()}>
-			<option value="oracle">Oracle</option>
-			<option value="symmetric-order">Symmetric order</option>
-			<option value="alpha-aware-order">Alpha-aware order</option>
-			<option value="alpha-aware-block-pruned">Alpha-aware block-pruned</option>
-		</select>
-	</label>
-
-	<button on:click={() => void reloadWorkspace()} disabled={loading}>
-		{loading ? 'Loading...' : 'Reload workspace'}
-	</button>
-
-	<a class="nav-link" href="/test">Open validation routes</a>
-</section>
+<WorkspaceControls
+	datasets={data.datasets}
+	bind:selectedDataset
+	bind:selectedComputeProfile
+	bind:selectedConeIntersectionStrategy
+	{loading}
+	onReloadWorkspace={() => void reloadWorkspace()}
+	onReloadCompute={() => void reloadCompute()}
+/>
 
 {#if errorMessage}
-	<section class="panel error">
-		<h2>Workspace error</h2>
-		<pre>{errorMessage}</pre>
-	</section>
+	<WorkspaceNoticePanel title="Workspace error" message={errorMessage} kind="error" />
 {/if}
 
 {#if computeError}
-	<section class="panel error">
-		<h2>Compute error</h2>
-		<pre>{computeError}</pre>
-	</section>
+	<WorkspaceNoticePanel title="Compute error" message={computeError} kind="error" />
 {/if}
 
 {#if summary && workspace}
@@ -322,74 +303,3 @@
 		cityCodes={Array.from(workspace.pipeline.preparedDataset.cityCodes)}
 	/>
 {/if}
-
-<style>
-	.page-head {
-		padding: 1.1rem 1.2rem;
-		margin-bottom: 1rem;
-		background: rgba(12, 19, 26, 0.8);
-		border: 1px solid rgba(138, 168, 178, 0.2);
-		border-radius: 1rem;
-	}
-
-	.panel {
-		padding: 1.1rem 1.2rem;
-		background: rgba(12, 19, 26, 0.8);
-		border: 1px solid rgba(138, 168, 178, 0.2);
-		border-radius: 1rem;
-		overflow: auto;
-		min-width: 0;
-	}
-
-	.controls {
-		padding: 1.1rem 1.2rem;
-		margin-bottom: 1rem;
-		display: flex;
-		flex-wrap: wrap;
-		gap: 1rem;
-	}
-
-	.eyebrow {
-		margin: 0 0 0.4rem;
-		font-size: 0.74rem;
-		letter-spacing: 0.18em;
-		text-transform: uppercase;
-		color: #8ae0dc;
-	}
-
-	.lede {
-		max-width: 70ch;
-	}
-
-	label {
-		display: grid;
-		gap: 0.4rem;
-		min-width: 16rem;
-	}
-
-	select,
-	button {
-		padding: 0.7rem 0.8rem;
-		border: 1px solid rgba(138, 168, 178, 0.22);
-		border-radius: 0.8rem;
-		background: rgba(9, 14, 20, 0.9);
-		color: #d7e2e4;
-	}
-
-	button {
-		cursor: pointer;
-		font-weight: 700;
-	}
-
-	.nav-link {
-		align-self: end;
-		color: #8ae0dc;
-		font-weight: 700;
-	}
-
-	@media (max-width: 960px) {
-		.controls {
-			flex-direction: column;
-		}
-	}
-</style>
