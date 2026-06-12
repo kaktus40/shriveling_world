@@ -3,6 +3,7 @@ import {
 	type CpuComputeWorkflowBackend,
 } from '../cpu';
 import { type GpuBufferAllocation } from './buffers';
+import { getGpuBufferUsage, remapBenchmarkProfile, tagDiagnostics } from '../shared/workflow';
 import { createWebGpuComputeResources } from './resources';
 import { runWebGpuCityMatrixPass } from './passes/city-ned2ecef';
 import { runWebGpuBoundaryRaycastPass } from './passes/boundary-algebre';
@@ -10,7 +11,6 @@ import { runWebGpuCiseledConePass } from './passes/ciseled-cones';
 import { runWebGpuCurveGeometryPass } from './passes/curve-geometry';
 import { runWebGpuRawConeAlphaPass } from './passes/raw-cone-alphas';
 import type {
-	ComputeBenchmarkReport,
 	ComputeCapabilities,
 	ComputeProfileSelection,
 	ComputeWorkflowBackend,
@@ -110,7 +110,14 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		return {
 			...result,
 			selection: delegatedSelection,
-			benchmark: remapBenchmarkProfile(result.benchmark, extraTimings),
+			benchmark: remapBenchmarkProfile(
+				result.benchmark,
+				this.profile,
+				extraTimings,
+				[
+					'WebGPU backend dispatches city NED-to-ECEF, raw-cone alpha, cone-cone, boundary and final geometry passes before delegating the remaining compute stages to the CPU reference backend.',
+				],
+			),
 			diagnostics: [
 				...result.diagnostics,
 				...tagDiagnostics(compareDiagnostics, this.profile),
@@ -255,62 +262,9 @@ export function createWebGpuWorkflowBackendDescriptor(
 	};
 }
 
-function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport, extraTimings: readonly StageTiming[]): ComputeBenchmarkReport {
-	const timings = [...benchmark.timings, ...extraTimings];
-	return {
-		...benchmark,
-		profile: 'webgpu',
-		timings: timings.map((timing) => ({
-			...timing,
-			profile: 'webgpu',
-		})),
-		totalDurationMs: benchmark.totalDurationMs + extraTimings.reduce((sum, timing) => sum + timing.durationMs, 0),
-		notes: [
-			...benchmark.notes,
-			'WebGPU backend dispatches city NED-to-ECEF, raw-cone alpha, cone-cone, boundary and final geometry passes before delegating the remaining compute stages to the CPU reference backend.',
-		],
-	};
-}
-
-function tagDiagnostics<T extends { severity: 'warning' | 'error'; code: string; profile?: string }>(
-	diagnostics: readonly T[],
-	profile: string,
-): T[] {
-	return diagnostics.map((diagnostic) =>
-		diagnostic.profile === profile ? diagnostic : { ...diagnostic, profile },
-	);
-}
-
 async function defaultRequestWebGpuAdapter(): Promise<GPUAdapter | null> {
 	if (typeof navigator === 'undefined' || !('gpu' in navigator) || !navigator.gpu) {
 		return null;
 	}
 	return navigator.gpu.requestAdapter();
-}
-
-function getGpuBufferUsage(): {
-	readonly STORAGE: number;
-	readonly COPY_DST: number;
-	readonly COPY_SRC: number;
-	readonly UNIFORM: number;
-	readonly MAP_READ: number;
-} {
-	const usage = (globalThis as typeof globalThis & {
-		GPUBufferUsage?: {
-			STORAGE: number;
-			COPY_DST: number;
-			COPY_SRC: number;
-			UNIFORM: number;
-			MAP_READ: number;
-		};
-	}).GPUBufferUsage;
-	return (
-		usage ?? {
-			STORAGE: 1 << 7,
-			COPY_DST: 1 << 3,
-			COPY_SRC: 1 << 1,
-			UNIFORM: 1 << 6,
-			MAP_READ: 1 << 0,
-		}
-	);
 }

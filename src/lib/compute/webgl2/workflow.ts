@@ -2,6 +2,7 @@ import {
 	createCpuWorkflowBackend,
 	type CpuComputeWorkflowBackend,
 } from '../cpu';
+import { remapBenchmarkProfile, tagDiagnostics } from '../shared/workflow';
 import { createWebGl2ComputeResources } from './resources';
 import { runWebGl2CityMatrixPass } from './passes/city-ned2ecef';
 import { runWebGl2BoundaryRaycastPass } from './passes/boundary-algebre';
@@ -10,7 +11,6 @@ import { runWebGl2CurveGeometryPass } from './passes/curve-geometry';
 import { runWebGl2FinalConePass } from './passes/final-cones';
 import { runWebGl2RawConeAlphaPass } from './passes/raw-cone-alphas';
 import type {
-	ComputeBenchmarkReport,
 	ComputeCapabilities,
 	ComputeProfileSelection,
 	ComputeWorkflowBackend,
@@ -116,7 +116,14 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		return {
 			...result,
 			selection: delegatedSelection,
-			benchmark: remapBenchmarkProfile(result.benchmark, extraTimings),
+			benchmark: remapBenchmarkProfile(
+				result.benchmark,
+				this.profile,
+				extraTimings,
+				[
+					'WebGL2 backend dispatches city NED-to-ECEF, raw-cone alpha, cone-cone, GeoJSON boundary and final geometry transform-feedback passes before delegating the remaining compute stages to the CPU reference backend.',
+				],
+			),
 			diagnostics: [
 				...result.diagnostics,
 				...tagDiagnostics(compareDiagnostics, this.profile),
@@ -272,32 +279,6 @@ export function createWebGl2WorkflowBackendDescriptor(
 		isAvailable: () => probeWebGl2Availability(options.canvas ?? options.createCanvas?.() ?? createWebGl2ProbeCanvas()),
 		create: async () => new WebGl2ComputeWorkflowBackend(options),
 	};
-}
-
-function remapBenchmarkProfile(benchmark: ComputeBenchmarkReport, extraTimings: readonly StageTiming[]): ComputeBenchmarkReport {
-	const timings = [...benchmark.timings, ...extraTimings];
-	return {
-		...benchmark,
-		profile: 'webgl2',
-		timings: timings.map((timing) => ({
-			...timing,
-			profile: 'webgl2',
-		})),
-		totalDurationMs: benchmark.totalDurationMs + extraTimings.reduce((sum, timing) => sum + timing.durationMs, 0),
-		notes: [
-			...benchmark.notes,
-			'WebGL2 backend dispatches city NED-to-ECEF, raw-cone alpha, cone-cone, GeoJSON boundary and final geometry transform-feedback passes before delegating the remaining compute stages to the CPU reference backend.',
-		],
-	};
-}
-
-function tagDiagnostics<T extends { severity: 'warning' | 'error'; code: string; profile?: string }>(
-	diagnostics: readonly T[],
-	profile: string,
-): T[] {
-	return diagnostics.map((diagnostic) =>
-		diagnostic.profile === profile ? diagnostic : { ...diagnostic, profile },
-	);
 }
 
 function probeWebGl2Context(canvas?: WebGl2CanvasLike | null): WebGL2RenderingContext | null {
