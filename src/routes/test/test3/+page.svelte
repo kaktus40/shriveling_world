@@ -7,6 +7,9 @@
 		runConePipeline,
 		type ConePipelineResult,
 	} from '$lib/application/validation';
+	import DiagnosticsDetails from '$lib/components/shared/DiagnosticsDetails.svelte';
+	import MetricCardGrid from '$lib/components/shared/MetricCardGrid.svelte';
+	import type { MetricCardItem } from '$lib/components/shared/metricCards';
 	import type { ConeShape } from '$lib/domain/precompute';
 
 	export let data: {
@@ -150,6 +153,46 @@
 	function stringify(value: unknown): string {
 		return JSON.stringify(value, null, 2);
 	}
+
+	function buildMetricCards(): MetricCardItem[] {
+		if (!conePipeline) {
+			return [];
+		}
+
+		return [
+			{
+				title: 'Static stage',
+				lines: [
+					`Cities: ${conePipeline.staticTown.cityCount}`,
+					`Effective neighbor limit: ${conePipeline.staticTown.neighborLimit}`,
+					`Curve edge pairs: ${conePipeline.staticTown.curveEdgePairs.length / 2}`,
+				],
+			},
+			{
+				title: 'Dynamic stage',
+				lines: [
+					`Year: ${conePipeline.dynamicTown.year}`,
+					`Road alpha: ${((conePipeline.dynamicTown.roadAlphaRadians * 180) / PI).toFixed(3)} deg`,
+					`Selected links for city ${selectedCityIndex}: ${conePipeline.dynamicTown.cityLinkCounts[selectedCityIndex]}`,
+				],
+			},
+			{
+				title: 'Raw cones',
+				lines: [
+					`Shape: ${conePipeline.rawCones.shape}`,
+					`Azimuth samples: ${conePipeline.rawCones.azimuthSampleCount}`,
+					`Cone length: ${(conePipeline.rawCones.coneLengthMeters / 1000).toFixed(1)} km`,
+				],
+			},
+			{
+				title: 'Ciseled intersections',
+				lines: [
+					`Clipped rays: ${clippedRayCount(conePipeline)}`,
+					`Average tested faces per ray: ${averageTestedFaces(conePipeline).toFixed(2)}`,
+				],
+			},
+		];
+	}
 </script>
 
 <section class="page-head">
@@ -244,34 +287,7 @@
 		</label>
 	</section>
 
-	<section class="grid">
-		<article class="panel">
-			<h3>Static stage</h3>
-			<p>Cities: {conePipeline.staticTown.cityCount}</p>
-			<p>Effective neighbor limit: {conePipeline.staticTown.neighborLimit}</p>
-			<p>Curve edge pairs: {conePipeline.staticTown.curveEdgePairs.length / 2}</p>
-		</article>
-
-		<article class="panel">
-			<h3>Dynamic stage</h3>
-			<p>Year: {conePipeline.dynamicTown.year}</p>
-			<p>Road alpha: {((conePipeline.dynamicTown.roadAlphaRadians * 180) / PI).toFixed(3)} deg</p>
-			<p>Selected links for city {selectedCityIndex}: {conePipeline.dynamicTown.cityLinkCounts[selectedCityIndex]}</p>
-		</article>
-
-		<article class="panel">
-			<h3>Raw cones</h3>
-			<p>Shape: {conePipeline.rawCones.shape}</p>
-			<p>Azimuth samples: {conePipeline.rawCones.azimuthSampleCount}</p>
-			<p>Cone length: {(conePipeline.rawCones.coneLengthMeters / 1000).toFixed(1)} km</p>
-		</article>
-
-		<article class="panel">
-			<h3>Ciseled intersections</h3>
-			<p>Clipped rays: {clippedRayCount(conePipeline)}</p>
-			<p>Average tested faces per ray: {averageTestedFaces(conePipeline).toFixed(2)}</p>
-		</article>
-	</section>
+	<MetricCardGrid items={buildMetricCards()} />
 
 	<section class="grid">
 		<article class="panel">
@@ -341,13 +357,9 @@
 		</article>
 	</section>
 
-	<details class="panel diagnostic-panel" open>
-		<summary>
-			<h3>Prepared diagnostics</h3>
-			<span>scroll or collapse</span>
-		</summary>
+	<DiagnosticsDetails title="Prepared diagnostics" subtitle="scroll or collapse" headingTag="h3">
 		<pre>{stringify(workspace?.pipeline.preparedDataset.diagnostics ?? [])}</pre>
-	</details>
+	</DiagnosticsDetails>
 {/if}
 
 <style>
@@ -419,30 +431,6 @@
 		overflow: auto;
 		white-space: pre-wrap;
 		word-break: break-word;
-	}
-
-	.diagnostic-panel {
-		margin: 0;
-	}
-
-	.diagnostic-panel > summary {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		cursor: pointer;
-		list-style: none;
-	}
-
-	.diagnostic-panel > summary::-webkit-details-marker {
-		display: none;
-	}
-
-	.diagnostic-panel > summary span {
-		color: #8ea3aa;
-		font-size: 0.82rem;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
 	}
 
 	table {

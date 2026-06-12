@@ -5,6 +5,9 @@
 		runBoundaryPipeline,
 		type BoundaryPipelineResult,
 	} from '$lib/application/validation';
+	import DiagnosticsDetails from '$lib/components/shared/DiagnosticsDetails.svelte';
+	import MetricCardGrid from '$lib/components/shared/MetricCardGrid.svelte';
+	import type { MetricCardItem } from '$lib/components/shared/metricCards';
 
 	export let data: {
 		datasets: string[];
@@ -76,6 +79,51 @@
 		return JSON.stringify(value, null, 2);
 	}
 
+	function buildMetricCards(): MetricCardItem[] {
+		if (!workspace) {
+			return [];
+		}
+
+		const cards: MetricCardItem[] = [
+			{
+				title: 'Inspection',
+				lines: [`${workspace.pipeline.inspectedFiles.length} source files inspected.`],
+			},
+			{
+				title: 'Manifest',
+				lines: [
+					'Primary tables: cities, transport network, transport modes, and transport mode speeds.',
+					`City linked tables: ${workspace.pipeline.manifest.cityLinkedAttributes.length}`,
+					`GeoJSON files: ${workspace.pipeline.manifest.geojson.length}`,
+					`Unknown files: ${workspace.pipeline.manifest.unknown.length}`,
+				],
+			},
+			{
+				title: 'Prepared dataset',
+				lines: [
+					`Cities: ${workspace.pipeline.preparedDataset.cityCount}`,
+					`Edges: ${workspace.pipeline.preparedDataset.edgeCount}`,
+					`Modes: ${workspace.pipeline.preparedDataset.modeCount}`,
+					`Prepared span: ${workspace.pipeline.preparedDataset.speedTimeline.span.beginYear} to ${workspace.pipeline.preparedDataset.speedTimeline.span.endYear}`,
+				],
+			},
+		];
+
+		if (boundary) {
+			cards.push({
+				title: 'Boundary CPU reference',
+				lines: [
+					`Contours retained: ${boundary.boundaryPrecompute.contours.length}`,
+					`Country meshes: ${boundary.boundaryPrecompute.countryGeometries.length}`,
+					`Valid ray hits: ${countValidBoundaryHits(boundary)}`,
+					`Azimuth samples: ${boundary.boundaryPrecompute.azimuthSampleCount}`,
+				],
+			});
+		}
+
+		return cards;
+	}
+
 	function previewBoundarySamples(result: BoundaryPipelineResult): Array<{
 		cityIndex: number;
 		sampleIndex: number;
@@ -140,53 +188,10 @@
 {/if}
 
 {#if workspace}
-	<section class="grid">
-		<article class="panel">
-			<h3>Inspection</h3>
-			<p>{workspace.pipeline.inspectedFiles.length} source files inspected.</p>
-			<ul>
-				{#each workspace.pipeline.inspectedFiles as file}
-					<li>{file.originalName}: <strong>{file.kind}</strong></li>
-				{/each}
-			</ul>
-		</article>
-
-		<article class="panel">
-			<h3>Manifest</h3>
-			<p>Primary tables: cities, transport network, transport modes, and transport mode speeds.</p>
-			<p>City linked tables: {workspace.pipeline.manifest.cityLinkedAttributes.length}</p>
-			<p>GeoJSON files: {workspace.pipeline.manifest.geojson.length}</p>
-			<p>Unknown files: {workspace.pipeline.manifest.unknown.length}</p>
-		</article>
-
-		<article class="panel">
-			<h3>Prepared dataset</h3>
-			<p>Cities: {workspace.pipeline.preparedDataset.cityCount}</p>
-			<p>Edges: {workspace.pipeline.preparedDataset.edgeCount}</p>
-			<p>Modes: {workspace.pipeline.preparedDataset.modeCount}</p>
-			<p>
-				Prepared span: {workspace.pipeline.preparedDataset.speedTimeline.span.beginYear} to
-				{workspace.pipeline.preparedDataset.speedTimeline.span.endYear}
-			</p>
-		</article>
-
-		{#if boundary}
-			<article class="panel">
-				<h3>Boundary CPU reference</h3>
-				<p>Contours retained: {boundary.boundaryPrecompute.contours.length}</p>
-				<p>Country meshes: {boundary.boundaryPrecompute.countryGeometries.length}</p>
-				<p>Valid ray hits: {countValidBoundaryHits(boundary)}</p>
-				<p>Azimuth samples: {boundary.boundaryPrecompute.azimuthSampleCount}</p>
-			</article>
-		{/if}
-	</section>
+	<MetricCardGrid items={buildMetricCards()} />
 
 	<section class="grid">
-		<details class="panel diagnostic-panel" open>
-			<summary>
-				<h3>Diagnostics</h3>
-				<span>scroll or collapse</span>
-			</summary>
+		<DiagnosticsDetails title="Diagnostics" subtitle="scroll or collapse" headingTag="h3">
 			<h4>Base network + preparation</h4>
 			<pre>{stringify(workspace.pipeline.preparedDataset.diagnostics)}</pre>
 			{#if boundary}
@@ -195,7 +200,7 @@
 				<h4>Boundary raycast</h4>
 				<pre>{stringify(boundary.boundaryRaycast.diagnostics)}</pre>
 			{/if}
-		</details>
+		</DiagnosticsDetails>
 
 		<article class="panel">
 			<h3>Queryable fields</h3>
@@ -293,39 +298,11 @@
 		background: rgba(52, 21, 17, 0.82);
 	}
 
-	ul {
-		padding-left: 1rem;
-	}
-
 	pre {
 		max-height: 28rem;
 		overflow: auto;
 		white-space: pre-wrap;
 		word-break: break-word;
-	}
-
-	.diagnostic-panel {
-		margin: 0;
-	}
-
-	.diagnostic-panel > summary {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		cursor: pointer;
-		list-style: none;
-	}
-
-	.diagnostic-panel > summary::-webkit-details-marker {
-		display: none;
-	}
-
-	.diagnostic-panel > summary span {
-		color: #8ea3aa;
-		font-size: 0.82rem;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
 	}
 
 	table {

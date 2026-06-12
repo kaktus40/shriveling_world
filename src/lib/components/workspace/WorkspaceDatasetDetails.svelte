@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { QueryableField } from '$lib/domain/data';
 	import type { WorkspaceCitySummary, WorkspaceModeSummary } from '$lib/application/workspace';
+	import DiagnosticsDetails from '$lib/components/shared/DiagnosticsDetails.svelte';
 
 	export let modes: WorkspaceModeSummary[] = [];
 	export let cities: WorkspaceCitySummary[] = [];
@@ -99,13 +100,9 @@
 		</table>
 	</article>
 
-	<details class="panel diagnostic-panel" open>
-		<summary>
-			<h2>Diagnostics</h2>
-			<span>prepared dataset</span>
-		</summary>
+	<DiagnosticsDetails title="Diagnostics" subtitle="prepared dataset" headingTag="h2">
 		<pre>{JSON.stringify(preparedDatasetDiagnostics, null, 2)}</pre>
-	</details>
+	</DiagnosticsDetails>
 </section>
 
 <style>
@@ -147,30 +144,6 @@
 
 	.panel h2 {
 		margin-top: 0;
-	}
-
-	.diagnostic-panel {
-		margin: 0;
-	}
-
-	.diagnostic-panel > summary {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		cursor: pointer;
-		list-style: none;
-	}
-
-	.diagnostic-panel > summary::-webkit-details-marker {
-		display: none;
-	}
-
-	.diagnostic-panel > summary span {
-		color: #8ea3aa;
-		font-size: 0.82rem;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
 	}
 
 	pre {

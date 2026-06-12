@@ -1568,6 +1568,12 @@ Travail deja realise:
   - `src/lib/components/workspace/WorkspaceComputePanel.svelte`;
   - `src/lib/components/workspace/WorkspaceDatasetDetails.svelte`;
   - `src/lib/components/workspace/WorkspaceQueryPanel.svelte`;
+- extraction de panneaux communs reutilisables vers:
+  - `src/lib/components/shared/DiagnosticsDetails.svelte`;
+  - `src/lib/components/shared/MetricCardGrid.svelte`;
+  - `src/lib/components/shared/metricCards.ts`;
+- factorisation des panneaux repetitifs des pages `test1`, `test2` et `test3`
+  autour de ces composants partages;
 - extraction de `QueryNodeEditor.svelte` vers:
   - `src/lib/components/query/QueryNodeGroupEditor.svelte`;
   - `src/lib/components/query/QueryNodeLeafEditor.svelte`;

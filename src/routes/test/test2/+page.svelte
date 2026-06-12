@@ -5,6 +5,9 @@
 		runBoundaryPipeline,
 		type BoundaryPipelineResult,
 	} from '$lib/application/validation';
+	import DiagnosticsDetails from '$lib/components/shared/DiagnosticsDetails.svelte';
+	import MetricCardGrid from '$lib/components/shared/MetricCardGrid.svelte';
+	import type { MetricCardItem } from '$lib/components/shared/metricCards';
 
 	export let data: {
 		datasets: string[];
@@ -94,6 +97,36 @@
 	function stringify(value: unknown): string {
 		return JSON.stringify(value, null, 2);
 	}
+
+	function buildMetricCards(): MetricCardItem[] {
+		if (!boundary) {
+			return [];
+		}
+
+		return [
+			{
+				title: 'Boundary precompute',
+				lines: [
+					`Contours: ${boundary.boundaryPrecompute.contours.length}`,
+					`Country geometries: ${boundary.boundaryPrecompute.countryGeometries.length}`,
+					`Associated towns: ${matchedTownCount(boundary)} / ${boundary.townInputs.length}`,
+					`Contour buffer points: ${boundary.boundaryPrecompute.countryContourBuffer.length / 2}`,
+				],
+			},
+			{
+				title: 'Selected contour',
+				lines: boundary.boundaryPrecompute.contours[selectedContourIndex]
+					? [
+							`Feature index: ${boundary.boundaryPrecompute.contours[selectedContourIndex].featureIndex}`,
+							`Contour index: ${boundary.boundaryPrecompute.contours[selectedContourIndex].contourIndex}`,
+							`Ring points: ${boundary.boundaryPrecompute.contours[selectedContourIndex].ring.length}`,
+							`Bottom vertices: ${boundary.boundaryPrecompute.countryGeometries[selectedContourIndex].bottomVertexCount}`,
+							`Triangle count: ${boundary.boundaryPrecompute.countryGeometries[selectedContourIndex].indexes.length / 3}`,
+						]
+					: [],
+			},
+		];
+	}
 </script>
 
 <section class="page-head">
@@ -152,32 +185,7 @@
 {/if}
 
 {#if boundary}
-	<section class="grid">
-		<article class="panel">
-			<h3>Boundary precompute</h3>
-			<p>Contours: {boundary.boundaryPrecompute.contours.length}</p>
-			<p>Country geometries: {boundary.boundaryPrecompute.countryGeometries.length}</p>
-			<p>Associated towns: {matchedTownCount(boundary)} / {boundary.townInputs.length}</p>
-			<p>Contour buffer points: {boundary.boundaryPrecompute.countryContourBuffer.length / 2}</p>
-		</article>
-
-		<article class="panel">
-			<h3>Selected contour</h3>
-			{#if boundary.boundaryPrecompute.contours[selectedContourIndex]}
-				<p>Feature index: {boundary.boundaryPrecompute.contours[selectedContourIndex].featureIndex}</p>
-				<p>Contour index: {boundary.boundaryPrecompute.contours[selectedContourIndex].contourIndex}</p>
-				<p>Ring points: {boundary.boundaryPrecompute.contours[selectedContourIndex].ring.length}</p>
-				<p>
-					Bottom vertices:
-					{boundary.boundaryPrecompute.countryGeometries[selectedContourIndex].bottomVertexCount}
-				</p>
-				<p>
-					Triangle count:
-					{boundary.boundaryPrecompute.countryGeometries[selectedContourIndex].indexes.length / 3}
-				</p>
-			{/if}
-		</article>
-	</section>
+	<MetricCardGrid items={buildMetricCards()} />
 
 	{#if boundary.boundaryPrecompute.contours[selectedContourIndex]}
 		<section class="panel preview">
@@ -198,15 +206,11 @@
 			<pre>{stringify(boundary.boundaryPrecompute.contours[selectedContourIndex]?.properties ?? null)}</pre>
 		</article>
 
-		<details class="panel diagnostic-panel" open>
-			<summary>
-				<h3>Diagnostics</h3>
-				<span>scroll or collapse</span>
-			</summary>
+		<DiagnosticsDetails title="Diagnostics" subtitle="scroll or collapse" headingTag="h3">
 			<pre>{stringify(boundary.boundaryPrecompute.diagnostics)}</pre>
 			<h4>Raycast diagnostics</h4>
 			<pre>{stringify(boundary.boundaryRaycast.diagnostics)}</pre>
-		</details>
+		</DiagnosticsDetails>
 	</section>
 {/if}
 
@@ -295,27 +299,4 @@
 		word-break: break-word;
 	}
 
-	.diagnostic-panel {
-		margin: 0;
-	}
-
-	.diagnostic-panel > summary {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		cursor: pointer;
-		list-style: none;
-	}
-
-	.diagnostic-panel > summary::-webkit-details-marker {
-		display: none;
-	}
-
-	.diagnostic-panel > summary span {
-		color: #8ea3aa;
-		font-size: 0.82rem;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-	}
 </style>

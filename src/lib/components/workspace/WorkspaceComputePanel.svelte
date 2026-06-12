@@ -2,6 +2,7 @@
 	import type { DatasetWorkspaceCompute } from '$lib/application/workspace';
 	import type { DatasetDiagnostic } from '$lib/domain/data';
 	import type { ComputeProfile } from '$lib/compute';
+	import DiagnosticsDetails from '$lib/components/shared/DiagnosticsDetails.svelte';
 
 	export let workspaceCompute: DatasetWorkspaceCompute | null = null;
 	export let selectedComputeDiagnosticProfile: ComputeProfile | 'all' = 'all';
@@ -102,11 +103,7 @@
 		{/if}
 	</section>
 
-	<details class="panel diagnostic-panel" open>
-		<summary>
-			<h2>Compute diagnostics</h2>
-			<span>runtime validation and fallback notes</span>
-		</summary>
+	<DiagnosticsDetails title="Compute diagnostics" subtitle="runtime validation and fallback notes" headingTag="h2">
 		<div class="diagnostic-toolbar">
 			<label>
 				<span>Profile</span>
@@ -153,7 +150,7 @@
 				<p class="diagnostic-empty">No diagnostics for the selected profile.</p>
 			{/if}
 		</div>
-	</details>
+	</DiagnosticsDetails>
 {/if}
 
 <style>
@@ -195,30 +192,6 @@
 	.compute-note {
 		margin: 0;
 		color: #8ae0dc;
-	}
-
-	.diagnostic-panel {
-		margin: 0 0 1rem;
-	}
-
-	.diagnostic-panel > summary {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		cursor: pointer;
-		list-style: none;
-	}
-
-	.diagnostic-panel > summary::-webkit-details-marker {
-		display: none;
-	}
-
-	.diagnostic-panel > summary span {
-		color: #8ea3aa;
-		font-size: 0.82rem;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
 	}
 
 	.diagnostic-toolbar {
