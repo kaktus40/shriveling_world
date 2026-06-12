@@ -89,7 +89,7 @@ Utiliser les statuts suivants:
 | M2.1 | validated | Evaluation des hooks Rollup applicatifs |
 | M3 | validated | Extraction du domaine metier |
 | M3.1 | validated | Inspection dataset et assemblage lossless du reseau |
-| M4 | in_progress | Architecture explicite de precalcul |
+| M4 | validated | Architecture explicite de precalcul |
 | M4.1 | validated | Socle de tests CPU et contrats de buffers |
 | M5 | deferred | Prototype comparatif de rendu Babylon.js / luma.gl |
 | M6 | in_progress | Framework compute multi-profil et fallback WebGPU -> WebGL2 -> CPU |
@@ -943,7 +943,7 @@ Validation:
 
 ## M4: Architecture Explicite De Precalcul
 
-Statut: `in_progress`
+Statut: `validated`
 
 Objectif:
 
@@ -1070,17 +1070,19 @@ Validation:
   - `MatNED2ECEF` dans `toBabylon/src/application/common/shaders/sphericalCalculus.glsl` utilisait `cos(latitude)` pour `sPhi`;
   - la convention du projet utilise une latitude terrestre en radians, donc `sPhi` doit etre `sin(latitude)`;
   - la migration doit partir du contrat corrige et ne pas recopier cette anomalie.
-- Reste a faire:
-  - produire l'equivalent WGSL de la bibliotheque de fonctions mathematiques partagees;
-  - produire le buffer `cityNed2EcefMatrices` dans la phase de calcul WebGPU dediee;
-  - portage WebGPU/WGSL de `boundaryAlgebre.frag`;
-  - ajouter les tests d'integration garantissant qu'un changement d'annee ne
-    relance ni l'ingestion ni les invariants statiques.
+- Elements concretes deja en place:
+  - la bibliotheque de fonctions mathematiques partagees existe en TS et en
+    WGSL/GLSL dans `src/lib/shared` et `src/lib/compute/kernels/shared`;
+  - `cityNed2EcefMatrices` est produit dans le socle `staticTown` et consomme
+    par les backends CPU, WebGL2 et WebGPU;
+  - `boundaryAlgebre` est porte cote CPU, WebGL2 et WebGPU;
+  - les tests d'invalidation garantissent qu'un changement d'annee ne relance
+    pas `prepareDataset` et n'affecte que les tranches prevues.
 - Verification ulterieure sur le worktree de migration:
   - le precalcul CPU statique, dynamique, `rawCones` et intersections CPU est
     bien present dans `src/lib/domain/precompute`;
-  - la frontiere precalcul / integration interactive reste toutefois
-    incomplete, ce qui confirme le statut `in_progress` de M4.
+  - la frontiere precalcul / integration interactive est formalisee par les
+    contrats d'invalidation et les tests de workspace.
 
 ## M4.1: Socle De Tests CPU Et Contrats De Buffers
 
