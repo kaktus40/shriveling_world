@@ -987,6 +987,16 @@ Travail attendu:
 - creer des tests sur `prepareDataset`;
 - preparer les buffers qui seront consommes par WebGPU.
 
+Travail deja realise:
+
+- `prepareDataset` produit un `PreparedDataset` compact, stable et independant de l'annee;
+- la couche applicative `src/lib/application/workspace/precompute.ts` expose un helper
+  qui opere uniquement sur un `DatasetWorkspaceSnapshot` deja prepare;
+- le helper `runDatasetWorkspacePrecompute` reutilise le snapshot prepare et ne
+  remonte que les tranches de precalcul dependantes de l'annee ou des options;
+- `tests/unit/application/workspace-precompute.test.ts` caracterise la reuse
+  du snapshot prepare et la variation isolee de la tranche annuelle.
+
 Changements qui relancent le precalcul:
 
 - dataset different;

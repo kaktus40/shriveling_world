@@ -877,7 +877,12 @@ Etat d'implementation:
   - helper CPU de reference pour construire `cityNed2EcefMatrices` depuis les villes en radians;
   - calcul des intersections frontiere par couple `(ville, intervalle d'azimut)`;
   - sorties `townBoundaryAngular` et `townBoundaryEcef`.
-- La generation WebGPU des matrices `NED2ECEF`, la bibliotheque WGSL partagee et le portage WGSL de `boundaryAlgebre.frag` restent a faire.
+- `src/lib/application/workspace/precompute.ts` expose un helper applicatif
+  qui opère uniquement sur un `DatasetWorkspaceSnapshot` deja prepare et
+  isole les tranches de precompute dependantes de l'annee ou des options.
+- La generation WebGPU des matrices `NED2ECEF`, la bibliotheque WGSL partagee
+  et le portage WGSL de `boundaryAlgebre.frag` sont maintenant implementes
+  dans le backend compute multi-profil.
 
 ### 9. Preparation GPU
 
