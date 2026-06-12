@@ -1,26 +1,14 @@
-import boundaryAlgebreShaderSource from '../kernels/boundary-algebre/webgpu.wgsl?raw';
-import curveGeometryShaderSource from '../kernels/curve-geometry/webgpu.wgsl?raw';
-import finalConesShaderSource from '../kernels/final-cones/webgpu.wgsl?raw';
-import rayIntersectTriangleShaderSource from '../kernels/shared/ray-intersect-triangle/webgpu.wgsl?raw';
-import ciseledConesShaderSource from '../kernels/ciseled-cones/webgpu.wgsl?raw';
 import {
 	createCpuWorkflowBackend,
 	type CpuComputeWorkflowBackend,
 } from '../cpu';
-import {
-	createCurveGeometryDispatchResources,
-	createFinalConesDispatchResources,
-	type GpuBufferAllocation,
-} from './buffers';
+import { type GpuBufferAllocation } from './buffers';
 import { createWebGpuComputeResources } from './resources';
 import { runWebGpuCityMatrixPass } from './passes/city-matrix';
 import { runWebGpuBoundaryRaycastPass } from './passes/boundary-algebre';
 import { runWebGpuCiseledConePass } from './passes/ciseled-cones';
+import { runWebGpuCurveGeometryPass } from './passes/curve-geometry';
 import { runWebGpuRawConeAlphaPass } from './passes/raw-cone-alpha';
-import {
-	compareFloat32Buffers,
-	readBackFloat32Buffer,
-} from './validation';
 import type {
 	ComputeBenchmarkReport,
 	ComputeCapabilities,
@@ -32,14 +20,7 @@ import type {
 	ComputeWorkflowResult,
 	StageTiming,
 } from '../core';
-import { measureAsyncStage } from '../core/timing';
-import { EARTH_RADIUS_METERS } from '../../shared';
-import { buildAzimuthIntervals, packAzimuthIntervals } from '../../domain/geojson';
 import type { DatasetDiagnostic } from '../../domain/data';
-import {
-	prepareCurveGeometryInput,
-	prepareCurvePrecompute,
-} from '../../domain/precompute';
 import type { WebGpuComputeContext, WebGpuComputeResources } from './types';
 
 /** Options used to build the WebGPU backend. */
@@ -106,7 +87,13 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		}
 
 		if (options.curve?.enabled === true && result.staticTown && result.curveGeometry) {
-			const curvePass = await this.runCurveGeometryPass(context, result, options);
+			const curvePass = await runWebGpuCurveGeometryPass({
+				context,
+				result,
+				options,
+				resources: await this.ensureResources(),
+				usage: getGpuBufferUsage(),
+			});
 			extraTimings.push(curvePass.timing);
 			compareDiagnostics.push(...curvePass.diagnostics);
 		}
@@ -231,111 +218,6 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		});
 	}
 
-	private async runCurveGeometryPass(
-		context: WebGpuComputeContext,
-		result: ComputeWorkflowResult,
-		options: ComputeWorkflowOptions,
-	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
-		const staticTown = result.staticTown;
-		const curveGeometry = result.curveGeometry;
-		if (!staticTown || !curveGeometry) {
-			return {
-				timing: {
-					stage: 'curve-geometry-precompute',
-					scope: 'precompute',
-					profile: 'webgpu',
-					startedAtMs: 0,
-					endedAtMs: 0,
-					durationMs: 0,
-				},
-				diagnostics: [],
-			};
-		}
-
-		const curvePrecompute = prepareCurvePrecompute(result.preparedDataset, staticTown);
-		const curveInput = prepareCurveGeometryInput(curvePrecompute, {
-			year: options.curve?.year ?? result.dynamicTown?.year ?? result.preparedDataset.speedTimeline.span.beginYear,
-			pointsPerCurve: options.curve?.pointsPerCurve ?? curveGeometry.pointsPerCurve,
-			curvePosition: options.curve?.curvePosition ?? 'above',
-			coefficient: options.curve?.coefficient ?? 1,
-		});
-
-		if (curveInput.curveCount <= 0) {
-			return {
-				timing: {
-					stage: 'curve-geometry-precompute',
-					scope: 'precompute',
-					profile: 'webgpu',
-					startedAtMs: 0,
-					endedAtMs: 0,
-					durationMs: 0,
-				},
-				diagnostics: tagDiagnostics(curvePrecompute.diagnostics, this.profile),
-			};
-		}
-
-		const usage = getGpuBufferUsage();
-		const dispatchResources = createCurveGeometryDispatchResources(context.device, usage, {
-			...curveInput,
-			earthRadiusMeters: EARTH_RADIUS_METERS,
-		});
-		const resources = await this.ensureResources();
-		const pipeline = await context.device.createComputePipelineAsync({
-			layout: 'auto',
-			compute: {
-				module:
-					resources.shaderModuleCache?.get('curve-geometry') ??
-					context.device.createShaderModule({ code: curveGeometryShaderSource }),
-				entryPoint: 'main',
-			},
-		});
-		const bindGroup = context.device.createBindGroup({
-			layout: pipeline.getBindGroupLayout(0),
-			entries: [
-				{ binding: 0, resource: { buffer: dispatchResources.curveControlPointsEcef.buffer } },
-				{ binding: 1, resource: { buffer: dispatchResources.curveThetaRadians.buffer } },
-				{ binding: 2, resource: { buffer: dispatchResources.curveSpeedRatio.buffer } },
-				{ binding: 3, resource: { buffer: dispatchResources.curveIds.buffer } },
-				{ binding: 4, resource: { buffer: dispatchResources.uniform.buffer } },
-				{ binding: 5, resource: { buffer: dispatchResources.curveVertexPositions.buffer } },
-			],
-		});
-
-		const { timing } = await measureAsyncStage(
-			'curve-geometry-precompute',
-			'precompute',
-			'webgpu',
-			async () => {
-				const encoder = context.device.createCommandEncoder();
-				const pass = encoder.beginComputePass();
-				pass.setPipeline(pipeline);
-				pass.setBindGroup(0, bindGroup);
-				pass.dispatchWorkgroups(curveInput.pointsPerCurve + 1, curveInput.curveCount, 1);
-				pass.end();
-				context.queue.submit([encoder.finish()]);
-				return undefined;
-			},
-		);
-
-		const diagnostics: DatasetDiagnostic[] = [];
-		const readback = await readBackFloat32Buffer(
-			context.device,
-			dispatchResources.curveVertexPositions.buffer,
-			curveInput.curveCount * (curveInput.pointsPerCurve + 1) * 4,
-		);
-		if (readback) {
-			diagnostics.push(
-				...compareFloat32Buffers(
-					'webgpu-curve-geometry',
-					curveGeometry.positions,
-					readback,
-				),
-			);
-		}
-
-		diagnostics.push(...tagDiagnostics(curvePrecompute.diagnostics, this.profile));
-		return { timing, diagnostics };
-	}
 }
 
 /** Returns the WebGPU capability snapshot. */
