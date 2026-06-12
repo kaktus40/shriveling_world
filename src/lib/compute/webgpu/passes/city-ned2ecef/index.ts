@@ -1,17 +1,17 @@
-import cityNed2EcefShaderSource from '../../kernels/city-ned2ecef/webgpu.wgsl?raw';
-import { EARTH_RADIUS_METERS } from '../../../shared';
-import type { DatasetDiagnostic } from '../../../domain/data';
-import type { ComputeWorkflowResult, StageTiming } from '../../core';
-import { measureAsyncStage } from '../../core/timing';
+import cityNed2EcefShaderSource from '../../../kernels/city-ned2ecef/webgpu.wgsl?raw';
+import { EARTH_RADIUS_METERS } from '../../../../shared';
+import type { DatasetDiagnostic } from '../../../../domain/data';
+import type { ComputeWorkflowResult, StageTiming } from '../../../core';
+import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
 	readBackFloat32Buffer,
-} from '../validation';
-import type { WebGpuComputeContext, WebGpuComputeResources } from '../types';
+} from '../../validation';
+import type { WebGpuComputeContext, WebGpuComputeResources } from '../../types';
 import {
 	type GpuBufferAllocation,
-} from '../buffers';
-import { createCityNed2EcefDispatchResources } from './city-matrix-buffers';
+} from '../../buffers';
+import { createCityNed2EcefDispatchResources } from './buffers';
 
 export interface GpuBufferUsage {
 	readonly STORAGE: number;

@@ -2,7 +2,7 @@ import type {
 	CiseledConesDispatchInput,
 	CiseledConesDispatchResources,
 	GpuBufferUsageFlags,
-} from '../buffers';
+} from '../../buffers';
 
 /** Creates the GPU allocations required by the ciseled-cones oracle WGSL pass. */
 export function createCiseledConesDispatchResources(

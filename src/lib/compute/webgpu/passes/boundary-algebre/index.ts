@@ -1,19 +1,19 @@
-import boundaryAlgebreMathSource from '../../kernels/shared/math/webgpu.wgsl?raw';
-import boundaryAlgebreKernelSource from '../../kernels/boundary-algebre/webgpu.wgsl?raw';
-import { EARTH_RADIUS_METERS } from '../../../shared';
-import type { DatasetDiagnostic } from '../../../domain/data';
-import { buildAzimuthIntervals, packAzimuthIntervals } from '../../../domain/geojson';
-import type { ComputeWorkflowResult, StageTiming } from '../../core';
-import { measureAsyncStage } from '../../core/timing';
+import boundaryAlgebreMathSource from '../../../kernels/shared/math/webgpu.wgsl?raw';
+import boundaryAlgebreKernelSource from '../../../kernels/boundary-algebre/webgpu.wgsl?raw';
+import { EARTH_RADIUS_METERS } from '../../../../shared';
+import type { DatasetDiagnostic } from '../../../../domain/data';
+import { buildAzimuthIntervals, packAzimuthIntervals } from '../../../../domain/geojson';
+import type { ComputeWorkflowResult, StageTiming } from '../../../core';
+import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
 	readBackFloat32Buffer,
-} from '../validation';
-import type { WebGpuComputeContext, WebGpuComputeResources } from '../types';
+} from '../../validation';
+import type { WebGpuComputeContext, WebGpuComputeResources } from '../../types';
 import {
 	type GpuBufferUsageFlags,
-} from '../buffers';
-import { createBoundaryAlgebreDispatchResources } from './boundary-algebre-buffers';
+} from '../../buffers';
+import { createBoundaryAlgebreDispatchResources } from './buffers';
 
 const boundaryAlgebreShaderSource = `${boundaryAlgebreMathSource}\n${boundaryAlgebreKernelSource}`;
 

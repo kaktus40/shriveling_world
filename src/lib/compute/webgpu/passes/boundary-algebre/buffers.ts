@@ -2,7 +2,7 @@ import type {
 	BoundaryAlgebreDispatchInput,
 	BoundaryAlgebreDispatchResources,
 	GpuBufferUsageFlags,
-} from '../buffers';
+} from '../../buffers';
 
 /** Creates the GPU allocations required by the boundary raycast WGSL pass. */
 export function createBoundaryAlgebreDispatchResources(

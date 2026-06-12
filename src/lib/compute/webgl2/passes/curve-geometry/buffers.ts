@@ -1,13 +1,13 @@
 import type {
 	WebGl2CurveGeometryDispatchInput,
 	WebGl2CurveGeometryDispatchResources,
-} from '../buffers';
+} from '../../buffers';
 import {
 	createFloatTexture2D,
 	createIntTexture2D,
 	packScalarsAsRgba,
 	packScalarsAsUintRgba,
-} from './resource-helpers';
+} from '../shared/resource-helpers';
 
 /** Creates the GPU allocations required by the curve-geometry WebGL2 pass. */
 export function createCurveGeometryDispatchResources(

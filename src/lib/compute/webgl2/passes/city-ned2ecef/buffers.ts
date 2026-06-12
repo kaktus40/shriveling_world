@@ -1,4 +1,4 @@
-import type { WebGl2CityNed2EcefDispatchResources } from '../buffers';
+import type { WebGl2CityNed2EcefDispatchResources } from '../../buffers';
 
 /** Input bundle required by the city NED-to-ECEF WebGL2 pass. */
 export interface WebGl2CityNed2EcefDispatchInput {

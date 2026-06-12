@@ -1,11 +1,11 @@
 import {
 	createFloatTexture2D,
 	createIntTexture2D,
-} from './resource-helpers';
+} from '../shared/resource-helpers';
 import type {
 	WebGl2CiseledConesDispatchInput,
 	WebGl2CiseledConesDispatchResources,
-} from '../buffers';
+} from '../../buffers';
 
 /** Creates the GPU allocations required by the ciseled-cones WebGL2 pass. */
 export function createCiseledConesDispatchResources(

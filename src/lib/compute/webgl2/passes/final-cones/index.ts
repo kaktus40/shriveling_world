@@ -1,18 +1,18 @@
-import finalConesVertexShaderSource from '../../kernels/final-cones/webgl2.vert?raw';
-import { EARTH_RADIUS_METERS } from '../../../shared';
-import type { DatasetDiagnostic } from '../../../domain/data';
-import type { ComputeWorkflowResult, StageTiming } from '../../core';
-import { measureAsyncStage } from '../../core/timing';
+import finalConesVertexShaderSource from '../../../kernels/final-cones/webgl2.vert?raw';
+import { EARTH_RADIUS_METERS } from '../../../../shared';
+import type { DatasetDiagnostic } from '../../../../domain/data';
+import type { ComputeWorkflowResult, StageTiming } from '../../../core';
+import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
 	readBackFloat32Buffer,
-} from '../validation';
+} from '../../validation';
 import {
 	createFinalConesProgram,
 	type WebGl2FinalConesDispatchResources,
-} from '../buffers';
-import { createFinalConesDispatchResources } from './final-cones-buffers';
-import type { WebGl2ComputeResources } from '../types';
+} from '../../buffers';
+import { createFinalConesDispatchResources } from './buffers';
+import type { WebGl2ComputeResources } from '../../types';
 
 export interface WebGl2FinalConesPassInput {
 	readonly gl: WebGL2RenderingContext;

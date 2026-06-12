@@ -1,19 +1,19 @@
-import curveGeometryShaderSource from '../../kernels/curve-geometry/webgpu.wgsl?raw';
-import { EARTH_RADIUS_METERS } from '../../../shared';
-import type { DatasetDiagnostic } from '../../../domain/data';
-import { prepareCurveGeometryInput, prepareCurvePrecompute } from '../../../domain/precompute';
-import type { ComputeWorkflowOptions, ComputeWorkflowResult, StageTiming } from '../../core';
-import { measureAsyncStage } from '../../core/timing';
+import curveGeometryShaderSource from '../../../kernels/curve-geometry/webgpu.wgsl?raw';
+import { EARTH_RADIUS_METERS } from '../../../../shared';
+import type { DatasetDiagnostic } from '../../../../domain/data';
+import { prepareCurveGeometryInput, prepareCurvePrecompute } from '../../../../domain/precompute';
+import type { ComputeWorkflowOptions, ComputeWorkflowResult, StageTiming } from '../../../core';
+import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
 	readBackFloat32Buffer,
-} from '../validation';
-import type { WebGpuComputeContext, WebGpuComputeResources } from '../types';
+} from '../../validation';
+import type { WebGpuComputeContext, WebGpuComputeResources } from '../../types';
 import {
 	type GpuBufferAllocation,
 	type GpuBufferUsageFlags,
-} from '../buffers';
-import { createCurveGeometryDispatchResources } from './curve-geometry-buffers';
+} from '../../buffers';
+import { createCurveGeometryDispatchResources } from './buffers';
 
 export interface WebGpuCurveGeometryPassInput {
 	readonly context: WebGpuComputeContext;

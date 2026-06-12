@@ -1,17 +1,17 @@
-import cityNed2EcefVertexShaderSource from '../../kernels/city-ned2ecef/webgl2.vert?raw';
-import { EARTH_RADIUS_METERS } from '../../../shared';
-import type { DatasetDiagnostic } from '../../../domain/data';
-import type { ComputeWorkflowResult, StageTiming } from '../../core';
-import { measureAsyncStage } from '../../core/timing';
+import cityNed2EcefVertexShaderSource from '../../../kernels/city-ned2ecef/webgl2.vert?raw';
+import { EARTH_RADIUS_METERS } from '../../../../shared';
+import type { DatasetDiagnostic } from '../../../../domain/data';
+import type { ComputeWorkflowResult, StageTiming } from '../../../core';
+import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
 	readBackFloat32Buffer,
-} from '../validation';
+} from '../../validation';
 import {
 	createCityNed2EcefProgram,
-} from '../buffers';
-import type { WebGl2ComputeResources } from '../types';
-import { createCityNed2EcefDispatchResources } from './city-matrix-buffers';
+} from '../../buffers';
+import type { WebGl2ComputeResources } from '../../types';
+import { createCityNed2EcefDispatchResources } from './buffers';
 
 export interface WebGl2CityMatrixPassInput {
 	readonly gl: WebGL2RenderingContext;

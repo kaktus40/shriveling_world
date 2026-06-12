@@ -1,4 +1,4 @@
-import type { CurveGeometryDispatchInput, CurveGeometryDispatchResources, GpuBufferUsageFlags } from '../buffers';
+import type { CurveGeometryDispatchInput, CurveGeometryDispatchResources, GpuBufferUsageFlags } from '../../buffers';
 
 /** Creates the GPU allocations required by the curve-geometry WGSL pass. */
 export function createCurveGeometryDispatchResources(

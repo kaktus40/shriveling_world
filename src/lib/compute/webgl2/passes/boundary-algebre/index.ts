@@ -1,20 +1,20 @@
-import boundaryAlgebreMathSource from '../../kernels/shared/math/webgl2.glsl?raw';
-import boundaryAlgebreKernelSource from '../../kernels/boundary-algebre/webgl2.vert?raw';
-import { EARTH_RADIUS_METERS } from '../../../shared';
-import type { DatasetDiagnostic } from '../../../domain/data';
-import { buildAzimuthIntervals, packAzimuthIntervals } from '../../../domain/geojson';
-import type { ComputeWorkflowResult, StageTiming } from '../../core';
-import { measureAsyncStage } from '../../core/timing';
+import boundaryAlgebreMathSource from '../../../kernels/shared/math/webgl2.glsl?raw';
+import boundaryAlgebreKernelSource from '../../../kernels/boundary-algebre/webgl2.vert?raw';
+import { EARTH_RADIUS_METERS } from '../../../../shared';
+import type { DatasetDiagnostic } from '../../../../domain/data';
+import { buildAzimuthIntervals, packAzimuthIntervals } from '../../../../domain/geojson';
+import type { ComputeWorkflowResult, StageTiming } from '../../../core';
+import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
 	readBackFloat32Buffer,
-} from '../validation';
+} from '../../validation';
 import {
 	createBoundaryAlgebreProgram,
-} from '../buffers';
-import { bindBoundaryTextures } from '../pass-bindings';
-import type { WebGl2ComputeResources } from '../types';
-import { createBoundaryAlgebreDispatchResources } from './boundary-algebre-buffers';
+} from '../../buffers';
+import { bindBoundaryTextures } from '../../pass-bindings';
+import type { WebGl2ComputeResources } from '../../types';
+import { createBoundaryAlgebreDispatchResources } from './buffers';
 
 const boundaryAlgebreVertexShaderSource = `${boundaryAlgebreMathSource}\n${boundaryAlgebreKernelSource}`;
 

@@ -1,11 +1,11 @@
 import {
 	createFloatTexture2D,
 	createIntTexture2D,
-} from './resource-helpers';
+} from '../shared/resource-helpers';
 import type {
 	WebGl2RawConeAlphaDispatchInput,
 	WebGl2RawConeAlphaDispatchResources,
-} from '../buffers';
+} from '../../buffers';
 
 /** Creates the GPU allocations required by the raw-cone alpha WebGL2 pass. */
 export function createRawConeAlphasDispatchResources(

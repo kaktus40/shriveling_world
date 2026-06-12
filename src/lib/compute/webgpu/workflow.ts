@@ -4,11 +4,11 @@ import {
 } from '../cpu';
 import { type GpuBufferAllocation } from './buffers';
 import { createWebGpuComputeResources } from './resources';
-import { runWebGpuCityMatrixPass } from './passes/city-matrix';
+import { runWebGpuCityMatrixPass } from './passes/city-ned2ecef';
 import { runWebGpuBoundaryRaycastPass } from './passes/boundary-algebre';
 import { runWebGpuCiseledConePass } from './passes/ciseled-cones';
 import { runWebGpuCurveGeometryPass } from './passes/curve-geometry';
-import { runWebGpuRawConeAlphaPass } from './passes/raw-cone-alpha';
+import { runWebGpuRawConeAlphaPass } from './passes/raw-cone-alphas';
 import type {
 	ComputeBenchmarkReport,
 	ComputeCapabilities,

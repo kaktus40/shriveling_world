@@ -1,7 +1,7 @@
 import type {
 	WebGl2FinalConesDispatchInput,
 	WebGl2FinalConesDispatchResources,
-} from '../buffers';
+} from '../../buffers';
 
 /** Creates the GPU allocations required by the final-cones WebGL2 pass. */
 export function createFinalConesDispatchResources(

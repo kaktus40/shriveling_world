@@ -1,4 +1,4 @@
-import type { CityNed2EcefDispatchResources, GpuBufferUsageFlags } from '../buffers';
+import type { CityNed2EcefDispatchResources, GpuBufferUsageFlags } from '../../buffers';
 
 /** Input bundle required by the city NED-to-ECEF WGSL pass. */
 export interface CityNed2EcefDispatchInput {

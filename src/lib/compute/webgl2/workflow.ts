@@ -3,12 +3,12 @@ import {
 	type CpuComputeWorkflowBackend,
 } from '../cpu';
 import { createWebGl2ComputeResources } from './resources';
-import { runWebGl2CityMatrixPass } from './passes/city-matrix';
+import { runWebGl2CityMatrixPass } from './passes/city-ned2ecef';
 import { runWebGl2BoundaryRaycastPass } from './passes/boundary-algebre';
 import { runWebGl2CiseledConePass } from './passes/ciseled-cones';
 import { runWebGl2CurveGeometryPass } from './passes/curve-geometry';
 import { runWebGl2FinalConePass } from './passes/final-cones';
-import { runWebGl2RawConeAlphaPass } from './passes/raw-cone-alpha';
+import { runWebGl2RawConeAlphaPass } from './passes/raw-cone-alphas';
 import type {
 	ComputeBenchmarkReport,
 	ComputeCapabilities,

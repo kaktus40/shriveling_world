@@ -1,18 +1,18 @@
-import rawConeAlphasMathSource from '../../kernels/shared/math/webgl2.glsl?raw';
-import rawConeAlphasKernelSource from '../../kernels/raw-cone-alphas/webgl2.vert?raw';
-import type { DatasetDiagnostic } from '../../../domain/data';
-import type { ComputeWorkflowResult, StageTiming } from '../../core';
-import { measureAsyncStage } from '../../core/timing';
+import rawConeAlphasMathSource from '../../../kernels/shared/math/webgl2.glsl?raw';
+import rawConeAlphasKernelSource from '../../../kernels/raw-cone-alphas/webgl2.vert?raw';
+import type { DatasetDiagnostic } from '../../../../domain/data';
+import type { ComputeWorkflowResult, StageTiming } from '../../../core';
+import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
 	readBackFloat32Buffer,
-} from '../validation';
+} from '../../validation';
 import {
 	createRawConeAlphasProgram,
-} from '../buffers';
-import type { WebGl2ComputeResources } from '../types';
-import { bindRawConeAlphaTextures, shapeToCode } from '../pass-utils';
-import { createRawConeAlphasDispatchResources } from './raw-cone-alpha-buffers';
+} from '../../buffers';
+import type { WebGl2ComputeResources } from '../../types';
+import { bindRawConeAlphaTextures, shapeToCode } from '../../pass-utils';
+import { createRawConeAlphasDispatchResources } from './buffers';
 
 const rawConeAlphasVertexShaderSource = `${rawConeAlphasMathSource}\n${rawConeAlphasKernelSource}`;
 

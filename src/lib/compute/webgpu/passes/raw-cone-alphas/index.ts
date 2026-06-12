@@ -1,18 +1,18 @@
-import rawConeAlphasMathSource from '../../kernels/shared/math/webgpu.wgsl?raw';
-import rawConeAlphasKernelSource from '../../kernels/raw-cone-alphas/webgpu.wgsl?raw';
-import type { DatasetDiagnostic } from '../../../domain/data';
-import type { ComputeWorkflowResult, StageTiming } from '../../core';
-import { measureAsyncStage } from '../../core/timing';
+import rawConeAlphasMathSource from '../../../kernels/shared/math/webgpu.wgsl?raw';
+import rawConeAlphasKernelSource from '../../../kernels/raw-cone-alphas/webgpu.wgsl?raw';
+import type { DatasetDiagnostic } from '../../../../domain/data';
+import type { ComputeWorkflowResult, StageTiming } from '../../../core';
+import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
 	readBackFloat32Buffer,
-} from '../validation';
-import type { WebGpuComputeContext, WebGpuComputeResources } from '../types';
+} from '../../validation';
+import type { WebGpuComputeContext, WebGpuComputeResources } from '../../types';
 import {
 	type GpuBufferAllocation,
-} from '../buffers';
-import type { GpuBufferUsage } from './city-matrix';
-import { createRawConeAlphaDispatchResources } from './raw-cone-alpha-buffers';
+} from '../../buffers';
+import type { GpuBufferUsage } from '../city-ned2ecef';
+import { createRawConeAlphaDispatchResources } from './buffers';
 
 const rawConeAlphasShaderSource = `${rawConeAlphasMathSource}\n${rawConeAlphasKernelSource}`;
 

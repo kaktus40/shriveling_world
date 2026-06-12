@@ -1,4 +1,4 @@
-import type { GpuBufferAllocation, GpuBufferUsageFlags, FinalConesDispatchInput, FinalConesDispatchResources } from '../buffers';
+import type { GpuBufferAllocation, GpuBufferUsageFlags, FinalConesDispatchInput, FinalConesDispatchResources } from '../../buffers';
 
 /** Creates the GPU allocations required by the final-cones WGSL pass. */
 export function createFinalConesDispatchResources(

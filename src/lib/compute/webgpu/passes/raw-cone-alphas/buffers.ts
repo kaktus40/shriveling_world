@@ -2,7 +2,7 @@ import type {
 	GpuBufferUsageFlags,
 	RawConeAlphaDispatchInput,
 	RawConeAlphaDispatchResources,
-} from '../buffers';
+} from '../../buffers';
 
 /** Creates the GPU allocations required by the raw-cone alpha WGSL pass. */
 export function createRawConeAlphaDispatchResources(
