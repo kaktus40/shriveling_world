@@ -7,12 +7,7 @@
 	import WorkspaceDatasetDetails from '$lib/components/workspace/WorkspaceDatasetDetails.svelte';
 	import WorkspaceQueryPanel from '$lib/components/workspace/WorkspaceQueryPanel.svelte';
 	import {
-		createDefaultQueryTree,
 		createQueryWorkerClient,
-		insertQueryNodeAtPath,
-		moveQueryNodeAtPath,
-		removeQueryNodeAtPath,
-		updateQueryNodeAtPath,
 		type QueryDatasetSnapshot,
 		type QueryExecutionResult,
 		type QueryWorkerClient,
@@ -23,9 +18,9 @@
 		type DatasetWorkspaceCompute,
 		type WorkspaceCitySummary,
 		type WorkspaceModeSummary,
+		createWorkspaceQueryController,
 		loadWorkspacePageDataset,
 		runWorkspacePageCompute,
-		runWorkspacePageQuery,
 	} from '$lib/application/workspace';
 	import type { DatasetDiagnostic, QueryableField } from '$lib/domain/data';
 	import type { QueryNode } from '$lib/domain/query';
@@ -55,8 +50,21 @@
 	let errorMessage = '';
 	let computeError = '';
 	let queryError = '';
-	let queryRunTimer: ReturnType<typeof setTimeout> | null = null;
 	let computeDiagnostics: readonly DatasetDiagnostic[] = [];
+	let workspaceQueryController = createWorkspaceQueryController({
+		getQueryWorker: () => queryWorker,
+		getQuerySnapshot: () => querySnapshot,
+		getQueryTree: () => queryTree,
+		setQueryTree: (next: QueryNode | null) => {
+			queryTree = next;
+		},
+		setQueryResult: (next: QueryExecutionResult | null) => {
+			queryResult = next;
+		},
+		setQueryError: (next: string) => {
+			queryError = next;
+		},
+	});
 
 	onMount(() => {
 		queryWorker = createQueryWorkerClient();
@@ -65,10 +73,7 @@
 		}
 
 		return () => {
-			if (queryRunTimer) {
-				clearTimeout(queryRunTimer);
-				queryRunTimer = null;
-			}
+			workspaceQueryController.dispose();
 			queryWorker?.terminate();
 			queryWorker = null;
 		};
@@ -94,7 +99,7 @@
 			queryError = '';
 			computeError = '';
 			await reloadCompute();
-			scheduleQueryRun();
+			workspaceQueryController.scheduleRun();
 		} catch (error) {
 			workspace = null;
 			summary = null;
@@ -115,28 +120,6 @@
 	}
 
 	$: computeDiagnostics = workspaceCompute?.result.diagnostics ?? [];
-
-	function refreshWorkspaceQueryTree(): void {
-		if (!querySnapshot) {
-			return;
-		}
-
-		queryTree = createDefaultQueryTree(querySnapshot.fields);
-		queryResult = null;
-		queryError = '';
-		scheduleQueryRun();
-	}
-
-	function clearWorkspaceQueryMutationState(): void {
-		queryResult = null;
-		queryError = '';
-	}
-
-	function applyQueryMutation(mutator: () => void): void {
-		mutator();
-		clearWorkspaceQueryMutationState();
-		scheduleQueryRun();
-	}
 
 	async function reloadCompute(): Promise<void> {
 		const currentWorkspace = workspace;
@@ -160,14 +143,10 @@
 	}
 
 	async function runQuery(): Promise<void> {
-		if (!workspace || !querySnapshot || !queryTree || !queryWorker) {
-			return;
-		}
-
 		queryLoading = true;
 		queryError = '';
 		try {
-			queryResult = await runWorkspacePageQuery(queryWorker, querySnapshot, queryTree);
+			await workspaceQueryController.run();
 		} catch (error) {
 			queryResult = null;
 			queryError = error instanceof Error ? error.message : String(error);
@@ -176,63 +155,24 @@
 		}
 	}
 
-	function scheduleQueryRun(): void {
-		if (!workspace || !querySnapshot || !queryTree || !queryWorker) {
-			return;
-		}
-
-		if (queryRunTimer) {
-			clearTimeout(queryRunTimer);
-		}
-
-		queryRunTimer = setTimeout(() => {
-			queryRunTimer = null;
-			void runQuery();
-		}, 80);
-	}
-
 	function resetQuery(): void {
-		refreshWorkspaceQueryTree();
+		workspaceQueryController.reset();
 	}
 
 	function updateQueryNode(path: number[], nextNode: QueryNode): void {
-		if (!queryTree) {
-			return;
-		}
-
-		applyQueryMutation(() => {
-			queryTree = updateQueryNodeAtPath(queryTree as QueryNode, path, () => nextNode);
-		});
+		workspaceQueryController.update(path, nextNode);
 	}
 
 	function deleteQueryNode(path: number[]): void {
-		if (!queryTree) {
-			return;
-		}
-
-		applyQueryMutation(() => {
-			queryTree = removeQueryNodeAtPath(queryTree as QueryNode, path);
-		});
+		workspaceQueryController.remove(path);
 	}
 
 	function insertQueryNode(path: number[], child: QueryNode): void {
-		if (!queryTree) {
-			return;
-		}
-
-		applyQueryMutation(() => {
-			queryTree = insertQueryNodeAtPath(queryTree as QueryNode, path, child);
-		});
+		workspaceQueryController.insert(path, child);
 	}
 
 	function moveQueryNode(path: number[], direction: -1 | 1): void {
-		if (!queryTree) {
-			return;
-		}
-
-		applyQueryMutation(() => {
-			queryTree = moveQueryNodeAtPath(queryTree as QueryNode, path, direction);
-		});
+		workspaceQueryController.move(path, direction);
 	}
 </script>
 
@@ -246,15 +186,15 @@
 	</p>
 </section>
 
-<WorkspaceControls
-	datasets={data.datasets}
-	bind:selectedDataset
-	bind:selectedComputeProfile
-	bind:selectedConeIntersectionStrategy
-	{loading}
-	onReloadWorkspace={() => void reloadWorkspace()}
-	onReloadCompute={() => void reloadCompute()}
-/>
+	<WorkspaceControls
+		datasets={data.datasets}
+		bind:selectedDataset
+		bind:selectedComputeProfile
+		bind:selectedConeIntersectionStrategy
+		{loading}
+		onReloadWorkspace={() => void reloadWorkspace()}
+		onReloadCompute={() => void reloadCompute()}
+	/>
 
 {#if errorMessage}
 	<WorkspaceNoticePanel title="Workspace error" message={errorMessage} kind="error" />

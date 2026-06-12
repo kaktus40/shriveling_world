@@ -3,3 +3,4 @@ export * from './datasets';
 export * from './invalidation';
 export * from './precompute';
 export * from './page';
+export * from './query';
