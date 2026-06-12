@@ -63,6 +63,12 @@ Utiliser les statuts suivants:
 - Le framework compute doit pouvoir etre active des l'ingestion CSV/GeoJSON
   jusqu'aux precomputes derives afin de mesurer chaque etape sur tous les
   profils disponibles.
+- La nomenclature publique compute est fixee par
+  `docs/compute-naming-contract.md`:
+  `Backend`, `Orchestrator`, `Profile`, `Selection`, `Capabilities`, `Input`,
+  `Options`, `Resources`, `Frame`, `Result`, `Report`, `Descriptor`,
+  `Registry`.
+  `Workflow` et `run(...)` ne doivent pas rester dans l'API publique finale.
 - La cible de runner pour la migration est `Vitest` pour les tests unitaires,
   d'integration et de conformance CPU, avec `Playwright` pour les tests E2E et
   de rendu.
@@ -1290,7 +1296,7 @@ src/lib/compute/kernels/
     webgl2.glsl
 ```
 
-Interface cible indicative:
+Interface cible canonique:
 
 ```ts
 interface ComputeBackend {

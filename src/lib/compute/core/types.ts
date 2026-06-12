@@ -1,3 +1,14 @@
+/**
+ * Canonical compute vocabulary for the migration.
+ *
+ * The public target names are:
+ * Backend, Orchestrator, Profile, Selection, Capabilities, Input, Options,
+ * Resources, Frame, Result, Report, Descriptor and Registry.
+ *
+ * Workflow and run-based names remain compatibility vocabulary during the
+ * rename plan, but they should not survive in the final public API.
+ */
+
 import type GeoJSON from 'geojson';
 import type {
 	BoundaryPrecompute,
@@ -106,7 +117,7 @@ export interface ComputeBenchmarkReport {
 	readonly notes: readonly string[];
 }
 
-/** Compute workflow input shared by every profile backend. */
+/** Input shared by every compute backend while the current compatibility vocabulary remains in place. */
 export interface ComputeWorkflowInput {
 	/** Source files provided by a dataset archive or a user import. */
 	readonly sourceFiles: readonly SourceFile[];
@@ -138,7 +149,7 @@ export interface ComputePrecomputeOptions {
 	};
 }
 
-/** Whole workflow options. */
+/** Options shared by the current compute workflow compatibility surface. */
 export interface ComputeWorkflowOptions extends ComputeBoundaryOptions, ComputePrecomputeOptions {
 	readonly profileRequest?: ComputeProfileRequest;
 	readonly benchmark?: boolean;
@@ -147,7 +158,7 @@ export interface ComputeWorkflowOptions extends ComputeBoundaryOptions, ComputeP
 	} & Partial<CurveGeometryOptions>;
 }
 
-/** Result of one GeoJSON boundary run. */
+/** Result of one boundary-oriented compute frame while the current compatibility vocabulary remains in place. */
 export interface ComputeBoundaryRunResult {
 	readonly fileName: string;
 	readonly geojson: GeoJSON.FeatureCollection;
@@ -156,7 +167,7 @@ export interface ComputeBoundaryRunResult {
 	readonly finalCones?: FinalConePrecompute;
 }
 
-/** Result of the complete compute workflow. */
+/** Result of one compute execution in the current compatibility surface. */
 export interface ComputeWorkflowResult {
 	readonly selection: ComputeProfileSelection;
 	readonly inspectedFiles: readonly InspectedDatasetFile[];
@@ -176,7 +187,7 @@ export interface ComputeWorkflowResult {
 	readonly benchmark: ComputeBenchmarkReport;
 }
 
-/** Lifecycle contract shared by every compute backend. */
+/** Lifecycle contract shared by every compute backend implementation. */
 export interface ComputeWorkflowBackend {
 	readonly profile: ComputeProfile;
 	run(
@@ -187,14 +198,14 @@ export interface ComputeWorkflowBackend {
 	dispose(): Promise<void>;
 }
 
-/** Descriptor used to register a workflow backend in the selector. */
+/** Descriptor used to register a backend in the profile selector. */
 export interface ComputeWorkflowBackendDescriptor {
 	readonly profile: ComputeProfile;
 	isAvailable(): boolean | Promise<boolean>;
 	create(): Promise<ComputeWorkflowBackend>;
 }
 
-/** Registry used to select the first usable backend in the fallback chain. */
+/** Registry used by the orchestrator to select the first usable backend in the fallback chain. */
 export interface ComputeWorkflowBackendRegistry {
 	readonly cpu: ComputeWorkflowBackendDescriptor;
 	readonly webgl2?: ComputeWorkflowBackendDescriptor;
