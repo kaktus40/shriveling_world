@@ -61,4 +61,4 @@ The canonical public surface planned for M6 is:
 - `ComputeCapabilities`
 - `ComputeBenchmarkReport`
 
-The current code may still expose compatibility names while the migration is being renamed, but the target vocabulary is fixed by this document.
+The current code converges on these canonical names, and this document fixes the target vocabulary.

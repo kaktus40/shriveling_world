@@ -5,8 +5,7 @@
  * Backend, Orchestrator, Profile, Selection, Capabilities, Input, Options,
  * Resources, Frame, Result, Report, Descriptor and Registry.
  *
- * Workflow and run-based names remain compatibility vocabulary during the
- * rename plan, but they should not survive in the final public API.
+ * The public compute vocabulary is canonical and should be used consistently across code and documentation.
  */
 
 import type GeoJSON from 'geojson';
@@ -43,7 +42,7 @@ import type {
 /** Compute backends supported by the migration framework. */
 export type ComputeProfile = 'webgpu' | 'webgl2' | 'cpu';
 
-/** Available cone-intersection strategies supported by the compute workflow. */
+/** Available cone-intersection strategies supported by the compute stack. */
 export type ComputeConeIntersectionStrategy =
 	| 'oracle'
 	| 'symmetric-order'
@@ -109,7 +108,7 @@ export interface StageTiming {
 	readonly durationMs: number;
 }
 
-/** Comparable benchmark report emitted by a compute workflow execution. */
+/** Comparable benchmark report emitted by a compute stack execution. */
 export interface ComputeBenchmarkReport {
 	readonly profile: ComputeProfile;
 	readonly timings: readonly StageTiming[];
@@ -118,7 +117,7 @@ export interface ComputeBenchmarkReport {
 }
 
 /** Input shared by every compute backend while the current compatibility vocabulary remains in place. */
-export interface ComputeWorkflowInput {
+export interface ComputeInput {
 	/** Source files provided by a dataset archive or a user import. */
 	readonly sourceFiles: readonly SourceFile[];
 	/** Optional GeoJSON source files already extracted by the caller. */
@@ -149,8 +148,8 @@ export interface ComputePrecomputeOptions {
 	};
 }
 
-/** Options shared by the current compute workflow compatibility surface. */
-export interface ComputeWorkflowOptions extends ComputeBoundaryOptions, ComputePrecomputeOptions {
+/** Options shared by the current compute stack compatibility surface. */
+export interface ComputeOptions extends ComputeBoundaryOptions, ComputePrecomputeOptions {
 	readonly profileRequest?: ComputeProfileRequest;
 	readonly benchmark?: boolean;
 	readonly curve?: {
@@ -159,7 +158,7 @@ export interface ComputeWorkflowOptions extends ComputeBoundaryOptions, ComputeP
 }
 
 /** Result of one boundary-oriented compute frame while the current compatibility vocabulary remains in place. */
-export interface ComputeBoundaryRunResult {
+export interface ComputeBoundaryResult {
 	readonly fileName: string;
 	readonly geojson: GeoJSON.FeatureCollection;
 	readonly boundaryPrecompute: BoundaryPrecompute;
@@ -168,12 +167,12 @@ export interface ComputeBoundaryRunResult {
 }
 
 /** Result of one compute execution in the current compatibility surface. */
-export interface ComputeWorkflowResult {
+export interface ComputeResult {
 	readonly selection: ComputeProfileSelection;
 	readonly inspectedFiles: readonly InspectedDatasetFile[];
 	readonly baseNetwork: BaseNetwork;
 	readonly preparedDataset: PreparedDataset;
-	readonly geojsonRuns: readonly ComputeBoundaryRunResult[];
+	readonly geojsonRuns: readonly ComputeBoundaryResult[];
 	readonly staticTown?: StaticTownPrecompute;
 	readonly dynamicTown?: DynamicTownPrecompute;
 	readonly rawCones?: RawConePrecompute;
@@ -188,32 +187,32 @@ export interface ComputeWorkflowResult {
 }
 
 /** Lifecycle contract shared by every compute backend implementation. */
-export interface ComputeWorkflowBackend {
+export interface ComputeBackend {
 	readonly profile: ComputeProfile;
-	run(
-		input: ComputeWorkflowInput,
-		options?: ComputeWorkflowOptions,
+	computeFrame(
+		input: ComputeInput,
+		options?: ComputeOptions,
 		selection?: ComputeProfileSelection,
-	): Promise<ComputeWorkflowResult>;
+	): Promise<ComputeResult>;
 	dispose(): Promise<void>;
 }
 
 /** Descriptor used to register a backend in the profile selector. */
-export interface ComputeWorkflowBackendDescriptor {
+export interface ComputeBackendDescriptor {
 	readonly profile: ComputeProfile;
 	isAvailable(): boolean | Promise<boolean>;
-	create(): Promise<ComputeWorkflowBackend>;
+	create(): Promise<ComputeBackend>;
 }
 
 /** Registry used by the orchestrator to select the first usable backend in the fallback chain. */
-export interface ComputeWorkflowBackendRegistry {
-	readonly cpu: ComputeWorkflowBackendDescriptor;
-	readonly webgl2?: ComputeWorkflowBackendDescriptor;
-	readonly webgpu?: ComputeWorkflowBackendDescriptor;
+export interface ComputeBackendRegistry {
+	readonly cpu: ComputeBackendDescriptor;
+	readonly webgl2?: ComputeBackendDescriptor;
+	readonly webgpu?: ComputeBackendDescriptor;
 }
 
 /** Optional inputs for raw-cone and cone-intersection phases. */
-export interface ComputeConeWorkflowOptions {
+export interface ComputeConeOptions {
 	readonly year: number;
 	readonly shape: ConeShape;
 	readonly azimuthSampleCount: number;

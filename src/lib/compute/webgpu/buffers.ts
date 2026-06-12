@@ -11,7 +11,7 @@ export interface GpuBufferUsageFlags {
 	readonly MAP_READ: number;
 }
 
-/** Shared contract for a GPU buffer allocation used by the migration workflow. */
+/** Shared contract for a GPU buffer allocation used by the migration compute stack. */
 export interface GpuBufferAllocation {
 	readonly buffer: GPUBuffer;
 	readonly contract: ComputeGpuBufferContract;

@@ -33,7 +33,7 @@ export interface WorkspacePrecomputeSnapshot {
  * the prepared dataset as-is and only vary the year or the geometry options
  * relevant to the precompute tranches.
  */
-export function runDatasetWorkspacePrecompute(
+export function computeDatasetWorkspacePrecompute(
 	workspace: DatasetWorkspaceSnapshot,
 	request: WorkspacePrecomputeRequest = {},
 ): WorkspacePrecomputeSnapshot {

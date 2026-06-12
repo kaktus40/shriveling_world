@@ -3,7 +3,7 @@ import type {
 	ComputeProfile,
 	ComputeProfileRequest,
 	ComputeProfileSelection,
-	ComputeWorkflowBackendRegistry,
+	ComputeBackendRegistry,
 } from './types';
 
 const PROFILE_FALLBACKS: Record<ComputeProfile, readonly ComputeProfile[]> = {
@@ -19,7 +19,7 @@ export function getComputeFallbackChain(preferredProfile: ComputeProfile = 'webg
 
 /** Detects the availability snapshot of a registry without creating a backend. */
 export async function detectComputeCapabilities(
-	registry: ComputeWorkflowBackendRegistry,
+	registry: ComputeBackendRegistry,
 ): Promise<ComputeCapabilities> {
 	const [webgpuAvailable, webgl2Available] = await Promise.all([
 		probeAvailability(registry.webgpu),
@@ -37,7 +37,7 @@ export async function detectComputeCapabilities(
 /** Selects the first backend available in the requested fallback chain. */
 export async function selectComputeProfile(
 	request: ComputeProfileRequest,
-	registry: ComputeWorkflowBackendRegistry,
+	registry: ComputeBackendRegistry,
 ): Promise<ComputeProfileSelection> {
 	const requestedProfile = request.forced ?? request.preferred ?? 'webgpu';
 	const chain = getComputeFallbackChain(requestedProfile);
@@ -75,7 +75,7 @@ export async function selectComputeProfile(
 }
 
 async function probeRegistry(
-	registry: ComputeWorkflowBackendRegistry,
+	registry: ComputeBackendRegistry,
 ): Promise<Record<ComputeProfile, boolean>> {
 	return {
 		webgpu: await probeAvailability(registry.webgpu),
@@ -85,7 +85,7 @@ async function probeRegistry(
 }
 
 async function probeAvailability(
-	descriptor: ComputeWorkflowBackendRegistry[keyof ComputeWorkflowBackendRegistry] | undefined,
+	descriptor: ComputeBackendRegistry[keyof ComputeBackendRegistry] | undefined,
 ): Promise<boolean> {
 	if (!descriptor) {
 		return false;

@@ -3,7 +3,7 @@ import boundaryAlgebreKernelSource from '../../../kernels/boundary-algebre/webgp
 import { EARTH_RADIUS_METERS } from '../../../../shared';
 import type { DatasetDiagnostic } from '../../../../domain/data';
 import { buildAzimuthIntervals, packAzimuthIntervals } from '../../../../domain/geojson';
-import type { ComputeWorkflowResult, StageTiming } from '../../../core';
+import type { ComputeResult, StageTiming } from '../../../core';
 import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
@@ -19,8 +19,8 @@ const boundaryAlgebreShaderSource = `${boundaryAlgebreMathSource}\n${boundaryAlg
 
 export interface WebGpuBoundaryRaycastPassInput {
 	readonly context: WebGpuComputeContext;
-	readonly result: ComputeWorkflowResult;
-	readonly geojsonRun: ComputeWorkflowResult['geojsonRuns'][number];
+	readonly result: ComputeResult;
+	readonly geojsonRun: ComputeResult['geojsonRuns'][number];
 	readonly resources: WebGpuComputeResources;
 }
 

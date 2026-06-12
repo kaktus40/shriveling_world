@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { expect, test } from 'vitest';
 
 import {
-	createWebGl2WorkflowBackendDescriptor,
+	createWebGl2ComputeBackendDescriptor,
 	probeWebGl2Availability,
-	type WebGl2WorkflowBackendOptions,
+	type WebGl2ComputeBackendOptions,
 } from '$lib/compute';
 
 import type { SourceFile } from '$lib/domain/data';
@@ -105,11 +105,11 @@ cityCodeOri,cityCodeDes,transportModeCode,eYearBegin,eYearEnd
 	};
 }
 
-function createFakeCanvas(): NonNullable<WebGl2WorkflowBackendOptions['canvas']> {
+function createFakeCanvas(): NonNullable<WebGl2ComputeBackendOptions['canvas']> {
 	const gl = createFakeGl();
 	return {
 		getContext: (kind: string) => (kind === 'webgl2' ? gl : null),
-	} as unknown as NonNullable<WebGl2WorkflowBackendOptions['canvas']>;
+	} as unknown as NonNullable<WebGl2ComputeBackendOptions['canvas']>;
 }
 
 function createFakeGl(): WebGL2RenderingContext & { calls: { drawCalls: number; instancedDrawCalls: number } } {
@@ -206,16 +206,16 @@ function createFakeGl(): WebGL2RenderingContext & { calls: { drawCalls: number; 
 
 test('webgl2 probe stays false without a canvas', () => {
 	expect(probeWebGl2Availability(undefined)).toBe(false);
-	expect(createWebGl2WorkflowBackendDescriptor().isAvailable()).toBe(false);
+	expect(createWebGl2ComputeBackendDescriptor().isAvailable()).toBe(false);
 });
 
 test('webgl2 probe becomes available with a webgl2-capable canvas and the backend keeps the selected profile', async () => {
 	const fakeCanvas = createFakeCanvas();
-	const descriptor = createWebGl2WorkflowBackendDescriptor({ canvas: fakeCanvas });
+	const descriptor = createWebGl2ComputeBackendDescriptor({ canvas: fakeCanvas });
 	assert.equal(await descriptor.isAvailable(), true);
 
 	const backend = await descriptor.create();
-	const result = await backend.run(
+	const result = await backend.computeFrame(
 		buildMinimalDataset(),
 		{
 			benchmark: true,

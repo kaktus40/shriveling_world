@@ -1,6 +1,6 @@
 import {
-	type ComputeWorkflowOptions,
-	diffComputeWorkflowOptions,
+	type ComputeOptions,
+	diffComputeOptions,
 } from '$lib/compute';
 import type { WorkspacePrecomputeRequest } from './precompute';
 
@@ -26,9 +26,9 @@ export function diffWorkspacePrecomputeRequest(
 	previous: WorkspacePrecomputeRequest,
 	next: WorkspacePrecomputeRequest,
 ): WorkspacePrecomputeInvalidation {
-	const previousWorkflow = toWorkspaceComputeOptions(previous);
-	const nextWorkflow = toWorkspaceComputeOptions(next);
-	const invalidation = diffComputeWorkflowOptions(previousWorkflow, nextWorkflow);
+	const previousOptions = toWorkspaceComputeOptions(previous);
+	const nextOptions = toWorkspaceComputeOptions(next);
+	const invalidation = diffComputeOptions(previousOptions, nextOptions);
 
 	return {
 		preparedDataset: false,
@@ -42,7 +42,7 @@ export function diffWorkspacePrecomputeRequest(
 	};
 }
 
-function toWorkspaceComputeOptions(request: WorkspacePrecomputeRequest): ComputeWorkflowOptions {
+function toWorkspaceComputeOptions(request: WorkspacePrecomputeRequest): ComputeOptions {
 	return {
 		boundaryRaycast: {
 			azimuthSampleCount: request.boundaryAzimuthSampleCount ?? 360,

@@ -9,7 +9,7 @@ import {
 	type SourceFile,
 } from '$lib/domain/data';
 import {
-	runDatasetWorkspacePrecompute,
+	computeDatasetWorkspacePrecompute,
 	type DatasetWorkspaceSnapshot,
 } from '$lib/application/workspace';
 
@@ -98,8 +98,8 @@ cityCodeOri,cityCodeDes,transportModeCode,eYearBegin,eYearEnd
 
 test('prepared workspace precompute reuses the prepared dataset and isolates the yearly tranche', () => {
 	const workspace = buildWorkspace();
-	const first = runDatasetWorkspacePrecompute(workspace, { year: 2000, boundaryAzimuthSampleCount: 8 });
-	const second = runDatasetWorkspacePrecompute(workspace, { year: 2010, boundaryAzimuthSampleCount: 8 });
+	const first = computeDatasetWorkspacePrecompute(workspace, { year: 2000, boundaryAzimuthSampleCount: 8 });
+	const second = computeDatasetWorkspacePrecompute(workspace, { year: 2010, boundaryAzimuthSampleCount: 8 });
 
 	assert.equal(first.preparedDataset, workspace.pipeline.preparedDataset);
 	assert.equal(second.preparedDataset, workspace.pipeline.preparedDataset);

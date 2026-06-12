@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 
-import { diffComputeWorkflowOptions, type ComputeWorkflowOptions } from '$lib/compute';
+import { diffComputeOptions, type ComputeOptions } from '$lib/compute';
 
-function options(overrides: Partial<ComputeWorkflowOptions> = {}): ComputeWorkflowOptions {
+function options(overrides: Partial<ComputeOptions> = {}): ComputeOptions {
 	return {
 		boundaryRaycast: { azimuthSampleCount: 360 },
 		staticTown: { sectorCount: 360, neighborLimit: 16 },
@@ -18,8 +18,8 @@ function options(overrides: Partial<ComputeWorkflowOptions> = {}): ComputeWorkfl
 	};
 }
 
-test('compute workflow invalidation preserves the prepared dataset and isolates yearly changes', () => {
-	const impact = diffComputeWorkflowOptions(options({ dynamicYear: 2000 }), options({ dynamicYear: 2010 }));
+test('compute stack invalidation preserves the prepared dataset and isolates yearly changes', () => {
+	const impact = diffComputeOptions(options({ dynamicYear: 2000 }), options({ dynamicYear: 2010 }));
 
 	assert.equal(impact.preparedDataset, false);
 	assert.equal(impact.boundary, false);
@@ -31,8 +31,8 @@ test('compute workflow invalidation preserves the prepared dataset and isolates 
 	assert.equal(impact.curveGeometry, false);
 });
 
-test('compute workflow invalidation propagates boundary-only changes to the final geometry tranche', () => {
-	const impact = diffComputeWorkflowOptions(
+test('compute stack invalidation propagates boundary-only changes to the final geometry tranche', () => {
+	const impact = diffComputeOptions(
 		options({ boundaryRaycast: { azimuthSampleCount: 180 } }),
 		options({ boundaryRaycast: { azimuthSampleCount: 360 } }),
 	);

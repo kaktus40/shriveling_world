@@ -10,7 +10,7 @@ import {
 } from '$lib/domain/data';
 import {
 	listWorkspaceCities,
-	runDatasetWorkspaceCompute,
+	computeDatasetWorkspace,
 	listWorkspaceFields,
 	listWorkspaceModes,
 	summarizeDatasetWorkspace,
@@ -158,7 +158,7 @@ test('workspace mode, city, and field previews stay aligned with prepared order'
 
 test('workspace compute runs on the cpu reference backend and reports benchmark stages', async () => {
 	const workspace = buildWorkspace();
-	const result = await runDatasetWorkspaceCompute(workspace, {
+	const result = await computeDatasetWorkspace(workspace, {
 		profile: 'webgl2' as ComputeProfile,
 		forced: 'webgl2' as ComputeProfile,
 		allowFallback: true,

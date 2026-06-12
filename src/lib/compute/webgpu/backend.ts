@@ -1,9 +1,9 @@
 import {
-	createCpuWorkflowBackend,
-	type CpuComputeWorkflowBackend,
+	createCpuComputeBackend,
+	type CpuComputeBackend,
 } from '../cpu';
 import { type GpuBufferAllocation } from './buffers';
-import { getGpuBufferUsage, remapBenchmarkProfile, tagDiagnostics } from '../shared/workflow';
+import { getGpuBufferUsage, remapBenchmarkProfile, tagDiagnostics } from '../shared/compute';
 import { createWebGpuComputeResources } from './resources';
 import { runWebGpuCityMatrixPass } from './passes/city-ned2ecef';
 import { runWebGpuBoundaryRaycastPass } from './passes/boundary-algebre';
@@ -13,46 +13,46 @@ import { runWebGpuRawConeAlphaPass } from './passes/raw-cone-alphas';
 import type {
 	ComputeCapabilities,
 	ComputeProfileSelection,
-	ComputeWorkflowBackend,
-	ComputeWorkflowBackendDescriptor,
-	ComputeWorkflowInput,
-	ComputeWorkflowOptions,
-	ComputeWorkflowResult,
+	ComputeBackend,
+	ComputeBackendDescriptor,
+	ComputeInput,
+	ComputeOptions,
+	ComputeResult,
 	StageTiming,
 } from '../core';
 import type { DatasetDiagnostic } from '../../domain/data';
 import type { WebGpuComputeContext, WebGpuComputeResources } from './types';
 
 /** Options used to build the WebGPU backend. */
-export interface WebGpuWorkflowBackendOptions {
+export interface WebGpuComputeBackendOptions {
 	/** Optional pre-existing GPU device used by the backend. */
 	readonly device?: GPUDevice | null;
 	/** Optional adapter factory used when no device is injected. */
 	readonly requestAdapter?: () => Promise<GPUAdapter | null>;
 	/** Optional CPU backend used as a temporary orchestration delegate. */
-	readonly cpuBackend?: CpuComputeWorkflowBackend;
+	readonly cpuBackend?: CpuComputeBackend;
 }
 
 /** Lightweight WebGPU backend for the migration. */
-export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
+export class WebGpuComputeBackend implements ComputeBackend {
 	readonly profile = 'webgpu' as const;
-	readonly #cpuBackend: CpuComputeWorkflowBackend;
+	readonly #cpuBackend: CpuComputeBackend;
 	#device: GPUDevice | null;
 	#requestAdapter: (() => Promise<GPUAdapter | null>) | null;
 	#resources: WebGpuComputeResources | null = null;
 	#ciseledConeRimEcef: GpuBufferAllocation | null = null;
 
-	constructor(options: WebGpuWorkflowBackendOptions = {}) {
+	constructor(options: WebGpuComputeBackendOptions = {}) {
 		this.#device = options.device ?? null;
 		this.#requestAdapter = options.requestAdapter ?? null;
-		this.#cpuBackend = options.cpuBackend ?? createCpuWorkflowBackend();
+		this.#cpuBackend = options.cpuBackend ?? createCpuComputeBackend();
 	}
 
-	async run(
-		input: ComputeWorkflowInput,
-		options: ComputeWorkflowOptions = {},
+	async computeFrame(
+		input: ComputeInput,
+		options: ComputeOptions = {},
 		selection?: ComputeProfileSelection,
-	): Promise<ComputeWorkflowResult> {
+	): Promise<ComputeResult> {
 		this.#ciseledConeRimEcef = null;
 		const context = await this.ensureContext();
 		const delegatedSelection: ComputeProfileSelection =
@@ -61,24 +61,24 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 				fallbackUsed: false,
 				capabilities: webgpuCapabilities(true),
 			};
-		const result = await this.#cpuBackend.run(input, options, delegatedSelection);
+		const result = await this.#cpuBackend.computeFrame(input, options, delegatedSelection);
 		const extraTimings: StageTiming[] = [];
 		const compareDiagnostics: DatasetDiagnostic[] = [];
 
 		if (result.staticTown) {
-			const cityMatrixPass = await this.runCityMatrixPass(context, result);
+			const cityMatrixPass = await this.computeCityMatrixPass(context, result);
 			extraTimings.push(cityMatrixPass.timing);
 			compareDiagnostics.push(...cityMatrixPass.diagnostics);
 		}
 
 		if (result.rawCones) {
-			const rawConeAlphaPass = await this.runRawConeAlphaPass(context, result);
+			const rawConeAlphaPass = await this.computeRawConeAlphaPass(context, result);
 			extraTimings.push(rawConeAlphaPass.timing);
 			compareDiagnostics.push(...rawConeAlphaPass.diagnostics);
 		}
 
 		if (result.staticTown && result.rawCones && result.coneIntersections) {
-			const ciseledConePass = await this.runCiseledConePass(context, result);
+			const ciseledConePass = await this.computeCiseledConePass(context, result);
 			extraTimings.push(ciseledConePass.timing);
 			compareDiagnostics.push(...ciseledConePass.diagnostics);
 			if (ciseledConePass.ciseledConeRimEcef) {
@@ -176,9 +176,9 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		return this.#device;
 	}
 
-	private async runCityMatrixPass(
+	private async computeCityMatrixPass(
 		context: WebGpuComputeContext,
-		result: ComputeWorkflowResult,
+		result: ComputeResult,
 	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
 		return runWebGpuCityMatrixPass({
 			context,
@@ -188,9 +188,9 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		});
 	}
 
-	private async runRawConeAlphaPass(
+	private async computeRawConeAlphaPass(
 		context: WebGpuComputeContext,
-		result: ComputeWorkflowResult,
+		result: ComputeResult,
 	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
 		return runWebGpuRawConeAlphaPass({
 			context,
@@ -200,9 +200,9 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		});
 	}
 
-	private async runCiseledConePass(
+	private async computeCiseledConePass(
 		context: WebGpuComputeContext,
-		result: ComputeWorkflowResult,
+		result: ComputeResult,
 	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[]; ciseledConeRimEcef?: GpuBufferAllocation }> {
 		return runWebGpuCiseledConePass({
 			context,
@@ -214,8 +214,8 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 
 	private async runBoundaryRaycastPass(
 		context: WebGpuComputeContext,
-		result: ComputeWorkflowResult,
-		geojsonRun: ComputeWorkflowResult['geojsonRuns'][number],
+		result: ComputeResult,
+		geojsonRun: ComputeResult['geojsonRuns'][number],
 	): Promise<{ timing: StageTiming; extraTimings?: StageTiming[]; diagnostics: DatasetDiagnostic[] }> {
 		return runWebGpuBoundaryRaycastPass({
 			context,
@@ -252,13 +252,13 @@ export async function probeWebGpuAvailability(
 }
 
 /** Creates a WebGPU backend descriptor used by profile selection. */
-export function createWebGpuWorkflowBackendDescriptor(
-	options: WebGpuWorkflowBackendOptions = {},
-): ComputeWorkflowBackendDescriptor {
+export function createWebGpuComputeBackendDescriptor(
+	options: WebGpuComputeBackendOptions = {},
+): ComputeBackendDescriptor {
 	return {
 		profile: 'webgpu',
 		isAvailable: () => probeWebGpuAvailability(options.device ?? null, options.requestAdapter ?? null),
-		create: async () => new WebGpuComputeWorkflowBackend(options),
+		create: async () => new WebGpuComputeBackend(options),
 	};
 }
 

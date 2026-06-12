@@ -1,6 +1,6 @@
 import ciseledConesVertexShaderSource from '../../../kernels/ciseled-cones/webgl2.vert?raw';
 import type { DatasetDiagnostic } from '../../../../domain/data';
-import type { ComputeWorkflowResult, StageTiming } from '../../../core';
+import type { ComputeResult, StageTiming } from '../../../core';
 import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
@@ -15,7 +15,7 @@ import { createCiseledConesDispatchResources } from './buffers';
 
 export interface WebGl2CiseledConePassInput {
 	readonly gl: WebGL2RenderingContext;
-	readonly result: ComputeWorkflowResult;
+	readonly result: ComputeResult;
 	readonly resources: WebGl2ComputeResources;
 }
 

@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { expect, test } from 'vitest';
 
 import {
-	createWebGpuWorkflowBackendDescriptor,
+	createWebGpuComputeBackendDescriptor,
 	probeWebGpuAvailability,
-	type WebGpuWorkflowBackendOptions,
+	type WebGpuComputeBackendOptions,
 } from '$lib/compute';
 
 import type { SourceFile } from '$lib/domain/data';
@@ -72,7 +72,7 @@ cityCodeOri,cityCodeDes,transportModeCode,eYearBegin,eYearEnd
 	};
 }
 
-function createFakeDevice(): { device: WebGpuWorkflowBackendOptions['device']; calls: { dispatches: number } } {
+function createFakeDevice(): { device: WebGpuComputeBackendOptions['device']; calls: { dispatches: number } } {
 	const calls = {
 		dispatches: 0,
 	};
@@ -104,23 +104,23 @@ function createFakeDevice(): { device: WebGpuWorkflowBackendOptions['device']; c
 					}) as unknown as GPUComputePassEncoder,
 				finish: () => ({} as GPUCommandBuffer),
 			}) as GPUCommandEncoder,
-	} as unknown as WebGpuWorkflowBackendOptions['device'];
+	} as unknown as WebGpuComputeBackendOptions['device'];
 
 	return { device, calls };
 }
 
 test('webgpu probe stays false without a device or adapter', async () => {
 	expect(await probeWebGpuAvailability(undefined, null)).toBe(false);
-	await expect(createWebGpuWorkflowBackendDescriptor().isAvailable()).resolves.toBe(false);
+	await expect(createWebGpuComputeBackendDescriptor().isAvailable()).resolves.toBe(false);
 });
 
 test('webgpu probe becomes available with an injected device and the backend keeps the selected profile', async () => {
 	const fake = createFakeDevice();
-	const descriptor = createWebGpuWorkflowBackendDescriptor({ device: fake.device });
+	const descriptor = createWebGpuComputeBackendDescriptor({ device: fake.device });
 	assert.equal(await descriptor.isAvailable(), true);
 
 	const backend = await descriptor.create();
-	const result = await backend.run(
+	const result = await backend.computeFrame(
 		buildMinimalDataset(),
 		{
 			benchmark: true,

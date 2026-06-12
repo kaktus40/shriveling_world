@@ -51,12 +51,12 @@ import type {
 	ComputeBenchmarkReport,
 	ComputeCapabilities,
 	ComputeProfileSelection,
-	ComputeWorkflowBackendDescriptor,
-	ComputeWorkflowBackendRegistry,
-	ComputeWorkflowBackend,
-	ComputeWorkflowInput,
-	ComputeWorkflowOptions,
-	ComputeWorkflowResult,
+	ComputeBackendDescriptor,
+	ComputeBackendRegistry,
+	ComputeBackend,
+	ComputeInput,
+	ComputeOptions,
+	ComputeResult,
 	StageTiming,
 	ComputeConeIntersectionStrategy,
 } from '../core/types';
@@ -68,15 +68,15 @@ interface GeojsonRunBuffer {
 	finalCones?: FinalConePrecompute;
 }
 
-/** CPU reference backend for the whole migration workflow. */
-export class CpuComputeWorkflowBackend implements ComputeWorkflowBackend {
+/** CPU reference backend for the whole migration compute pipeline. */
+export class CpuComputeBackend implements ComputeBackend {
 	readonly profile = 'cpu' as const;
 
-	async run(
-		input: ComputeWorkflowInput,
-		options: ComputeWorkflowOptions = {},
+	async computeFrame(
+		input: ComputeInput,
+		options: ComputeOptions = {},
 		selection?: ComputeProfileSelection,
-	): Promise<ComputeWorkflowResult> {
+	): Promise<ComputeResult> {
 		const timings: StageTiming[] = [];
 		const notes: string[] = [];
 		const diagnostics: DatasetDiagnostic[] = [];
@@ -124,7 +124,7 @@ export class CpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		diagnostics.push(...preparedDataset.diagnostics);
 
 		let geojsonRuns = geojsonSources.map((source) => {
-			const geojsonRun = runBoundaryWorkflow(
+			const geojsonRun = computeBoundaryStage(
 				source.fileName,
 				source.geojson,
 				preparedDataset,
@@ -178,7 +178,7 @@ export class CpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 				'interactive',
 				this.profile,
 				() =>
-					runConeIntersectionStage(
+					computeConeIntersectionStage(
 						staticTown,
 						rawCones,
 						dynamicTown,
@@ -278,23 +278,23 @@ export function cpuCapabilities(): ComputeCapabilities {
 }
 
 /** Creates the default CPU backend descriptor. */
-export function createCpuWorkflowBackend(): CpuComputeWorkflowBackend {
-	return new CpuComputeWorkflowBackend();
+export function createCpuComputeBackend(): CpuComputeBackend {
+	return new CpuComputeBackend();
 }
 
 /** Creates a CPU-only registry that is always available. */
-export function createDefaultComputeWorkflowRegistry(): ComputeWorkflowBackendRegistry {
+export function createDefaultComputeBackendRegistry(): ComputeBackendRegistry {
 	return {
-		cpu: createCpuWorkflowBackendDescriptor(),
+		cpu: createCpuComputeBackendDescriptor(),
 	};
 }
 
 /** Creates a CPU backend descriptor suitable for profile selection. */
-export function createCpuWorkflowBackendDescriptor(): ComputeWorkflowBackendDescriptor {
+export function createCpuComputeBackendDescriptor(): ComputeBackendDescriptor {
 	return {
 		profile: 'cpu',
 		isAvailable: () => true,
-		create: async () => createCpuWorkflowBackend(),
+		create: async () => createCpuComputeBackend(),
 	};
 }
 
@@ -308,12 +308,12 @@ function resolveStaticTownOptions(
 	};
 }
 
-function runConeIntersectionStage(
+function computeConeIntersectionStage(
 	staticTown: StaticTownPrecompute,
 	rawCones: RawConePrecompute,
 	dynamicTown: DynamicTownPrecompute,
 	strategy: ComputeConeIntersectionStrategy,
-	options?: ComputeWorkflowOptions['coneIntersection'],
+	options?: ComputeOptions['coneIntersection'],
 ): ConeIntersectionOraclePrecompute {
 	switch (strategy) {
 		case 'oracle':
@@ -344,7 +344,7 @@ function runConeIntersectionStage(
 function resolveAlphaAwareConeIntersectionOptions(
 	dynamicTown: DynamicTownPrecompute,
 	rawCones: RawConePrecompute,
-	override?: ComputeWorkflowOptions['coneIntersection'],
+	override?: ComputeOptions['coneIntersection'],
 ): AlphaAwareConeIntersectionOptions {
 	return {
 		roadAlphaRadians: dynamicTown.roadAlphaRadians,
@@ -357,7 +357,7 @@ function resolveAlphaAwareConeIntersectionOptions(
 function resolveAlphaAwareBlockPrunedConeIntersectionOptions(
 	dynamicTown: DynamicTownPrecompute,
 	rawCones: RawConePrecompute,
-	override?: ComputeWorkflowOptions['coneIntersection'],
+	override?: ComputeOptions['coneIntersection'],
 ): AlphaAwareBlockPrunedConeIntersectionOptions {
 	return {
 		...resolveAlphaAwareConeIntersectionOptions(dynamicTown, rawCones, override),
@@ -399,11 +399,11 @@ function tagDiagnostics<T extends { severity: 'warning' | 'error'; code: string;
 	);
 }
 
-function runBoundaryWorkflow(
+function computeBoundaryStage(
 	fileName: string,
 	geojson: GeoJSON.FeatureCollection,
 	preparedDataset: PreparedDataset,
-	options: ComputeWorkflowOptions,
+	options: ComputeOptions,
 	diagnostics: BoundaryDiagnostic[],
 ): {
 	fileName: string;

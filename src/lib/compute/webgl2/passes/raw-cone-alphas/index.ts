@@ -1,7 +1,7 @@
 import rawConeAlphasMathSource from '../../../kernels/shared/math/webgl2.glsl?raw';
 import rawConeAlphasKernelSource from '../../../kernels/raw-cone-alphas/webgl2.vert?raw';
 import type { DatasetDiagnostic } from '../../../../domain/data';
-import type { ComputeWorkflowResult, StageTiming } from '../../../core';
+import type { ComputeResult, StageTiming } from '../../../core';
 import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
@@ -18,7 +18,7 @@ const rawConeAlphasVertexShaderSource = `${rawConeAlphasMathSource}\n${rawConeAl
 
 export interface WebGl2RawConeAlphaPassInput {
 	readonly gl: WebGL2RenderingContext;
-	readonly result: ComputeWorkflowResult;
+	readonly result: ComputeResult;
 	readonly resources: WebGl2ComputeResources;
 }
 

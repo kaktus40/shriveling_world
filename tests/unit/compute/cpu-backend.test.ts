@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { createCpuWorkflowBackend } from '$lib/compute';
+import { createCpuComputeBackend } from '$lib/compute';
 import type { SourceFile } from '$lib/domain/data';
 
 function csv(name: string, text: string): SourceFile {
@@ -71,9 +71,9 @@ function createSourceFiles(): SourceFile[] {
 	];
 }
 
-test('cpu workflow benchmarks ingestion, geojson and precompute stages from source files', async () => {
-	const backend = createCpuWorkflowBackend();
-	const result = await backend.run(
+test('cpu backend benchmarks ingestion, geojson and precompute stages from source files', async () => {
+	const backend = createCpuComputeBackend();
+	const result = await backend.computeFrame(
 		{ sourceFiles: createSourceFiles() },
 		{
 			profileRequest: { forced: 'cpu' },

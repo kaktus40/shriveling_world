@@ -1,6 +1,6 @@
 import ciseledConesShaderSource from '../../../kernels/ciseled-cones/webgpu.wgsl?raw';
 import type { DatasetDiagnostic } from '../../../../domain/data';
-import type { ComputeWorkflowResult, StageTiming } from '../../../core';
+import type { ComputeResult, StageTiming } from '../../../core';
 import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
@@ -14,7 +14,7 @@ import { createCiseledConesDispatchResources } from './buffers';
 
 export interface WebGpuCiseledConePassInput {
 	readonly context: WebGpuComputeContext;
-	readonly result: ComputeWorkflowResult;
+	readonly result: ComputeResult;
 	readonly resources: WebGpuComputeResources;
 	readonly usage: {
 		readonly STORAGE: number;

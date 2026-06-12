@@ -1,8 +1,8 @@
 import {
-	createCpuWorkflowBackend,
-	type CpuComputeWorkflowBackend,
+	createCpuComputeBackend,
+	type CpuComputeBackend,
 } from '../cpu';
-import { remapBenchmarkProfile, tagDiagnostics } from '../shared/workflow';
+import { remapBenchmarkProfile, tagDiagnostics } from '../shared/compute';
 import { createWebGl2ComputeResources } from './resources';
 import { runWebGl2CityMatrixPass } from './passes/city-ned2ecef';
 import { runWebGl2BoundaryRaycastPass } from './passes/boundary-algebre';
@@ -13,11 +13,11 @@ import { runWebGl2RawConeAlphaPass } from './passes/raw-cone-alphas';
 import type {
 	ComputeCapabilities,
 	ComputeProfileSelection,
-	ComputeWorkflowBackend,
-	ComputeWorkflowBackendDescriptor,
-	ComputeWorkflowInput,
-	ComputeWorkflowOptions,
-	ComputeWorkflowResult,
+	ComputeBackend,
+	ComputeBackendDescriptor,
+	ComputeInput,
+	ComputeOptions,
+	ComputeResult,
 	StageTiming,
 } from '../core';
 import type { DatasetDiagnostic } from '../../domain/data';
@@ -27,35 +27,35 @@ import type { WebGl2ComputeContext, WebGl2ComputeResources } from './types';
 export type WebGl2CanvasLike = HTMLCanvasElement | OffscreenCanvas;
 
 /** Options used to build the WebGL2 fallback backend. */
-export interface WebGl2WorkflowBackendOptions {
+export interface WebGl2ComputeBackendOptions {
 	/** Optional pre-existing canvas used to create the WebGL2 context. */
 	readonly canvas?: WebGl2CanvasLike;
 	/** Optional canvas factory used when no canvas is injected. */
 	readonly createCanvas?: () => WebGl2CanvasLike | null;
 	/** Optional CPU backend used as a temporary orchestration delegate. */
-	readonly cpuBackend?: CpuComputeWorkflowBackend;
+	readonly cpuBackend?: CpuComputeBackend;
 }
 
 /** Operational WebGL2 fallback backend for the migration. */
-export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
+export class WebGl2ComputeBackend implements ComputeBackend {
 	readonly profile = 'webgl2' as const;
 	readonly #canvas: WebGl2CanvasLike | null;
-	readonly #cpuBackend: CpuComputeWorkflowBackend;
+	readonly #cpuBackend: CpuComputeBackend;
 	#gl: WebGL2RenderingContext | null;
 	#resources: WebGl2ComputeResources | null = null;
 	#ciseledConeRimEcefBuffer: WebGLBuffer | null = null;
 
-	constructor(options: WebGl2WorkflowBackendOptions = {}) {
+	constructor(options: WebGl2ComputeBackendOptions = {}) {
 		this.#canvas = options.canvas ?? options.createCanvas?.() ?? null;
 		this.#gl = probeWebGl2Context(this.#canvas);
-		this.#cpuBackend = options.cpuBackend ?? createCpuWorkflowBackend();
+		this.#cpuBackend = options.cpuBackend ?? createCpuComputeBackend();
 	}
 
-	async run(
-		input: ComputeWorkflowInput,
-		options: ComputeWorkflowOptions = {},
+	async computeFrame(
+		input: ComputeInput,
+		options: ComputeOptions = {},
 		selection?: ComputeProfileSelection,
-	): Promise<ComputeWorkflowResult> {
+	): Promise<ComputeResult> {
 		this.#ciseledConeRimEcefBuffer = null;
 		const available = await this.ensureAvailable();
 		if (!available) {
@@ -68,24 +68,24 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 				fallbackUsed: false,
 				capabilities: webgl2Capabilities(true),
 			};
-		const result = await this.#cpuBackend.run(input, options, delegatedSelection);
+		const result = await this.#cpuBackend.computeFrame(input, options, delegatedSelection);
 		const extraTimings: StageTiming[] = [];
 		const compareDiagnostics: DatasetDiagnostic[] = [];
 
 		if (result.staticTown) {
-			const cityMatrixPass = await this.runCityMatrixPass(result);
+			const cityMatrixPass = await this.computeCityMatrixPass(result);
 			extraTimings.push(cityMatrixPass.timing);
 			compareDiagnostics.push(...cityMatrixPass.diagnostics);
 		}
 
 		if (result.rawCones) {
-			const rawConeAlphaPass = await this.runRawConeAlphaPass(result);
+			const rawConeAlphaPass = await this.computeRawConeAlphaPass(result);
 			extraTimings.push(rawConeAlphaPass.timing);
 			compareDiagnostics.push(...rawConeAlphaPass.diagnostics);
 		}
 
 		if (result.staticTown && result.rawCones && result.coneIntersections) {
-			const ciseledConePass = await this.runCiseledConePass(result);
+			const ciseledConePass = await this.computeCiseledConePass(result);
 			extraTimings.push(ciseledConePass.timing);
 			compareDiagnostics.push(...ciseledConePass.diagnostics);
 			if (ciseledConePass.ciseledConeRimEcefBuffer) {
@@ -175,8 +175,8 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 	}
 
 	private async runBoundaryRaycastPass(
-		result: ComputeWorkflowResult,
-		geojsonRun: ComputeWorkflowResult['geojsonRuns'][number],
+		result: ComputeResult,
+		geojsonRun: ComputeResult['geojsonRuns'][number],
 	): Promise<{ timing: StageTiming; extraTimings?: StageTiming[]; diagnostics: DatasetDiagnostic[] }> {
 		const boundaryPass = await runWebGl2BoundaryRaycastPass({
 			gl: this.ensureGl(),
@@ -217,7 +217,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		return gl;
 	}
 
-	private async runCityMatrixPass(result: ComputeWorkflowResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
+	private async computeCityMatrixPass(result: ComputeResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
 		return runWebGl2CityMatrixPass({
 			gl: this.ensureGl(),
 			result,
@@ -225,7 +225,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		});
 	}
 
-	private async runRawConeAlphaPass(result: ComputeWorkflowResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
+	private async computeRawConeAlphaPass(result: ComputeResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
 		return runWebGl2RawConeAlphaPass({
 			gl: this.ensureGl(),
 			result,
@@ -233,7 +233,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 		});
 	}
 
-	private async runCiseledConePass(result: ComputeWorkflowResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[]; ciseledConeRimEcefBuffer?: WebGLBuffer }> {
+	private async computeCiseledConePass(result: ComputeResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[]; ciseledConeRimEcefBuffer?: WebGLBuffer }> {
 		return runWebGl2CiseledConePass({
 			gl: this.ensureGl(),
 			result,
@@ -271,13 +271,13 @@ export function createWebGl2ProbeCanvas(): WebGl2CanvasLike | null {
 }
 
 /** Creates a WebGL2 backend descriptor used by profile selection. */
-export function createWebGl2WorkflowBackendDescriptor(
-	options: WebGl2WorkflowBackendOptions = {},
-): ComputeWorkflowBackendDescriptor {
+export function createWebGl2ComputeBackendDescriptor(
+	options: WebGl2ComputeBackendOptions = {},
+): ComputeBackendDescriptor {
 	return {
 		profile: 'webgl2',
 		isAvailable: () => probeWebGl2Availability(options.canvas ?? options.createCanvas?.() ?? createWebGl2ProbeCanvas()),
-		create: async () => new WebGl2ComputeWorkflowBackend(options),
+		create: async () => new WebGl2ComputeBackend(options),
 	};
 }
 

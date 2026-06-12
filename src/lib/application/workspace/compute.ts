@@ -1,15 +1,15 @@
 import {
-	createDefaultComputeWorkflowRegistry,
-	createWebGl2WorkflowBackendDescriptor,
-	createWebGpuWorkflowBackendDescriptor,
+	createDefaultComputeBackendRegistry,
+	createWebGl2ComputeBackendDescriptor,
+	createWebGpuComputeBackendDescriptor,
 	selectComputeProfile,
 	type ComputeBenchmarkReport,
 	type ComputeConeIntersectionStrategy,
 	type ComputeProfile,
 	type ComputeProfileSelection,
-	type ComputeWorkflowBackend,
-	type ComputeWorkflowBackendRegistry,
-	type ComputeWorkflowResult,
+	type ComputeBackend,
+	type ComputeBackendRegistry,
+	type ComputeResult,
 } from '$lib/compute';
 import { createDefaultConePipelineOptions } from '$lib/application/validation';
 import type { DatasetWorkspaceSnapshot } from './catalog';
@@ -18,7 +18,7 @@ import type { DatasetWorkspaceSnapshot } from './catalog';
 export interface DatasetWorkspaceCompute {
 	selection: ComputeProfileSelection;
 	benchmark: ComputeBenchmarkReport;
-	result: ComputeWorkflowResult;
+	result: ComputeResult;
 }
 
 /** Profile request supported by the workspace compute preview. */
@@ -37,11 +37,11 @@ export interface WorkspaceComputeRequest {
  * contract will later be used by WebGL2 and WebGPU without changing the
  * workspace API.
  */
-export async function runDatasetWorkspaceCompute(
+export async function computeDatasetWorkspace(
 	workspace: DatasetWorkspaceSnapshot,
 	request: WorkspaceComputeRequest = {},
 ): Promise<DatasetWorkspaceCompute> {
-	const registry = createWorkspaceComputeRegistry();
+	const registry = createWorkspaceComputeBackendRegistry();
 	const selection = await selectComputeProfile(
 		{
 			preferred: request.profile,
@@ -53,7 +53,7 @@ export async function runDatasetWorkspaceCompute(
 	const backend = await resolveSelectedBackend(registry, selection);
 	try {
 		const coneOptions = createDefaultConePipelineOptions(workspace.pipeline.preparedDataset);
-		const result = await backend.run(
+		const result = await backend.computeFrame(
 			{
 				sourceFiles: workspace.files,
 				geojsonSources: workspace.geojsonEntries,
@@ -91,18 +91,18 @@ export async function runDatasetWorkspaceCompute(
 	}
 }
 
-function createWorkspaceComputeRegistry(): ComputeWorkflowBackendRegistry {
+function createWorkspaceComputeBackendRegistry(): ComputeBackendRegistry {
 	return {
-		...createDefaultComputeWorkflowRegistry(),
-		webgl2: createWebGl2WorkflowBackendDescriptor(),
-		webgpu: createWebGpuWorkflowBackendDescriptor(),
+		...createDefaultComputeBackendRegistry(),
+		webgl2: createWebGl2ComputeBackendDescriptor(),
+		webgpu: createWebGpuComputeBackendDescriptor(),
 	};
 }
 
 async function resolveSelectedBackend(
-	registry: ComputeWorkflowBackendRegistry,
+	registry: ComputeBackendRegistry,
 	selection: ComputeProfileSelection,
-): Promise<ComputeWorkflowBackend> {
+): Promise<ComputeBackend> {
 	if (selection.selected === 'webgl2' && registry.webgl2) {
 		return registry.webgl2.create();
 	}

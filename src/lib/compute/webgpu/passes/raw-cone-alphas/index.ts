@@ -1,7 +1,7 @@
 import rawConeAlphasMathSource from '../../../kernels/shared/math/webgpu.wgsl?raw';
 import rawConeAlphasKernelSource from '../../../kernels/raw-cone-alphas/webgpu.wgsl?raw';
 import type { DatasetDiagnostic } from '../../../../domain/data';
-import type { ComputeWorkflowResult, StageTiming } from '../../../core';
+import type { ComputeResult, StageTiming } from '../../../core';
 import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
@@ -18,7 +18,7 @@ const rawConeAlphasShaderSource = `${rawConeAlphasMathSource}\n${rawConeAlphasKe
 
 export interface WebGpuRawConeAlphaPassInput {
 	readonly context: WebGpuComputeContext;
-	readonly result: ComputeWorkflowResult;
+	readonly result: ComputeResult;
 	readonly resources: WebGpuComputeResources;
 	readonly usage: GpuBufferUsage;
 }

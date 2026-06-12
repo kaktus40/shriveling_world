@@ -1,13 +1,13 @@
 import { expect, test } from 'vitest';
-import { getComputeFallbackChain, selectComputeProfile, type ComputeWorkflowBackendDescriptor } from '$lib/compute';
+import { getComputeFallbackChain, selectComputeProfile, type ComputeBackendDescriptor } from '$lib/compute';
 
-function descriptor(profile: 'webgpu' | 'webgl2' | 'cpu', available: boolean): ComputeWorkflowBackendDescriptor {
+function descriptor(profile: 'webgpu' | 'webgl2' | 'cpu', available: boolean): ComputeBackendDescriptor {
 	return {
 		profile,
 		isAvailable: () => available,
 		create: async () => ({
 			profile,
-			run: async () => {
+			computeFrame: async () => {
 				throw new Error('not implemented');
 			},
 			dispose: async () => {},

@@ -318,7 +318,7 @@ Rappel contractuel:
 
 Le helper TypeScript correspondant porte ce schema dans
 `src/lib/compute/webgpu/buffers.ts` afin de partager le contrat entre le
-workflow, les tests et les futurs backends WebGL2/WebGPU.
+compute stack, les tests et les futurs backends WebGL2/WebGPU.
 
 ### Contrats De Passes Communs
 
@@ -885,7 +885,7 @@ Etat d'implementation:
   qui opère uniquement sur un `DatasetWorkspaceSnapshot` deja prepare et
   isole les tranches de precompute dependantes de l'annee ou des options.
 - `src/lib/compute/core/invalidation.ts` formalise la granularite
-  d'invalidation des options de workflow multi-profil.
+  d'invalidation des options de compute multi-profil.
 - La generation WebGPU des matrices `NED2ECEF`, la bibliotheque WGSL partagee
   et le portage WGSL de `boundaryAlgebre.frag` sont maintenant implementes
   dans le backend compute multi-profil.
@@ -1677,7 +1677,7 @@ mesurer la taille de la fourchette et la proportion de faces gagnantes qu'elle
 contient. La prochaine optimisation devra ajouter des blocs disposant d'une
 borne conservatrice avant de supprimer le moindre test rayon/triangle.
 
-Le contrat de workflow expose deja un choix explicite de strategie
+Le contrat de compute expose deja un choix explicite de strategie
 (`oracle`, `symmetric-order`, `alpha-aware-order`,
 `alpha-aware-block-pruned`) afin que `/workspace` puisse benchmarker chaque
 variante sans modifier la chaine d'ingestion ou les buffers prepares.

@@ -2,7 +2,7 @@ import curveGeometryVertexShaderSource from '../../../kernels/curve-geometry/web
 import { EARTH_RADIUS_METERS } from '../../../../shared';
 import type { DatasetDiagnostic } from '../../../../domain/data';
 import { prepareCurveGeometryInput, prepareCurvePrecompute } from '../../../../domain/precompute';
-import type { ComputeWorkflowOptions, ComputeWorkflowResult, StageTiming } from '../../../core';
+import type { ComputeOptions, ComputeResult, StageTiming } from '../../../core';
 import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
@@ -17,8 +17,8 @@ import type { WebGl2ComputeResources } from '../../types';
 
 export interface WebGl2CurveGeometryPassInput {
 	readonly gl: WebGL2RenderingContext;
-	readonly result: ComputeWorkflowResult;
-	readonly options: ComputeWorkflowOptions;
+	readonly result: ComputeResult;
+	readonly options: ComputeOptions;
 	readonly resources: WebGl2ComputeResources;
 }
 

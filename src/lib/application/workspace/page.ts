@@ -12,7 +12,7 @@ import {
 	listWorkspaceModes,
 	loadDatasetWorkspace,
 	summarizeDatasetWorkspace,
-	runDatasetWorkspaceCompute,
+	computeDatasetWorkspace,
 	type DatasetWorkspaceCompute,
 	type DatasetWorkspaceSnapshot,
 	type DatasetWorkspaceSummary,
@@ -53,11 +53,11 @@ export async function loadWorkspacePageDataset(
 	};
 }
 
-export async function runWorkspacePageCompute(
+export async function computeWorkspacePage(
 	workspace: DatasetWorkspaceSnapshot,
 	request: WorkspacePageComputeRequest,
 ): Promise<DatasetWorkspaceCompute> {
-	return runDatasetWorkspaceCompute(workspace, {
+	return computeDatasetWorkspace(workspace, {
 		profile: request.profile,
 		forced: request.profile,
 		allowFallback: true,
@@ -66,7 +66,7 @@ export async function runWorkspacePageCompute(
 	});
 }
 
-export async function runWorkspacePageQuery(
+export async function executeWorkspaceQuery(
 	queryWorker: QueryWorkerClient,
 	querySnapshot: QueryDatasetSnapshot,
 	queryTree: QueryNode,

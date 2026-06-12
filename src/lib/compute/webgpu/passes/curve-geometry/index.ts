@@ -2,7 +2,7 @@ import curveGeometryShaderSource from '../../../kernels/curve-geometry/webgpu.wg
 import { EARTH_RADIUS_METERS } from '../../../../shared';
 import type { DatasetDiagnostic } from '../../../../domain/data';
 import { prepareCurveGeometryInput, prepareCurvePrecompute } from '../../../../domain/precompute';
-import type { ComputeWorkflowOptions, ComputeWorkflowResult, StageTiming } from '../../../core';
+import type { ComputeOptions, ComputeResult, StageTiming } from '../../../core';
 import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
@@ -17,8 +17,8 @@ import { createCurveGeometryDispatchResources } from './buffers';
 
 export interface WebGpuCurveGeometryPassInput {
 	readonly context: WebGpuComputeContext;
-	readonly result: ComputeWorkflowResult;
-	readonly options: ComputeWorkflowOptions;
+	readonly result: ComputeResult;
+	readonly options: ComputeOptions;
 	readonly resources: WebGpuComputeResources;
 	readonly usage: GpuBufferUsageFlags;
 }

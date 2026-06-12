@@ -1,7 +1,7 @@
-import type { ComputeWorkflowOptions } from './types';
+import type { ComputeOptions } from './types';
 
-/** Stage-level impact of changing one compute workflow request. */
-export interface ComputeWorkflowInvalidation {
+/** Stage-level impact of changing one compute stack request. */
+export interface ComputeInvalidation {
 	readonly preparedDataset: false;
 	readonly boundary: boolean;
 	readonly staticTown: boolean;
@@ -13,15 +13,15 @@ export interface ComputeWorkflowInvalidation {
 }
 
 /**
- * Compares two workflow option sets and marks the stages that need rerunning.
+ * Compares two compute option sets and marks the stages that need rerunning.
  *
  * The prepared dataset is not invalidated here: dataset ingestion remains a
  * separate concern from compute orchestration.
  */
-export function diffComputeWorkflowOptions(
-	previous: ComputeWorkflowOptions,
-	next: ComputeWorkflowOptions,
-): ComputeWorkflowInvalidation {
+export function diffComputeOptions(
+	previous: ComputeOptions,
+	next: ComputeOptions,
+): ComputeInvalidation {
 	const boundary = previous.boundaryRaycast?.azimuthSampleCount !== next.boundaryRaycast?.azimuthSampleCount;
 	const staticTown =
 		previous.staticTown?.neighborLimit !== next.staticTown?.neighborLimit ||
@@ -55,8 +55,8 @@ export function diffComputeWorkflowOptions(
 }
 
 function diffConeIntersectionStrategy(
-	previous: ComputeWorkflowOptions,
-	next: ComputeWorkflowOptions,
+	previous: ComputeOptions,
+	next: ComputeOptions,
 ): boolean {
 	const previousStrategy = previous.coneIntersection?.strategy;
 	const nextStrategy = next.coneIntersection?.strategy;

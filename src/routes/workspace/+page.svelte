@@ -20,7 +20,7 @@
 		type WorkspaceCitySummary,
 		type WorkspaceModeSummary,
 		loadWorkspacePageDataset,
-		runWorkspacePageCompute,
+		computeWorkspacePage,
 	} from '$lib/application/workspace';
 	import type { DatasetDiagnostic, QueryableField } from '$lib/domain/data';
 	import type { QueryNode } from '$lib/domain/query';
@@ -130,7 +130,7 @@
 		computeLoading = true;
 		computeError = '';
 		try {
-			workspaceCompute = await runWorkspacePageCompute(currentWorkspace, {
+			workspaceCompute = await computeWorkspacePage(currentWorkspace, {
 				profile: selectedComputeProfile,
 				coneIntersectionStrategy: selectedConeIntersectionStrategy,
 			});

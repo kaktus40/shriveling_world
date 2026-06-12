@@ -1,7 +1,7 @@
 import finalConesVertexShaderSource from '../../../kernels/final-cones/webgl2.vert?raw';
 import { EARTH_RADIUS_METERS } from '../../../../shared';
 import type { DatasetDiagnostic } from '../../../../domain/data';
-import type { ComputeWorkflowResult, StageTiming } from '../../../core';
+import type { ComputeResult, StageTiming } from '../../../core';
 import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
@@ -16,8 +16,8 @@ import type { WebGl2ComputeResources } from '../../types';
 
 export interface WebGl2FinalConesPassInput {
 	readonly gl: WebGL2RenderingContext;
-	readonly result: ComputeWorkflowResult;
-	readonly geojsonRun: ComputeWorkflowResult['geojsonRuns'][number];
+	readonly result: ComputeResult;
+	readonly geojsonRun: ComputeResult['geojsonRuns'][number];
 	readonly ciseledConeRimEcefBuffer: WebGLBuffer;
 	readonly townBoundaryAngularBuffer: WebGLBuffer;
 	readonly townBoundaryEcefBuffer: WebGLBuffer;

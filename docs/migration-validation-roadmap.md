@@ -68,7 +68,7 @@ Utiliser les statuts suivants:
   `Backend`, `Orchestrator`, `Profile`, `Selection`, `Capabilities`, `Input`,
   `Options`, `Resources`, `Frame`, `Result`, `Report`, `Descriptor`,
   `Registry`.
-  `Workflow` et `run(...)` ne doivent pas rester dans l'API publique finale.
+  `Backend` et `run(...)` ne doivent pas rester dans l'API publique finale.
 - La cible de runner pour la migration est `Vitest` pour les tests unitaires,
   d'integration et de conformance CPU, avec `Playwright` pour les tests E2E et
   de rendu.
@@ -998,10 +998,10 @@ Travail deja realise:
 
 - `prepareDataset` produit un `PreparedDataset` compact, stable et independant de l'annee;
 - `src/lib/compute/core/invalidation.ts` formalise le diff des options de
-  workflow et la granularite d'invalidation des tranches de calcul;
+  compute stack et la granularite d'invalidation des tranches de calcul;
 - la couche applicative `src/lib/application/workspace/precompute.ts` expose un helper
   qui opere uniquement sur un `DatasetWorkspaceSnapshot` deja prepare;
-- le helper `runDatasetWorkspacePrecompute` reutilise le snapshot prepare et ne
+- le helper `computeDatasetWorkspacePrecompute` reutilise le snapshot prepare et ne
   remonte que les tranches de precalcul dependantes de l'annee ou des options;
 - `src/lib/application/workspace/invalidation.ts` adapte le diff compute core
   aux requetes issues du workspace;
@@ -1301,8 +1301,8 @@ Interface cible canonique:
 ```ts
 interface ComputeBackend {
   readonly profile: 'webgpu' | 'webgl2' | 'cpu';
-  prepareStaticBuffers(prepared: PreparedDataset): Promise<PreparedGpuResources>;
-  computeFrame(input: InteractiveComputeInput): Promise<ComputedFrame>;
+  prepareStaticBuffers(prepared: PreparedDataset): Promise<ComputeBackendResources>;
+  computeFrame(input: ComputeFrameRequest): Promise<ComputeFrameResult>;
   dispose(): Promise<void>;
 }
 ```
@@ -1332,19 +1332,19 @@ Etat reel observe ulterieurement:
 - un premier kernel WGSL metier existe deja dans `src/lib/compute/kernels/city-ned2ecef/webgpu.wgsl`;
 - l'import WGSL via Vite est deja prouve dans le shell applicatif;
 - le framework compute est amorce dans `src/lib/compute/core` et
-  `src/lib/compute/cpu/workflow.ts`;
+  `src/lib/compute/cpu/backend.ts`;
 - les premiers fichiers concrets sont:
   - `src/lib/compute/core/types.ts`;
   - `src/lib/compute/core/selector.ts`;
   - `src/lib/compute/core/timing.ts`;
-  - `src/lib/compute/cpu/workflow.ts`;
-  - `src/lib/compute/webgl2/workflow.ts`;
-  - `src/lib/compute/webgpu/workflow.ts`;
+  - `src/lib/compute/cpu/backend.ts`;
+  - `src/lib/compute/webgl2/backend.ts`;
+  - `src/lib/compute/webgpu/backend.ts`;
   - `src/lib/compute/index.ts`;
   - `tests/unit/compute/profile-selector.test.ts`;
-  - `tests/unit/compute/cpu-workflow.test.ts`;
-  - `tests/unit/compute/webgl2-workflow.test.ts`;
-  - `tests/unit/compute/webgpu-workflow.test.ts`;
+  - `tests/unit/compute/cpu-backend.test.ts`;
+  - `tests/unit/compute/webgl2-backend.test.ts`;
+  - `tests/unit/compute/webgpu-backend.test.ts`;
 - le backend CPU de reference orchestre deja l'ingestion, l'assemblage, le
   `PreparedDataset`, les precomputes GeoJSON et les passes CPU de reference;
 - le selecteur de profil accepte deja le forçage et le fallback explicite;
