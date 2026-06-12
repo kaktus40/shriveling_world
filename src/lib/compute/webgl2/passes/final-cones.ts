@@ -8,10 +8,10 @@ import {
 	readBackFloat32Buffer,
 } from '../validation';
 import {
-	createFinalConesDispatchResources,
 	createFinalConesProgram,
 	type WebGl2FinalConesDispatchResources,
 } from '../buffers';
+import { createFinalConesDispatchResources } from './final-cones-buffers';
 import type { WebGl2ComputeResources } from '../types';
 
 export interface WebGl2FinalConesPassInput {

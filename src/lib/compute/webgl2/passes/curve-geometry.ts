@@ -9,10 +9,10 @@ import {
 	readBackFloat32Buffer,
 } from '../validation';
 import {
-	createCurveGeometryDispatchResources,
 	createCurveGeometryProgram,
 	type WebGl2CurveGeometryDispatchResources,
 } from '../buffers';
+import { createCurveGeometryDispatchResources } from './curve-geometry-buffers';
 import type { WebGl2ComputeResources } from '../types';
 
 export interface WebGl2CurveGeometryPassInput {
