@@ -5,7 +5,6 @@
 	import WorkspaceDatasetDetails from '$lib/components/workspace/WorkspaceDatasetDetails.svelte';
 	import WorkspaceQueryPanel from '$lib/components/workspace/WorkspaceQueryPanel.svelte';
 	import {
-		buildQueryDatasetSnapshot,
 		createDefaultQueryTree,
 		createQueryWorkerClient,
 		insertQueryNodeAtPath,
@@ -17,17 +16,14 @@
 		type QueryWorkerClient,
 	} from '$lib/application/query';
 	import {
-		listWorkspaceCities,
-		listWorkspaceFields,
-		listWorkspaceModes,
-		loadDatasetWorkspace,
-		summarizeDatasetWorkspace,
-		runDatasetWorkspaceCompute,
 		type DatasetWorkspaceSnapshot,
 		type DatasetWorkspaceSummary,
 		type DatasetWorkspaceCompute,
 		type WorkspaceCitySummary,
 		type WorkspaceModeSummary,
+		loadWorkspacePageDataset,
+		runWorkspacePageCompute,
+		runWorkspacePageQuery,
 	} from '$lib/application/workspace';
 	import type { DatasetDiagnostic, QueryableField } from '$lib/domain/data';
 	import type { QueryNode } from '$lib/domain/query';
@@ -84,14 +80,14 @@
 		loading = true;
 		errorMessage = '';
 		try {
-			const loadedWorkspace = await loadDatasetWorkspace(fetch, selectedDataset);
-			workspace = loadedWorkspace;
-			summary = summarizeDatasetWorkspace(loadedWorkspace);
-			modes = listWorkspaceModes(loadedWorkspace);
-			cities = listWorkspaceCities(loadedWorkspace, 18);
-			fieldPreview = listWorkspaceFields(loadedWorkspace, 20);
-			querySnapshot = buildQueryDatasetSnapshot(loadedWorkspace);
-			queryTree = createDefaultQueryTree(querySnapshot.fields);
+			const loaded = await loadWorkspacePageDataset(fetch, selectedDataset);
+			workspace = loaded.workspace;
+			summary = loaded.summary;
+			modes = loaded.modes;
+			cities = loaded.cities;
+			fieldPreview = loaded.fieldPreview;
+			querySnapshot = loaded.querySnapshot;
+			queryTree = loaded.queryTree;
 			queryResult = null;
 			queryError = '';
 			computeError = '';
@@ -127,11 +123,8 @@
 		computeLoading = true;
 		computeError = '';
 		try {
-			workspaceCompute = await runDatasetWorkspaceCompute(currentWorkspace, {
+			workspaceCompute = await runWorkspacePageCompute(currentWorkspace, {
 				profile: selectedComputeProfile,
-				forced: selectedComputeProfile,
-				allowFallback: true,
-				benchmark: true,
 				coneIntersectionStrategy: selectedConeIntersectionStrategy,
 			});
 		} catch (error) {
@@ -150,10 +143,7 @@
 		queryLoading = true;
 		queryError = '';
 		try {
-			queryResult = await queryWorker.execute({
-				dataset: querySnapshot,
-				query: queryTree,
-			});
+			queryResult = await runWorkspacePageQuery(queryWorker, querySnapshot, queryTree);
 		} catch (error) {
 			queryResult = null;
 			queryError = error instanceof Error ? error.message : String(error);

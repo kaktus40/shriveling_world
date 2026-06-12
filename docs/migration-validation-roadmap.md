@@ -1568,6 +1568,8 @@ Travail deja realise:
   - `src/lib/components/workspace/WorkspaceComputePanel.svelte`;
   - `src/lib/components/workspace/WorkspaceDatasetDetails.svelte`;
   - `src/lib/components/workspace/WorkspaceQueryPanel.svelte`;
+- extraction de l orchestration applicative de page vers:
+  - `src/lib/application/workspace/page.ts`;
 - extraction de sous-panneaux de synthese `workspace` vers:
   - `src/lib/components/workspace/WorkspaceSummaryCard.svelte`;
 - extraction de sous-panneaux `query` vers:
