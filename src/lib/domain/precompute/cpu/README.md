@@ -12,6 +12,11 @@ Current layout:
 cone-intersection-constants.ts
 cone-intersection-angular.ts
 cone-intersection-validation.ts
+cone-intersection-support.ts
+cone-intersection-oracle.ts
+cone-intersection-symmetric.ts
+cone-intersection-alpha-aware.ts
+cone-intersection-block-pruned.ts
 static-town-cpu.ts
 overlap-cpu.ts
 curve-cpu.ts
