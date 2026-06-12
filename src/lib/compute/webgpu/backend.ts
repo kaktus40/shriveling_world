@@ -2,14 +2,9 @@ import {
 	createCpuComputeBackend,
 	type CpuComputeBackend,
 } from '../cpu';
-import { type GpuBufferAllocation } from './buffers';
 import { getGpuBufferUsage, remapBenchmarkProfile, tagDiagnostics } from '../shared/compute';
 import { createWebGpuComputeResources } from './resources';
-import { runWebGpuCityMatrixPass } from './passes/city-ned2ecef';
-import { runWebGpuBoundaryRaycastPass } from './passes/boundary-algebre';
-import { runWebGpuCiseledConePass } from './passes/ciseled-cones';
 import { runWebGpuCurveGeometryPass } from './passes/curve-geometry';
-import { runWebGpuRawConeAlphaPass } from './passes/raw-cone-alphas';
 import type {
 	ComputeCapabilities,
 	ComputeProfileSelection,
@@ -22,6 +17,8 @@ import type {
 } from '../core';
 import type { DatasetDiagnostic } from '../../domain/data';
 import type { WebGpuComputeContext, WebGpuComputeResources } from './types';
+import { runWebGpuBoundaryStages } from './boundary';
+import { runWebGpuConeStages } from './cone';
 
 /** Options used to build the WebGPU backend. */
 export interface WebGpuComputeBackendOptions {
@@ -40,7 +37,6 @@ export class WebGpuComputeBackend implements ComputeBackend {
 	#device: GPUDevice | null;
 	#requestAdapter: (() => Promise<GPUAdapter | null>) | null;
 	#resources: WebGpuComputeResources | null = null;
-	#ciseledConeRimEcef: GpuBufferAllocation | null = null;
 
 	constructor(options: WebGpuComputeBackendOptions = {}) {
 		this.#device = options.device ?? null;
@@ -53,7 +49,6 @@ export class WebGpuComputeBackend implements ComputeBackend {
 		options: ComputeOptions = {},
 		selection?: ComputeProfileSelection,
 	): Promise<ComputeResult> {
-		this.#ciseledConeRimEcef = null;
 		const context = await this.ensureContext();
 		const delegatedSelection: ComputeProfileSelection =
 			selection ?? {
@@ -62,29 +57,9 @@ export class WebGpuComputeBackend implements ComputeBackend {
 				capabilities: webgpuCapabilities(true),
 			};
 		const result = await this.#cpuBackend.computeFrame(input, options, delegatedSelection);
-		const extraTimings: StageTiming[] = [];
-		const compareDiagnostics: DatasetDiagnostic[] = [];
-
-		if (result.staticTown) {
-			const cityMatrixPass = await this.computeCityMatrixPass(context, result);
-			extraTimings.push(cityMatrixPass.timing);
-			compareDiagnostics.push(...cityMatrixPass.diagnostics);
-		}
-
-		if (result.rawCones) {
-			const rawConeAlphaPass = await this.computeRawConeAlphaPass(context, result);
-			extraTimings.push(rawConeAlphaPass.timing);
-			compareDiagnostics.push(...rawConeAlphaPass.diagnostics);
-		}
-
-		if (result.staticTown && result.rawCones && result.coneIntersections) {
-			const ciseledConePass = await this.computeCiseledConePass(context, result);
-			extraTimings.push(ciseledConePass.timing);
-			compareDiagnostics.push(...ciseledConePass.diagnostics);
-			if (ciseledConePass.ciseledConeRimEcef) {
-				this.#ciseledConeRimEcef = ciseledConePass.ciseledConeRimEcef;
-			}
-		}
+		const coneStages = await runWebGpuConeStages(context, result, await this.ensureResources());
+		const extraTimings: StageTiming[] = [...coneStages.extraTimings];
+		const compareDiagnostics: DatasetDiagnostic[] = [...coneStages.diagnostics];
 
 		if (options.curve?.enabled === true && result.staticTown && result.curveGeometry) {
 			const curvePass = await runWebGpuCurveGeometryPass({
@@ -99,7 +74,12 @@ export class WebGpuComputeBackend implements ComputeBackend {
 		}
 
 		for (const geojsonRun of result.geojsonRuns) {
-			const boundaryPass = await this.runBoundaryRaycastPass(context, result, geojsonRun);
+			const boundaryPass = await runWebGpuBoundaryStages(
+				context,
+				result,
+				geojsonRun,
+				await this.ensureResources(),
+			);
 			extraTimings.push(boundaryPass.timing);
 			if (boundaryPass.extraTimings) {
 				extraTimings.push(...boundaryPass.extraTimings);
@@ -174,55 +154,6 @@ export class WebGpuComputeBackend implements ComputeBackend {
 		}
 		this.#device = await adapter.requestDevice();
 		return this.#device;
-	}
-
-	private async computeCityMatrixPass(
-		context: WebGpuComputeContext,
-		result: ComputeResult,
-	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
-		return runWebGpuCityMatrixPass({
-			context,
-			result,
-			resources: await this.ensureResources(),
-			usage: getGpuBufferUsage(),
-		});
-	}
-
-	private async computeRawConeAlphaPass(
-		context: WebGpuComputeContext,
-		result: ComputeResult,
-	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
-		return runWebGpuRawConeAlphaPass({
-			context,
-			result,
-			resources: await this.ensureResources(),
-			usage: getGpuBufferUsage(),
-		});
-	}
-
-	private async computeCiseledConePass(
-		context: WebGpuComputeContext,
-		result: ComputeResult,
-	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[]; ciseledConeRimEcef?: GpuBufferAllocation }> {
-		return runWebGpuCiseledConePass({
-			context,
-			result,
-			resources: await this.ensureResources(),
-			usage: getGpuBufferUsage(),
-		});
-	}
-
-	private async runBoundaryRaycastPass(
-		context: WebGpuComputeContext,
-		result: ComputeResult,
-		geojsonRun: ComputeResult['geojsonRuns'][number],
-	): Promise<{ timing: StageTiming; extraTimings?: StageTiming[]; diagnostics: DatasetDiagnostic[] }> {
-		return runWebGpuBoundaryRaycastPass({
-			context,
-			result,
-			geojsonRun,
-			resources: await this.ensureResources(),
-		});
 	}
 
 }

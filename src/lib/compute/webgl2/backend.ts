@@ -4,12 +4,7 @@ import {
 } from '../cpu';
 import { remapBenchmarkProfile, tagDiagnostics } from '../shared/compute';
 import { createWebGl2ComputeResources } from './resources';
-import { runWebGl2CityMatrixPass } from './passes/city-ned2ecef';
-import { runWebGl2BoundaryRaycastPass } from './passes/boundary-algebre';
-import { runWebGl2CiseledConePass } from './passes/ciseled-cones';
 import { runWebGl2CurveGeometryPass } from './passes/curve-geometry';
-import { runWebGl2FinalConePass } from './passes/final-cones';
-import { runWebGl2RawConeAlphaPass } from './passes/raw-cone-alphas';
 import type {
 	ComputeCapabilities,
 	ComputeProfileSelection,
@@ -21,7 +16,9 @@ import type {
 	StageTiming,
 } from '../core';
 import type { DatasetDiagnostic } from '../../domain/data';
-import type { WebGl2ComputeContext, WebGl2ComputeResources } from './types';
+import type { WebGl2ComputeResources } from './types';
+import { runWebGl2BoundaryStages } from './boundary';
+import { runWebGl2ConeStages } from './cone';
 
 /** Canvas-like source used to probe or create a WebGL2 context. */
 export type WebGl2CanvasLike = HTMLCanvasElement | OffscreenCanvas;
@@ -69,29 +66,10 @@ export class WebGl2ComputeBackend implements ComputeBackend {
 				capabilities: webgl2Capabilities(true),
 			};
 		const result = await this.#cpuBackend.computeFrame(input, options, delegatedSelection);
-		const extraTimings: StageTiming[] = [];
-		const compareDiagnostics: DatasetDiagnostic[] = [];
-
-		if (result.staticTown) {
-			const cityMatrixPass = await this.computeCityMatrixPass(result);
-			extraTimings.push(cityMatrixPass.timing);
-			compareDiagnostics.push(...cityMatrixPass.diagnostics);
-		}
-
-		if (result.rawCones) {
-			const rawConeAlphaPass = await this.computeRawConeAlphaPass(result);
-			extraTimings.push(rawConeAlphaPass.timing);
-			compareDiagnostics.push(...rawConeAlphaPass.diagnostics);
-		}
-
-		if (result.staticTown && result.rawCones && result.coneIntersections) {
-			const ciseledConePass = await this.computeCiseledConePass(result);
-			extraTimings.push(ciseledConePass.timing);
-			compareDiagnostics.push(...ciseledConePass.diagnostics);
-			if (ciseledConePass.ciseledConeRimEcefBuffer) {
-				this.#ciseledConeRimEcefBuffer = ciseledConePass.ciseledConeRimEcefBuffer;
-			}
-		}
+		const coneStages = await runWebGl2ConeStages(this.ensureGl(), result, await this.ensureResources());
+		const extraTimings: StageTiming[] = [...coneStages.extraTimings];
+		const compareDiagnostics: DatasetDiagnostic[] = [...coneStages.diagnostics];
+		this.#ciseledConeRimEcefBuffer = coneStages.ciseledConeRimEcefBuffer;
 
 		if (options.curve?.enabled === true && result.staticTown && result.curveGeometry) {
 			const curvePass = await runWebGl2CurveGeometryPass({
@@ -105,7 +83,13 @@ export class WebGl2ComputeBackend implements ComputeBackend {
 		}
 
 		for (const geojsonRun of result.geojsonRuns) {
-			const boundaryPass = await this.runBoundaryRaycastPass(result, geojsonRun);
+			const boundaryPass = await runWebGl2BoundaryStages(
+				this.ensureGl(),
+				result,
+				geojsonRun,
+				await this.ensureResources(),
+				this.#ciseledConeRimEcefBuffer,
+			);
 			extraTimings.push(boundaryPass.timing);
 			if (boundaryPass.extraTimings) {
 				extraTimings.push(...boundaryPass.extraTimings);
@@ -174,37 +158,6 @@ export class WebGl2ComputeBackend implements ComputeBackend {
 		return this.#resources;
 	}
 
-	private async runBoundaryRaycastPass(
-		result: ComputeResult,
-		geojsonRun: ComputeResult['geojsonRuns'][number],
-	): Promise<{ timing: StageTiming; extraTimings?: StageTiming[]; diagnostics: DatasetDiagnostic[] }> {
-		const boundaryPass = await runWebGl2BoundaryRaycastPass({
-			gl: this.ensureGl(),
-			result,
-			geojsonRun,
-			resources: await this.ensureResources(),
-		});
-
-		if (this.#ciseledConeRimEcefBuffer && geojsonRun.finalCones) {
-			const finalPass = await runWebGl2FinalConePass({
-				gl: this.ensureGl(),
-				result,
-				geojsonRun,
-				ciseledConeRimEcefBuffer: this.#ciseledConeRimEcefBuffer,
-				townBoundaryAngularBuffer: boundaryPass.townBoundaryAngularBuffer ?? (() => { throw new Error('WebGL2 boundary angular buffer unavailable'); })(),
-				townBoundaryEcefBuffer: boundaryPass.townBoundaryEcefBuffer ?? (() => { throw new Error('WebGL2 boundary ecef buffer unavailable'); })(),
-				resources: await this.ensureResources(),
-			});
-			return {
-				timing: boundaryPass.timing,
-				extraTimings: [finalPass.timing],
-				diagnostics: [...boundaryPass.diagnostics, ...finalPass.diagnostics],
-			};
-		}
-
-		return boundaryPass;
-	}
-
 	private ensureGl(): WebGL2RenderingContext {
 		if (this.#gl) {
 			return this.#gl;
@@ -217,29 +170,6 @@ export class WebGl2ComputeBackend implements ComputeBackend {
 		return gl;
 	}
 
-	private async computeCityMatrixPass(result: ComputeResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
-		return runWebGl2CityMatrixPass({
-			gl: this.ensureGl(),
-			result,
-			resources: await this.ensureResources(),
-		});
-	}
-
-	private async computeRawConeAlphaPass(result: ComputeResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
-		return runWebGl2RawConeAlphaPass({
-			gl: this.ensureGl(),
-			result,
-			resources: await this.ensureResources(),
-		});
-	}
-
-	private async computeCiseledConePass(result: ComputeResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[]; ciseledConeRimEcefBuffer?: WebGLBuffer }> {
-		return runWebGl2CiseledConePass({
-			gl: this.ensureGl(),
-			result,
-			resources: await this.ensureResources(),
-		});
-	}
 }
 
 /** Returns the WebGL2 capability snapshot. */
