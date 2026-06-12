@@ -10,7 +10,7 @@ import {
 	type ConePipelineOptions,
 	type ConePipelineResult,
 } from '$lib/application/validation';
-import type { DatasetWorkspaceSnapshot } from './datasets';
+import type { DatasetWorkspaceSnapshot } from './catalog';
 
 /** Options controlling the prepared-workspace precompute snapshot. */
 export interface WorkspacePrecomputeRequest extends Partial<ConePipelineOptions> {

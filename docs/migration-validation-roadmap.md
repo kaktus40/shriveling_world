@@ -990,12 +990,14 @@ Travail attendu:
 Travail deja realise:
 
 - `prepareDataset` produit un `PreparedDataset` compact, stable et independant de l'annee;
+- `src/lib/compute/core/invalidation.ts` formalise le diff des options de
+  workflow et la granularite d'invalidation des tranches de calcul;
 - la couche applicative `src/lib/application/workspace/precompute.ts` expose un helper
   qui opere uniquement sur un `DatasetWorkspaceSnapshot` deja prepare;
 - le helper `runDatasetWorkspacePrecompute` reutilise le snapshot prepare et ne
   remonte que les tranches de precalcul dependantes de l'annee ou des options;
-- `src/lib/application/workspace/invalidation.ts` formalise les tranches
-  invalides par changement de requete de precompute;
+- `src/lib/application/workspace/invalidation.ts` adapte le diff compute core
+  aux requetes issues du workspace;
 - `tests/unit/application/workspace-precompute.test.ts` caracterise la reuse
   du snapshot prepare et la variation isolee de la tranche annuelle.
 - `tests/unit/application/workspace-invalidation.test.ts` verrouille la

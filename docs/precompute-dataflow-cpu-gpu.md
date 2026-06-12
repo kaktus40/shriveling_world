@@ -880,6 +880,8 @@ Etat d'implementation:
 - `src/lib/application/workspace/precompute.ts` expose un helper applicatif
   qui opère uniquement sur un `DatasetWorkspaceSnapshot` deja prepare et
   isole les tranches de precompute dependantes de l'annee ou des options.
+- `src/lib/compute/core/invalidation.ts` formalise la granularite
+  d'invalidation des options de workflow multi-profil.
 - La generation WebGPU des matrices `NED2ECEF`, la bibliotheque WGSL partagee
   et le portage WGSL de `boundaryAlgebre.frag` sont maintenant implementes
   dans le backend compute multi-profil.
