@@ -95,6 +95,7 @@ Utiliser les statuts suivants:
 | M6 | in_progress | Framework compute multi-profil et fallback WebGPU -> WebGL2 -> CPU |
 | M7 | in_progress | Portage WGSL / backend WebGPU des passes existantes |
 | M8 | in_progress | Nouveau pipeline d'intersections |
+| M9.0 | todo | Modularisation UI en deux pans (workspace / app) |
 | M9 | todo | Integration interactive complete |
 | M9.1 | todo | Packaging client lourd Tauri |
 | M10 | todo | Nettoyage, documentation utilisateur et stabilisation |
@@ -1532,6 +1533,47 @@ Validation:
   - ce helper est actuellement purement CPU, sans dependance Babylon.js dans le
     code de migration;
   - une couverture unitaire minimale doit preceder tout branchement interactif.
+
+## M9.0: Modularisation UI En Deux Pans
+
+Statut: `todo`
+
+Objectif:
+
+Separer l interface en deux pans reutilisables et maintenables:
+
+- `workspace` pour la validation, les diagnostics et les benchmarks;
+- `app` pour l usage operationnel, le rendu principal et les interactions metier.
+
+Ce jalon ne change pas l inventaire shader. Il reorganise l UI et ses
+composants autour des briques deja validees.
+
+Travail attendu:
+
+- decouper `src/routes/workspace/+page.svelte` en sous-composants plus petits;
+- extraire les panneaux de resume, diagnostics et benchmark dans des modules
+  reutilisables;
+- definir la coque applicative `src/routes/app`;
+- creer une couche de composants partages pour les panneaux, tableaux et
+  selections;
+- refactoriser `QueryNodeEditor.svelte` si necessaire pour reutiliser ses
+  sous-parties;
+- garder les pages de test comme vues fines de validation, pas comme containers
+  d orchestration.
+
+Critere d acceptance:
+
+- le workspace est decoupe en composants et modules plus petits;
+- la future coque operationnelle est definie sans dupliquer la logique du
+  workspace;
+- les panneaux communs sont reutilisables;
+- les fichiers Svelte les plus gros ont ete reduits ou scindes;
+- les contrats metier restent inchanges.
+
+Validation:
+
+- A renseigner apres implementation.
+
 
 ## M9: Integration Interactive Complete
 
