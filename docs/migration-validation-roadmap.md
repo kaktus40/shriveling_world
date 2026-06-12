@@ -1571,7 +1571,7 @@ Travail deja realise:
 - extraction de l orchestration applicative de page vers:
   - `src/lib/application/workspace/page.ts`;
 - extraction du controleur de requete `workspace` vers:
-  - `src/lib/application/workspace/query.ts`;
+  - `src/lib/application/query/controller.ts`;
 - extraction de la barre de controle `workspace` vers:
   - `src/lib/components/workspace/WorkspaceControls.svelte`;
 - extraction des panneaux de statut `workspace` vers:

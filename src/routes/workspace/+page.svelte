@@ -8,6 +8,7 @@
 	import WorkspaceQueryPanel from '$lib/components/workspace/WorkspaceQueryPanel.svelte';
 	import {
 		createQueryWorkerClient,
+		createQueryController,
 		type QueryDatasetSnapshot,
 		type QueryExecutionResult,
 		type QueryWorkerClient,
@@ -18,7 +19,6 @@
 		type DatasetWorkspaceCompute,
 		type WorkspaceCitySummary,
 		type WorkspaceModeSummary,
-		createWorkspaceQueryController,
 		loadWorkspacePageDataset,
 		runWorkspacePageCompute,
 	} from '$lib/application/workspace';
@@ -51,7 +51,7 @@
 	let computeError = '';
 	let queryError = '';
 	let computeDiagnostics: readonly DatasetDiagnostic[] = [];
-	let workspaceQueryController = createWorkspaceQueryController({
+	let workspaceQueryController = createQueryController({
 		getQueryWorker: () => queryWorker,
 		getQuerySnapshot: () => querySnapshot,
 		getQueryTree: () => queryTree,

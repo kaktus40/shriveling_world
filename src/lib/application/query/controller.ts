@@ -7,10 +7,10 @@ import {
 	type QueryDatasetSnapshot,
 	type QueryExecutionResult,
 	type QueryWorkerClient,
-} from '$lib/application/query';
+} from './index';
 import type { QueryNode } from '$lib/domain/query';
 
-export interface WorkspaceQueryBindings {
+export interface QueryControllerBindings {
 	getQueryWorker(): QueryWorkerClient | null;
 	getQuerySnapshot(): QueryDatasetSnapshot | null;
 	getQueryTree(): QueryNode | null;
@@ -19,7 +19,7 @@ export interface WorkspaceQueryBindings {
 	setQueryError(next: string): void;
 }
 
-export interface WorkspaceQueryController {
+export interface QueryController {
 	run(): Promise<void>;
 	scheduleRun(): void;
 	reset(): void;
@@ -30,7 +30,7 @@ export interface WorkspaceQueryController {
 	dispose(): void;
 }
 
-export function createWorkspaceQueryController(bindings: WorkspaceQueryBindings): WorkspaceQueryController {
+export function createQueryController(bindings: QueryControllerBindings): QueryController {
 	let queryRunTimer: ReturnType<typeof setTimeout> | null = null;
 
 	async function run(): Promise<void> {
