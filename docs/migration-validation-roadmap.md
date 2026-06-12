@@ -1573,6 +1573,12 @@ Travail deja realise:
 - extraction de sous-panneaux `query` vers:
   - `src/lib/components/query/QuerySnapshotFieldsPanel.svelte`;
   - `src/lib/components/query/QueryExecutionResultPanel.svelte`;
+- extraction des tableaux metier `workspace` vers:
+  - `src/lib/components/workspace/WorkspaceTransportModesTable.svelte`;
+  - `src/lib/components/workspace/WorkspaceCityPreviewTable.svelte`;
+  - `src/lib/components/workspace/WorkspaceQueryableFieldsTable.svelte`;
+- extraction du tableau de benchmark `workspace` vers:
+  - `src/lib/components/workspace/WorkspaceComputeBenchmarkTable.svelte`;
 - extraction de panneaux communs reutilisables vers:
   - `src/lib/components/shared/DiagnosticsDetails.svelte`;
   - `src/lib/components/shared/MetricCardGrid.svelte`;

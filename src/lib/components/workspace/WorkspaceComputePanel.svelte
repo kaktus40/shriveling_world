@@ -3,6 +3,7 @@
 	import type { DatasetDiagnostic } from '$lib/domain/data';
 	import type { ComputeProfile } from '$lib/compute';
 	import DiagnosticsDetails from '$lib/components/shared/DiagnosticsDetails.svelte';
+	import WorkspaceComputeBenchmarkTable from './WorkspaceComputeBenchmarkTable.svelte';
 
 	export let workspaceCompute: DatasetWorkspaceCompute | null = null;
 	export let selectedComputeDiagnosticProfile: ComputeProfile | 'all' = 'all';
@@ -75,33 +76,7 @@
 </script>
 
 {#if workspaceCompute}
-	<section class="panel compute-panel">
-		<h2>Compute benchmark</h2>
-		<p>
-			Total duration: {workspaceCompute.benchmark.totalDurationMs.toFixed(3)} ms
-		</p>
-		<table>
-			<thead>
-				<tr>
-					<th>Stage</th>
-					<th>Scope</th>
-					<th>Duration ms</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each workspaceCompute.benchmark.timings as timing}
-					<tr>
-						<td>{timing.stage}</td>
-						<td>{timing.scope}</td>
-						<td>{timing.durationMs.toFixed(3)}</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
-		{#if workspaceCompute.selection.reason}
-			<p class="compute-note">{workspaceCompute.selection.reason}</p>
-		{/if}
-	</section>
+	<WorkspaceComputeBenchmarkTable {workspaceCompute} />
 
 	<DiagnosticsDetails title="Compute diagnostics" subtitle="runtime validation and fallback notes" headingTag="h2">
 		<div class="diagnostic-toolbar">
@@ -154,46 +129,6 @@
 {/if}
 
 <style>
-	.panel {
-		padding: 1.1rem 1.2rem;
-		background: rgba(12, 19, 26, 0.8);
-		border: 1px solid rgba(138, 168, 178, 0.2);
-		border-radius: 1rem;
-		overflow: auto;
-		min-width: 0;
-	}
-
-	.compute-panel {
-		display: grid;
-		gap: 1rem;
-		margin-bottom: 1rem;
-	}
-
-	table {
-		width: 100%;
-		border-collapse: collapse;
-	}
-
-	th,
-	td {
-		padding: 0.45rem 0.35rem;
-		border-bottom: 1px solid rgba(138, 168, 178, 0.12);
-		text-align: left;
-		font-size: 0.95rem;
-	}
-
-	th {
-		color: #9fb1b7;
-		font-size: 0.82rem;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-	}
-
-	.compute-note {
-		margin: 0;
-		color: #8ae0dc;
-	}
-
 	.diagnostic-toolbar {
 		display: flex;
 		flex-wrap: wrap;
