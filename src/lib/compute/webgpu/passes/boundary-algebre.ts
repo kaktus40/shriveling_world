@@ -11,9 +11,9 @@ import {
 } from '../validation';
 import type { WebGpuComputeContext, WebGpuComputeResources } from '../types';
 import {
-	createBoundaryAlgebreDispatchResources,
 	type GpuBufferUsageFlags,
 } from '../buffers';
+import { createBoundaryAlgebreDispatchResources } from './boundary-algebre-buffers';
 
 const boundaryAlgebreShaderSource = `${boundaryAlgebreMathSource}\n${boundaryAlgebreKernelSource}`;
 

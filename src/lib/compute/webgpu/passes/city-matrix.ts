@@ -9,9 +9,9 @@ import {
 } from '../validation';
 import type { WebGpuComputeContext, WebGpuComputeResources } from '../types';
 import {
-	createCityNed2EcefDispatchResources,
 	type GpuBufferAllocation,
 } from '../buffers';
+import { createCityNed2EcefDispatchResources } from './city-matrix-buffers';
 
 export interface GpuBufferUsage {
 	readonly STORAGE: number;
@@ -57,9 +57,11 @@ export async function runWebGpuCityMatrixPass(
 	const buffers = createCityNed2EcefDispatchResources(
 		input.context.device,
 		input.usage,
-		lonLat,
-		cityCount,
-		EARTH_RADIUS_METERS,
+		{
+			cityLonLatRadians: lonLat,
+			cityCount,
+			earthRadiusMeters: EARTH_RADIUS_METERS,
+		},
 	);
 	const pipeline = await input.context.device.createComputePipelineAsync({
 		layout: 'auto',

@@ -10,12 +10,11 @@ import {
 	readBackFloat32Buffer,
 } from '../validation';
 import {
-	createBoundaryAlgebreDispatchResources,
 	createBoundaryAlgebreProgram,
-	type WebGl2BoundaryAlgebreDispatchResources,
 } from '../buffers';
 import { bindBoundaryTextures } from '../pass-bindings';
 import type { WebGl2ComputeResources } from '../types';
+import { createBoundaryAlgebreDispatchResources } from './boundary-algebre-buffers';
 
 const boundaryAlgebreVertexShaderSource = `${boundaryAlgebreMathSource}\n${boundaryAlgebreKernelSource}`;
 

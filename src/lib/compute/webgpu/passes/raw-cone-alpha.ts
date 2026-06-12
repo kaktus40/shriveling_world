@@ -9,10 +9,10 @@ import {
 } from '../validation';
 import type { WebGpuComputeContext, WebGpuComputeResources } from '../types';
 import {
-	createRawConeAlphaDispatchResources,
 	type GpuBufferAllocation,
 } from '../buffers';
 import type { GpuBufferUsage } from './city-matrix';
+import { createRawConeAlphaDispatchResources } from './raw-cone-alpha-buffers';
 
 const rawConeAlphasShaderSource = `${rawConeAlphasMathSource}\n${rawConeAlphasKernelSource}`;
 

@@ -8,10 +8,10 @@ import {
 	readBackFloat32Buffer,
 } from '../validation';
 import {
-	createCityNed2EcefDispatchResources,
 	createCityNed2EcefProgram,
 } from '../buffers';
 import type { WebGl2ComputeResources } from '../types';
+import { createCityNed2EcefDispatchResources } from './city-matrix-buffers';
 
 export interface WebGl2CityMatrixPassInput {
 	readonly gl: WebGL2RenderingContext;
@@ -47,9 +47,11 @@ export async function runWebGl2CityMatrixPass(
 	const dispatchResources = createCityNed2EcefDispatchResources(
 		input.gl,
 		program,
-		new Float32Array(prepared.cityLonLatRadians),
-		cityCount,
-		EARTH_RADIUS_METERS,
+		{
+			cityLonLatRadians: new Float32Array(prepared.cityLonLatRadians),
+			cityCount,
+			earthRadiusMeters: EARTH_RADIUS_METERS,
+		},
 	);
 	const transformFeedback = input.gl.createTransformFeedback();
 	if (!transformFeedback) {

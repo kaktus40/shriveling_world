@@ -8,9 +8,9 @@ import {
 } from '../validation';
 import type { WebGpuComputeContext, WebGpuComputeResources } from '../types';
 import {
-	createCiseledConesDispatchResources,
 	type GpuBufferAllocation,
 } from '../buffers';
+import { createCiseledConesDispatchResources } from './ciseled-cones-buffers';
 
 export interface WebGpuCiseledConePassInput {
 	readonly context: WebGpuComputeContext;

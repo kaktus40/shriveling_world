@@ -8,11 +8,11 @@ import {
 	readBackFloat32Buffer,
 } from '../validation';
 import {
-	createRawConeAlphasDispatchResources,
 	createRawConeAlphasProgram,
 } from '../buffers';
 import type { WebGl2ComputeResources } from '../types';
 import { bindRawConeAlphaTextures, shapeToCode } from '../pass-utils';
+import { createRawConeAlphasDispatchResources } from './raw-cone-alpha-buffers';
 
 const rawConeAlphasVertexShaderSource = `${rawConeAlphasMathSource}\n${rawConeAlphasKernelSource}`;
 

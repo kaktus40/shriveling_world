@@ -7,11 +7,11 @@ import {
 	readBackFloat32Buffer,
 } from '../validation';
 import {
-	createCiseledConesDispatchResources,
 	createCiseledConesProgram,
 } from '../buffers';
 import { bindCiseledConesTextures } from '../pass-bindings';
 import type { WebGl2ComputeResources } from '../types';
+import { createCiseledConesDispatchResources } from './ciseled-cones-buffers';
 
 export interface WebGl2CiseledConePassInput {
 	readonly gl: WebGL2RenderingContext;
