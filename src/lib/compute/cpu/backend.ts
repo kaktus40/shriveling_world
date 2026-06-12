@@ -1,4 +1,3 @@
-import type GeoJSON from 'geojson';
 import {
 	assembleBaseNetwork,
 	inspectDatasetFiles,
@@ -6,67 +5,41 @@ import {
 	resolveDatasetManifest,
 	toStaticTownInput,
 	type DatasetDiagnostic,
-	type InspectedDatasetFile,
 	type PreparedDataset,
-	type SourceFile,
 } from '../../domain/data';
 import {
-	buildAzimuthIntervals,
-	buildCityNed2EcefMatrices,
-	computeTownBoundaryLimitsCpu,
-	packAzimuthIntervals,
-	prepareBoundaryPrecompute,
-	type BoundaryDiagnostic,
-	type BoundaryPrecompute,
-	type BoundaryPrecomputeOptions,
-	type BoundaryRaycastResult,
-	type TownBoundaryInput,
-} from '../../domain/geojson';
-import {
-	computeConeIntersectionOracleCpu,
-	computeConeIntersectionAlphaAwareBlockPrunedCpu,
-	computeConeIntersectionAlphaAwareOrderCpu,
-	computeConeIntersectionSymmetricOrderCpu,
-	computeFinalConePrecomputeCpu,
-	prepareCurveGeometryInput,
-	prepareCurvePrecompute,
 	computeCurveVertexBufferCpu,
 	computeDynamicTownPrecomputeForYearCpu,
+	computeFinalConePrecomputeCpu,
 	computeRawConePrecomputeCpu,
 	computeStaticTownPrecomputeCpu,
-	type ConeIntersectionOraclePrecompute,
-	type AlphaAwareBlockPrunedConeIntersectionOptions,
-	type AlphaAwareConeIntersectionOptions,
-	type DynamicTownPrecompute,
-	type FinalConePrecompute,
+	prepareCurveGeometryInput,
+	prepareCurvePrecompute,
 	type CurveVertexBuffer,
+	type DynamicTownPrecompute,
+	type ConeIntersectionOraclePrecompute,
 	type RawConePrecompute,
 	type RawConePrecomputeOptions,
 	type StaticTownPrecompute,
 	type StaticTownPrecomputeOptions,
-	type SymmetricConeIntersectionStaticInput,
 } from '../../domain/precompute';
 import { EARTH_RADIUS_METERS } from '../../shared';
-import type {
-	ComputeBenchmarkReport,
-	ComputeCapabilities,
-	ComputeProfileSelection,
-	ComputeBackendDescriptor,
-	ComputeBackendRegistry,
-	ComputeBackend,
-	ComputeInput,
-	ComputeOptions,
-	ComputeResult,
-	StageTiming,
-	ComputeConeIntersectionStrategy,
+import {
+	type ComputeBackend,
+	type ComputeBackendDescriptor,
+	type ComputeBackendRegistry,
+	type ComputeBenchmarkReport,
+	type ComputeCapabilities,
+	type ComputeInput,
+	type ComputeOptions,
+	type ComputeProfileSelection,
+	type ComputeResult,
+	type StageTiming,
 } from '../core/types';
 import { measureStage, sumStageDurations } from '../core/timing';
-
-interface GeojsonRunBuffer {
-	fileName: string;
-	geojson: GeoJSON.FeatureCollection;
-	finalCones?: FinalConePrecompute;
-}
+import { tagDiagnostics } from '../shared/compute';
+import { runCpuBoundaryStages } from './boundary';
+import { runCpuConeIntersectionStage } from './cone';
 
 /** CPU reference backend for the whole migration compute pipeline. */
 export class CpuComputeBackend implements ComputeBackend {
@@ -80,9 +53,8 @@ export class CpuComputeBackend implements ComputeBackend {
 		const timings: StageTiming[] = [];
 		const notes: string[] = [];
 		const diagnostics: DatasetDiagnostic[] = [];
-		const boundaryDiagnostics: BoundaryDiagnostic[] = [];
-		const sourceFiles = [...input.sourceFiles];
 
+		const sourceFiles = [...input.sourceFiles];
 		const { value: inspectedFiles, timing: csvTiming } = measureStage(
 			'csv-ingestion',
 			'ingestion',
@@ -91,7 +63,6 @@ export class CpuComputeBackend implements ComputeBackend {
 		);
 		timings.push(csvTiming);
 
-		const geojsonSources = resolveGeojsonSources(sourceFiles, inspectedFiles, input.geojsonSources);
 		const { value: manifest, timing: manifestTiming } = measureStage(
 			'dataset-manifest',
 			'ingestion',
@@ -123,17 +94,11 @@ export class CpuComputeBackend implements ComputeBackend {
 		timings.push(preparedTiming);
 		diagnostics.push(...preparedDataset.diagnostics);
 
-		let geojsonRuns = geojsonSources.map((source) => {
-			const geojsonRun = computeBoundaryStage(
-				source.fileName,
-				source.geojson,
-				preparedDataset,
-				options,
-				boundaryDiagnostics,
-			);
+		let geojsonRuns = runCpuBoundaryStages(sourceFiles, inspectedFiles, preparedDataset, options, input.geojsonSources);
+		for (const geojsonRun of geojsonRuns) {
 			timings.push(geojsonRun.precomputeTiming, geojsonRun.raycastTiming);
-			return geojsonRun;
-		});
+			diagnostics.push(...geojsonRun.diagnostics);
+		}
 
 		const staticTownOptions = resolveStaticTownOptions(preparedDataset, options.staticTown);
 		const { value: staticTown, timing: staticTiming } = measureStage(
@@ -166,25 +131,26 @@ export class CpuComputeBackend implements ComputeBackend {
 				'raw-cones-precompute',
 				'precompute',
 				this.profile,
-				() => computeRawConePrecomputeCpu(staticTown, dynamicTown as DynamicTownPrecompute, options.rawCone as RawConePrecomputeOptions),
+				() =>
+					computeRawConePrecomputeCpu(
+						staticTown,
+						dynamicTown as DynamicTownPrecompute,
+						options.rawCone as RawConePrecomputeOptions,
+					),
 			);
 			rawCones = rawConeTiming.value;
 			timings.push(rawConeTiming.timing);
 		}
 
 		if (options.coneIntersection?.enabled !== false && rawCones && dynamicTown) {
-			const coneIntersectionResult = measureStage(
-				'cone-intersections-precompute',
-				'interactive',
-				this.profile,
-				() =>
-					computeConeIntersectionStage(
-						staticTown,
-						rawCones,
-						dynamicTown,
-						options.coneIntersection?.strategy ?? 'oracle',
-						options.coneIntersection,
-					),
+			const coneIntersectionResult = measureStage('cone-intersections-precompute', 'interactive', this.profile, () =>
+				runCpuConeIntersectionStage(
+					staticTown,
+					rawCones,
+					dynamicTown,
+					options.coneIntersection?.strategy ?? 'oracle',
+					options.coneIntersection,
+				),
 			);
 			coneIntersections = coneIntersectionResult.value;
 			timings.push(coneIntersectionResult.timing);
@@ -245,10 +211,7 @@ export class CpuComputeBackend implements ComputeBackend {
 			rawCones,
 			coneIntersections,
 			curveGeometry,
-		diagnostics: [
-			...tagDiagnostics(diagnostics, this.profile),
-			...tagDiagnostics(boundaryDiagnostics, this.profile),
-		],
+			diagnostics: tagDiagnostics(diagnostics, this.profile),
 			benchmark,
 		};
 	}
@@ -306,158 +269,4 @@ function resolveStaticTownOptions(
 		sectorCount: override?.sectorCount ?? 360,
 		neighborLimit: override?.neighborLimit ?? Math.min(Math.max(preparedDataset.cityCount - 1, 0), 16),
 	};
-}
-
-function computeConeIntersectionStage(
-	staticTown: StaticTownPrecompute,
-	rawCones: RawConePrecompute,
-	dynamicTown: DynamicTownPrecompute,
-	strategy: ComputeConeIntersectionStrategy,
-	options?: ComputeOptions['coneIntersection'],
-): ConeIntersectionOraclePrecompute {
-	switch (strategy) {
-		case 'oracle':
-			return computeConeIntersectionOracleCpu(staticTown, rawCones);
-		case 'symmetric-order':
-			return computeConeIntersectionSymmetricOrderCpu(staticTown as SymmetricConeIntersectionStaticInput, rawCones);
-		case 'alpha-aware-order': {
-			const alphaAwareOptions = resolveAlphaAwareConeIntersectionOptions(dynamicTown, rawCones, options);
-			return computeConeIntersectionAlphaAwareOrderCpu(
-				staticTown as SymmetricConeIntersectionStaticInput,
-				rawCones,
-				alphaAwareOptions,
-			);
-		}
-		case 'alpha-aware-block-pruned': {
-			const alphaAwareOptions = resolveAlphaAwareBlockPrunedConeIntersectionOptions(dynamicTown, rawCones, options);
-			return computeConeIntersectionAlphaAwareBlockPrunedCpu(
-				staticTown as SymmetricConeIntersectionStaticInput,
-				rawCones,
-				alphaAwareOptions,
-			);
-		}
-		default:
-			return computeConeIntersectionOracleCpu(staticTown, rawCones);
-	}
-}
-
-function resolveAlphaAwareConeIntersectionOptions(
-	dynamicTown: DynamicTownPrecompute,
-	rawCones: RawConePrecompute,
-	override?: ComputeOptions['coneIntersection'],
-): AlphaAwareConeIntersectionOptions {
-	return {
-		roadAlphaRadians: dynamicTown.roadAlphaRadians,
-		bilateralNeighborhoodFaceCount:
-			override?.alphaAware?.bilateralNeighborhoodFaceCount ?? Math.min(Math.max(rawCones.azimuthSampleCount, 1), 8),
-		alphaEpsilonRadians: override?.alphaAware?.alphaEpsilonRadians,
-	};
-}
-
-function resolveAlphaAwareBlockPrunedConeIntersectionOptions(
-	dynamicTown: DynamicTownPrecompute,
-	rawCones: RawConePrecompute,
-	override?: ComputeOptions['coneIntersection'],
-): AlphaAwareBlockPrunedConeIntersectionOptions {
-	return {
-		...resolveAlphaAwareConeIntersectionOptions(dynamicTown, rawCones, override),
-		blockFaceCount: override?.alphaAware?.blockFaceCount ?? Math.min(Math.max(rawCones.azimuthSampleCount, 1), 4),
-		pruningEnabled: override?.alphaAware?.pruningEnabled,
-	};
-}
-
-function resolveGeojsonSources(
-	sourceFiles: readonly SourceFile[],
-	inspectedFiles: readonly InspectedDatasetFile[],
-	overrideSources?: readonly GeojsonRunBuffer[],
-): GeojsonRunBuffer[] {
-	if (overrideSources && overrideSources.length > 0) {
-		return [...overrideSources];
-	}
-
-	const sourceFilesByName = new Map(sourceFiles.map((file) => [file.name, file]));
-	return inspectedFiles
-		.filter((file) => file.kind === 'geojson')
-		.map((file) => {
-			const sourceFile = sourceFilesByName.get(file.originalName);
-			if (!sourceFile) {
-				throw new Error(`Missing GeoJSON source file: ${file.originalName}`);
-			}
-			return {
-				fileName: file.originalName,
-				geojson: JSON.parse(sourceFile.text) as GeoJSON.FeatureCollection,
-			};
-	});
-}
-
-function tagDiagnostics<T extends { severity: 'warning' | 'error'; code: string; profile?: string }>(
-	diagnostics: readonly T[],
-	profile: string,
-): T[] {
-	return diagnostics.map((diagnostic) =>
-		diagnostic.profile === profile ? diagnostic : { ...diagnostic, profile },
-	);
-}
-
-function computeBoundaryStage(
-	fileName: string,
-	geojson: GeoJSON.FeatureCollection,
-	preparedDataset: PreparedDataset,
-	options: ComputeOptions,
-	diagnostics: BoundaryDiagnostic[],
-): {
-	fileName: string;
-	geojson: GeoJSON.FeatureCollection;
-	boundaryPrecompute: BoundaryPrecompute;
-	boundaryRaycast: BoundaryRaycastResult;
-	precomputeTiming: StageTiming;
-	raycastTiming: StageTiming;
-} {
-	const townInputs = buildTownBoundaryInputs(preparedDataset);
-	const boundaryOptions: Partial<BoundaryPrecomputeOptions> = {
-		azimuthSampleCount: options.boundaryRaycast?.azimuthSampleCount ?? 360,
-		...options.boundaryPrecompute,
-	};
-	const precomputeTimed = measureStage(
-		'geojson-boundary-precompute',
-		'precompute',
-		'cpu',
-		() => prepareBoundaryPrecompute(geojson, townInputs, boundaryOptions),
-	);
-	diagnostics.push(...precomputeTimed.value.diagnostics);
-	const boundaryPrecompute = precomputeTimed.value;
-	const raycastTimed = measureStage(
-		'geojson-boundary-raycast',
-		'precompute',
-		'cpu',
-		() =>
-			computeTownBoundaryLimitsCpu({
-				cityNed2EcefMatrices: buildCityNed2EcefMatrices(townInputs, EARTH_RADIUS_METERS),
-				cityContourIndexes: boundaryPrecompute.cityContourIndexes,
-				countryContourNVectorBuffer: boundaryPrecompute.countryContourNVectorBuffer,
-				countryContourOffsets: boundaryPrecompute.countryContourOffsets,
-				countryContourSizes: boundaryPrecompute.countryContourSizes,
-				azimuthIntervals: packAzimuthIntervals(buildAzimuthIntervals(boundaryPrecompute.azimuthSampleCount)),
-				earthRadiusMeters: EARTH_RADIUS_METERS,
-			}),
-	);
-	diagnostics.push(...raycastTimed.value.diagnostics);
-
-	return {
-		fileName,
-		geojson,
-		boundaryPrecompute,
-		boundaryRaycast: raycastTimed.value,
-		precomputeTiming: precomputeTimed.timing,
-		raycastTiming: raycastTimed.timing,
-	};
-}
-
-function buildTownBoundaryInputs(preparedDataset: PreparedDataset): TownBoundaryInput[] {
-	return Array.from({ length: preparedDataset.cityCount }, (_, cityIndex) => ({
-		cityId: preparedDataset.cityIds[cityIndex],
-		cityCode: preparedDataset.cityCodes[cityIndex],
-		longitudeRadians: preparedDataset.cityLonLatRadians[cityIndex * 2],
-		latitudeRadians: preparedDataset.cityLonLatRadians[cityIndex * 2 + 1],
-	}));
 }
