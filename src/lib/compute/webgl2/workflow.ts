@@ -1,5 +1,3 @@
-import rawConeAlphasVertexShaderSource from '../kernels/raw-cone-alphas/webgl2.vert?raw';
-import cityNed2EcefVertexShaderSource from '../kernels/city-ned2ecef/webgl2.vert?raw';
 import boundaryAlgebreVertexShaderSource from '../kernels/boundary-algebre/webgl2.vert?raw';
 import rayIntersectTriangleWebGl2ShaderSource from '../kernels/shared/ray-intersect-triangle/webgl2.glsl?raw';
 import ciseledConesVertexShaderSource from '../kernels/ciseled-cones/webgl2.vert?raw';
@@ -14,10 +12,6 @@ import {
 	createCiseledConesProgram,
 	createBoundaryAlgebreDispatchResources,
 	createBoundaryAlgebreProgram,
-	createCityNed2EcefDispatchResources,
-	createCityNed2EcefProgram,
-	createRawConeAlphasDispatchResources,
-	createRawConeAlphasProgram,
 	createFinalConesDispatchResources,
 	createFinalConesProgram,
 	createCurveGeometryDispatchResources,
@@ -29,6 +23,8 @@ import {
 	type WebGl2RawConeAlphaDispatchResources,
 } from './buffers';
 import { createWebGl2ComputeResources } from './resources';
+import { runWebGl2CityMatrixPass } from './passes/city-matrix';
+import { runWebGl2RawConeAlphaPass } from './passes/raw-cone-alpha';
 import {
 	compareFloat32Buffers,
 	readBackFloat32Buffer,
@@ -599,193 +595,19 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 	}
 
 	private async runCityMatrixPass(result: ComputeWorkflowResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
-		const prepared = result.preparedDataset;
-		const cityCount = prepared.cityCount;
-		if (cityCount <= 0) {
-			return {
-				timing: {
-					stage: 'static-town-precompute',
-					scope: 'precompute',
-					profile: 'webgl2',
-					startedAtMs: 0,
-					endedAtMs: 0,
-					durationMs: 0,
-				},
-				diagnostics: [],
-			};
-		}
-
-		const gl = this.ensureGl();
-		const resources = await this.ensureResources();
-		const program = resources.programCache?.get('city-ned2ecef');
-		if (!program) {
-			throw new Error('WebGL2 city NED-to-ECEF program is not available');
-		}
-
-		const dispatchResources = createCityNed2EcefDispatchResources(
-			gl,
-			program,
-			new Float32Array(prepared.cityLonLatRadians),
-			cityCount,
-			EARTH_RADIUS_METERS,
-		);
-		const transformFeedback = gl.createTransformFeedback();
-		if (!transformFeedback) {
-			throw new Error('WebGL2 transform feedback allocation failed');
-		}
-
-		const { timing } = await measureAsyncStage(
-			'static-town-precompute',
-			'precompute',
-			'webgl2',
-			async () => {
-				gl.useProgram(program);
-				gl.uniform1f(dispatchResources.uniformLocation, EARTH_RADIUS_METERS);
-				gl.bindVertexArray(dispatchResources.vertexArray);
-				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, dispatchResources.outputBuffer);
-				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
-				gl.enable(gl.RASTERIZER_DISCARD);
-				gl.beginTransformFeedback(gl.POINTS);
-				gl.drawArrays(gl.POINTS, 0, cityCount);
-				gl.endTransformFeedback();
-				gl.disable(gl.RASTERIZER_DISCARD);
-				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
-				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
-				gl.bindVertexArray(null);
-				gl.finish();
-				return undefined;
-			},
-		);
-
-		const diagnostics: DatasetDiagnostic[] = [];
-		const cityMatricesReadback = readBackFloat32Buffer(
-			gl,
-			gl.TRANSFORM_FEEDBACK_BUFFER,
-			dispatchResources.outputBuffer,
-			cityCount * 16,
-		);
-		if (cityMatricesReadback) {
-			diagnostics.push(
-				...compareFloat32Buffers(
-					'webgl2-city-matrices',
-					result.staticTown?.cityNed2EcefMatrices ?? new Float32Array(cityCount * 16),
-					cityMatricesReadback,
-				),
-			);
-		}
-
-		return { timing, diagnostics };
+		return runWebGl2CityMatrixPass({
+			gl: this.ensureGl(),
+			result,
+			resources: await this.ensureResources(),
+		});
 	}
 
 	private async runRawConeAlphaPass(result: ComputeWorkflowResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
-		const rawCones = result.rawCones;
-		const dynamicTown = result.dynamicTown;
-		if (!rawCones || !dynamicTown) {
-			return {
-				timing: {
-					stage: 'raw-cones-precompute',
-					scope: 'precompute',
-					profile: 'webgl2',
-					startedAtMs: 0,
-					endedAtMs: 0,
-					durationMs: 0,
-				},
-				diagnostics: [],
-			};
-		}
-
-		const cityCount = rawCones.cityCount;
-		const azimuthSampleCount = rawCones.azimuthSampleCount;
-		if (cityCount <= 0 || azimuthSampleCount <= 0) {
-			return {
-				timing: {
-					stage: 'raw-cones-precompute',
-					scope: 'precompute',
-					profile: 'webgl2',
-					startedAtMs: 0,
-					endedAtMs: 0,
-					durationMs: 0,
-				},
-				diagnostics: [],
-			};
-		}
-
-		const gl = this.ensureGl();
-		const resources = await this.ensureResources();
-		const program = resources.programCache?.get('raw-cone-alphas');
-		if (!program) {
-			throw new Error('WebGL2 raw-cone alpha program is not available');
-		}
-
-		const dispatchResources = createRawConeAlphasDispatchResources(
-			gl,
-			program,
-			{
-				cityLinkOffsets: dynamicTown.cityLinkOffsets,
-				cityLinkCounts: dynamicTown.cityLinkCounts,
-				cityLinkAzimuthRadians: dynamicTown.cityLinkAzimuthRadians,
-				cityLinkAlphaRadians: dynamicTown.cityLinkAlphaRadians,
-				cityFastestTerrestrialAlphaRadians: dynamicTown.cityFastestTerrestrialAlphaRadians,
-				cityCount,
-				azimuthSampleCount,
-				roadAlphaRadians: dynamicTown.roadAlphaRadians,
-				attenuationRadians: rawCones.attenuationRadians ?? 0,
-				shape: rawCones.shape,
-			},
-		);
-		const transformFeedback = gl.createTransformFeedback();
-		if (!transformFeedback) {
-			throw new Error('WebGL2 transform feedback allocation failed');
-		}
-
-		const { timing } = await measureAsyncStage(
-			'raw-cones-precompute',
-			'precompute',
-			'webgl2',
-			async () => {
-				gl.useProgram(program);
-				gl.uniform4f(
-					dispatchResources.uniformLocation,
-					dynamicTown.roadAlphaRadians,
-					rawCones.attenuationRadians ?? 0,
-					shapeToCode(rawCones.shape),
-					azimuthSampleCount,
-				);
-				bindRawConeAlphaTextures(gl, dispatchResources);
-				gl.bindVertexArray(dispatchResources.vertexArray);
-				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, dispatchResources.outputBuffer);
-				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
-				gl.enable(gl.RASTERIZER_DISCARD);
-				gl.beginTransformFeedback(gl.POINTS);
-				gl.drawArraysInstanced(gl.POINTS, 0, 1, cityCount * azimuthSampleCount);
-				gl.endTransformFeedback();
-				gl.disable(gl.RASTERIZER_DISCARD);
-				gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
-				gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
-				gl.bindVertexArray(null);
-				gl.finish();
-				return undefined;
-			},
-		);
-
-		const diagnostics: DatasetDiagnostic[] = [];
-		const alphaReadback = readBackFloat32Buffer(
-			gl,
-			gl.TRANSFORM_FEEDBACK_BUFFER,
-			dispatchResources.outputBuffer,
-			cityCount * azimuthSampleCount,
-		);
-		if (alphaReadback) {
-			diagnostics.push(
-				...compareFloat32Buffers(
-					'webgl2-raw-cone-alpha',
-					rawCones.coneAlphaRadians,
-					alphaReadback,
-				),
-			);
-		}
-
-		return { timing, diagnostics };
+		return runWebGl2RawConeAlphaPass({
+			gl: this.ensureGl(),
+			result,
+			resources: await this.ensureResources(),
+		});
 	}
 
 	private async runCiseledConePass(result: ComputeWorkflowResult): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[]; ciseledConeRimEcefBuffer?: WebGLBuffer }> {

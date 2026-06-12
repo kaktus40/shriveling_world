@@ -1,6 +1,4 @@
-import rawConeAlphasShaderSource from '../kernels/raw-cone-alphas/webgpu.wgsl?raw';
 import boundaryAlgebreShaderSource from '../kernels/boundary-algebre/webgpu.wgsl?raw';
-import cityNed2EcefShaderSource from '../kernels/city-ned2ecef/webgpu.wgsl?raw';
 import curveGeometryShaderSource from '../kernels/curve-geometry/webgpu.wgsl?raw';
 import finalConesShaderSource from '../kernels/final-cones/webgpu.wgsl?raw';
 import rayIntersectTriangleShaderSource from '../kernels/shared/ray-intersect-triangle/webgpu.wgsl?raw';
@@ -11,14 +9,14 @@ import {
 } from '../cpu';
 import {
 	createBoundaryAlgebreDispatchResources,
-	createCityNed2EcefDispatchResources,
 	createCiseledConesDispatchResources,
 	createCurveGeometryDispatchResources,
 	createFinalConesDispatchResources,
-	createRawConeAlphaDispatchResources,
 	type GpuBufferAllocation,
 } from './buffers';
 import { createWebGpuComputeResources } from './resources';
+import { runWebGpuCityMatrixPass } from './passes/city-matrix';
+import { runWebGpuRawConeAlphaPass } from './passes/raw-cone-alpha';
 import {
 	compareFloat32Buffers,
 	readBackFloat32Buffer,
@@ -188,189 +186,24 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 		context: WebGpuComputeContext,
 		result: ComputeWorkflowResult,
 	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
-		const prepared = result.preparedDataset;
-		const cityCount = prepared.cityCount;
-		if (cityCount <= 0) {
-			return {
-				timing: {
-					stage: 'static-town-precompute',
-					scope: 'precompute',
-					profile: 'webgpu',
-					startedAtMs: 0,
-					endedAtMs: 0,
-					durationMs: 0,
-				},
-				diagnostics: [],
-			};
-		}
-
-		const lonLat = new Float32Array(prepared.cityLonLatRadians);
-		const usage = getGpuBufferUsage();
-		const buffers = createCityNed2EcefDispatchResources(
-			context.device,
-			usage,
-			lonLat,
-			cityCount,
-			EARTH_RADIUS_METERS,
-		);
-
-		const resources = await this.ensureResources();
-		const pipeline = await context.device.createComputePipelineAsync({
-			layout: 'auto',
-			compute: {
-				module: resources.shaderModuleCache?.get('city-ned2ecef') ?? context.device.createShaderModule({ code: cityNed2EcefShaderSource }),
-				entryPoint: 'main',
-			},
+		return runWebGpuCityMatrixPass({
+			context,
+			result,
+			resources: await this.ensureResources(),
+			usage: getGpuBufferUsage(),
 		});
-		const bindGroup = context.device.createBindGroup({
-			layout: pipeline.getBindGroupLayout(0),
-			entries: [
-				{ binding: 0, resource: { buffer: buffers.input.buffer } },
-				{ binding: 1, resource: { buffer: buffers.output.buffer } },
-				{ binding: 2, resource: { buffer: buffers.uniform.buffer } },
-			],
-		});
-
-		const { timing } = await measureAsyncStage(
-			'static-town-precompute',
-			'precompute',
-			'webgpu',
-			async () => {
-				const encoder = context.device.createCommandEncoder();
-				const pass = encoder.beginComputePass();
-				pass.setPipeline(pipeline);
-				pass.setBindGroup(0, bindGroup);
-				pass.dispatchWorkgroups(cityCount, 1, 1);
-				pass.end();
-				context.queue.submit([encoder.finish()]);
-				return undefined;
-			},
-		);
-
-		const diagnostics: DatasetDiagnostic[] = [];
-		const cityMatricesReadback = await readBackFloat32Buffer(context.device, buffers.output.buffer, cityCount * 16);
-		if (cityMatricesReadback) {
-			diagnostics.push(
-				...compareFloat32Buffers(
-					'webgpu-city-matrices',
-					result.staticTown?.cityNed2EcefMatrices ?? new Float32Array(cityCount * 16),
-					cityMatricesReadback,
-				),
-			);
-		}
-
-		return { timing, diagnostics };
 	}
 
 	private async runRawConeAlphaPass(
 		context: WebGpuComputeContext,
 		result: ComputeWorkflowResult,
 	): Promise<{ timing: StageTiming; diagnostics: DatasetDiagnostic[] }> {
-		const rawCones = result.rawCones;
-		const dynamicTown = result.dynamicTown;
-		if (!rawCones || !dynamicTown) {
-			return {
-				timing: {
-					stage: 'raw-cones-precompute',
-					scope: 'precompute',
-					profile: 'webgpu',
-					startedAtMs: 0,
-					endedAtMs: 0,
-					durationMs: 0,
-				},
-				diagnostics: [],
-			};
-		}
-
-		const cityCount = rawCones.cityCount;
-		const azimuthSampleCount = rawCones.azimuthSampleCount;
-		if (cityCount <= 0 || azimuthSampleCount <= 0) {
-			return {
-				timing: {
-					stage: 'raw-cones-precompute',
-					scope: 'precompute',
-					profile: 'webgpu',
-					startedAtMs: 0,
-					endedAtMs: 0,
-					durationMs: 0,
-				},
-				diagnostics: [],
-			};
-		}
-
-		const usage = getGpuBufferUsage();
-		const resources = createRawConeAlphaDispatchResources(
-			context.device,
-			usage,
-			{
-				cityLinkOffsets: dynamicTown.cityLinkOffsets,
-				cityLinkCounts: dynamicTown.cityLinkCounts,
-				cityLinkAzimuthRadians: dynamicTown.cityLinkAzimuthRadians,
-				cityLinkAlphaRadians: dynamicTown.cityLinkAlphaRadians,
-				cityFastestTerrestrialAlphaRadians: dynamicTown.cityFastestTerrestrialAlphaRadians,
-				cityCount,
-				azimuthSampleCount,
-				roadAlphaRadians: dynamicTown.roadAlphaRadians,
-				attenuationRadians: rawCones.attenuationRadians ?? 0,
-				shape: rawCones.shape,
-			},
-		);
-		const resourcesCache = await this.ensureResources();
-		const pipeline = await context.device.createComputePipelineAsync({
-			layout: 'auto',
-			compute: {
-				module:
-					resourcesCache.shaderModuleCache?.get('raw-cone-alphas') ??
-					context.device.createShaderModule({ code: rawConeAlphasShaderSource }),
-				entryPoint: 'main',
-			},
+		return runWebGpuRawConeAlphaPass({
+			context,
+			result,
+			resources: await this.ensureResources(),
+			usage: getGpuBufferUsage(),
 		});
-		const bindGroup = context.device.createBindGroup({
-			layout: pipeline.getBindGroupLayout(0),
-			entries: [
-				{ binding: 0, resource: { buffer: resources.cityLinkOffsets.buffer } },
-				{ binding: 1, resource: { buffer: resources.cityLinkCounts.buffer } },
-				{ binding: 2, resource: { buffer: resources.cityLinkAzimuthRadians.buffer } },
-				{ binding: 3, resource: { buffer: resources.cityLinkAlphaRadians.buffer } },
-				{ binding: 4, resource: { buffer: resources.cityFastestTerrestrialAlphaRadians.buffer } },
-				{ binding: 5, resource: { buffer: resources.uniform.buffer } },
-				{ binding: 6, resource: { buffer: resources.coneAlphaRadians.buffer } },
-			],
-		});
-
-		const { timing } = await measureAsyncStage(
-			'raw-cones-precompute',
-			'precompute',
-			'webgpu',
-			async () => {
-				const encoder = context.device.createCommandEncoder();
-				const pass = encoder.beginComputePass();
-				pass.setPipeline(pipeline);
-				pass.setBindGroup(0, bindGroup);
-				pass.dispatchWorkgroups(azimuthSampleCount, cityCount, 1);
-				pass.end();
-				context.queue.submit([encoder.finish()]);
-				return undefined;
-			},
-		);
-
-		const diagnostics: DatasetDiagnostic[] = [];
-		const alphaReadback = await readBackFloat32Buffer(
-			context.device,
-			resources.coneAlphaRadians.buffer,
-			cityCount * azimuthSampleCount,
-		);
-		if (alphaReadback) {
-			diagnostics.push(
-				...compareFloat32Buffers(
-					'webgpu-raw-cone-alpha',
-					rawCones.coneAlphaRadians,
-					alphaReadback,
-				),
-			);
-		}
-
-		return { timing, diagnostics };
 	}
 
 	private async runCiseledConePass(
