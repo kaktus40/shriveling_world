@@ -18,6 +18,7 @@ import {
 	createRawConeAlphaDispatchResources,
 	type GpuBufferAllocation,
 } from './buffers';
+import { createWebGpuComputeResources } from './resources';
 import {
 	compareFloat32Buffers,
 	readBackFloat32Buffer,
@@ -166,85 +167,7 @@ export class WebGpuComputeWorkflowBackend implements ComputeWorkflowBackend {
 			return this.#resources;
 		}
 		const device = await this.ensureDevice();
-		const cityMatrixModule = device.createShaderModule({ code: cityNed2EcefShaderSource });
-		const rawConeAlphaModule = device.createShaderModule({ code: rawConeAlphasShaderSource });
-		const ciseledConeModule = device.createShaderModule({
-			code: `${rayIntersectTriangleShaderSource}\n${ciseledConesShaderSource}`,
-		});
-		const finalConeModule = device.createShaderModule({ code: finalConesShaderSource });
-		const boundaryModule = device.createShaderModule({ code: boundaryAlgebreShaderSource });
-		const curveGeometryModule = device.createShaderModule({ code: curveGeometryShaderSource });
-		this.#resources = {
-			buffers: [],
-			pipeline: {
-				passes: [
-					{
-						name: 'city-ned2ecef',
-						stage: 'static-town-precompute',
-						profile: 'webgpu',
-						inputs: [],
-						outputs: [],
-						workgroupSize: [1, 1, 1],
-						notes: ['First real WGSL kernel: build city NED-to-ECEF matrices from lon/lat radians.'],
-					},
-					{
-						name: 'boundary-algebre',
-						stage: 'geojson-boundary-raycast',
-						profile: 'webgpu',
-						inputs: [],
-						outputs: [],
-						workgroupSize: [1, 1, 1],
-						notes: ['First real WGSL GeoJSON kernel: raycast the retained contours against azimuth samples.'],
-					},
-					{
-						name: 'raw-cone-alphas',
-						stage: 'raw-cones-precompute',
-						profile: 'webgpu',
-						inputs: [],
-						outputs: [],
-						workgroupSize: [1, 1, 1],
-						notes: ['First real WGSL raw-cone kernel: select cone alphas per city and azimuth sample.'],
-					},
-					{
-						name: 'ciseled-cones',
-						stage: 'cone-intersections-precompute',
-						profile: 'webgpu',
-						inputs: [],
-						outputs: [],
-						workgroupSize: [1, 1, 1],
-						notes: ['First real WGSL cone-cone kernel: exhaustively ciseled raw cones against retained neighbors and compared them against the CPU oracle.'],
-					},
-					{
-						name: 'final-cones',
-						stage: 'final-cones-precompute',
-						profile: 'webgpu',
-						inputs: [],
-						outputs: [],
-						workgroupSize: [1, 1, 1],
-						notes: ['Final real WGSL geometry-emission kernel: merge boundary clipping into the final render-ready cone geometry.'],
-					},
-					{
-						name: 'curve-geometry',
-						stage: 'curve-geometry-precompute',
-						profile: 'webgpu',
-						inputs: [],
-						outputs: [],
-						workgroupSize: [1, 1, 1],
-						notes: ['Curve geometry WGSL kernel: sample render-ready curve vertices from prepared curve controls and yearly speed ratios.'],
-					},
-				],
-			},
-			shaderModuleCache: new Map([
-				['city-ned2ecef', cityMatrixModule],
-				['raw-cone-alphas', rawConeAlphaModule],
-				['ciseled-cones', ciseledConeModule],
-				['final-cones', finalConeModule],
-				['boundary-algebre', boundaryModule],
-				['curve-geometry', curveGeometryModule],
-			]),
-			pipelineCache: new Map(),
-			bindGroupCache: new Map(),
-		};
+		this.#resources = createWebGpuComputeResources(device);
 		return this.#resources;
 	}
 

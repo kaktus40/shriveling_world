@@ -28,6 +28,7 @@ import {
 	type WebGl2FinalConesDispatchResources,
 	type WebGl2RawConeAlphaDispatchResources,
 } from './buffers';
+import { createWebGl2ComputeResources } from './resources';
 import {
 	compareFloat32Buffers,
 	readBackFloat32Buffer,
@@ -186,86 +187,7 @@ export class WebGl2ComputeWorkflowBackend implements ComputeWorkflowBackend {
 			return this.#resources;
 		}
 		const gl = this.ensureGl();
-		const program = createCityNed2EcefProgram(gl, cityNed2EcefVertexShaderSource);
-		const rawConeAlphaProgram = createRawConeAlphasProgram(gl, rawConeAlphasVertexShaderSource);
-		const boundaryProgram = createBoundaryAlgebreProgram(gl, boundaryAlgebreVertexShaderSource);
-		const ciseledConesProgram = createCiseledConesProgram(
-			gl,
-			`${rayIntersectTriangleWebGl2ShaderSource}\n${ciseledConesVertexShaderSource}`,
-		);
-		const finalConesProgram = createFinalConesProgram(
-			gl,
-			finalConesVertexShaderSource,
-		);
-		const curveGeometryProgram = createCurveGeometryProgram(gl, curveGeometryVertexShaderSource);
-		this.#resources = {
-			buffers: [],
-			pipeline: {
-				passes: [
-					{
-						name: 'city-ned2ecef',
-						stage: 'static-town-precompute',
-						profile: 'webgl2',
-						inputs: [],
-						outputs: [],
-						workgroupSize: [1, 1, 1],
-						notes: ['First operational WebGL2 fallback pass: city NED-to-ECEF matrices via transform feedback.'],
-					},
-					{
-						name: 'boundary-algebre',
-						stage: 'geojson-boundary-raycast',
-						profile: 'webgl2',
-						inputs: [],
-						outputs: [],
-						workgroupSize: [1, 1, 1],
-						notes: ['First operational WebGL2 GeoJSON fallback pass: boundary raycast via transform feedback.'],
-					},
-					{
-						name: 'raw-cone-alphas',
-						stage: 'raw-cones-precompute',
-						profile: 'webgl2',
-						inputs: [],
-						outputs: [],
-						workgroupSize: [1, 1, 1],
-						notes: ['First operational WebGL2 raw-cone pass: select cone alphas with transform feedback.'],
-					},
-					{
-						name: 'ciseled-cones',
-						stage: 'cone-intersections-precompute',
-						profile: 'webgl2',
-						inputs: [],
-						outputs: [],
-						workgroupSize: [1, 1, 1],
-						notes: ['First operational WebGL2 cone-cone pass: exhaustive ciseled cones with transform feedback.'],
-					},
-					{
-						name: 'final-cones',
-						stage: 'final-cones-precompute',
-						profile: 'webgl2',
-						inputs: [],
-						outputs: [],
-						workgroupSize: [1, 1, 1],
-						notes: ['Final operational WebGL2 geometry-emission pass: merge boundary clipping into the final render-ready cone geometry.'],
-					},
-					{
-						name: 'curve-geometry',
-						stage: 'curve-geometry-precompute',
-						profile: 'webgl2',
-						inputs: [],
-						outputs: [],
-						workgroupSize: [1, 1, 1],
-						notes: ['Curve geometry WebGL2 pass: sample render-ready curve vertices from prepared curve controls and yearly speed ratios.'],
-					},
-				],
-			},
-			programCache: new Map([['city-ned2ecef', program]]),
-			framebufferCache: new Map(),
-		};
-		this.#resources.programCache?.set('boundary-algebre', boundaryProgram);
-		this.#resources.programCache?.set('raw-cone-alphas', rawConeAlphaProgram);
-		this.#resources.programCache?.set('ciseled-cones', ciseledConesProgram);
-		this.#resources.programCache?.set('final-cones', finalConesProgram);
-		this.#resources.programCache?.set('curve-geometry', curveGeometryProgram);
+		this.#resources = createWebGl2ComputeResources(gl);
 		return this.#resources;
 	}
 
