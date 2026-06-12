@@ -7,7 +7,7 @@ import {
 } from '../types';
 import { RAW_CONE_RIM_ECEF_STRIDE, getRawConeAzimuthRadians } from './raw-cone-cpu';
 import { RAY_ORIGIN_EPSILON_METERS } from './cone-intersection-constants';
-import { wrapPositive, wrapSigned } from './cone-intersection-angular';
+import { positiveAngle, positiveModulo, signedAngleDelta } from './cone-intersection-angular';
 import {
 	isPreferredIntersection,
 	readCitySummit,
@@ -17,6 +17,8 @@ import {
 	intersectRayTriangleDoubleSided,
 } from './cone-intersection-support';
 import { buildSymmetricFaceTraversal } from './cone-intersection-traversal';
+
+const TWO_PI = Math.PI * 2;
 
 /**
  * Clips cones exhaustively while visiting B faces in symmetric-ray order.
@@ -74,7 +76,7 @@ export function computeConeIntersectionSymmetricOrderCpu(
 				const pairOffset = (cityAIndex * cityCount + cityBIndex) * CITY_PAIR_INVARIANT_STRIDE;
 				const gammaABRadians = staticInput.cityPairInvariants[pairOffset];
 				const gammaBARadians = staticInput.cityPairInvariants[pairOffset + 1];
-				const phiB0Radians = wrapPositive(gammaBARadians - wrapSigned(phiARadians - gammaABRadians));
+				const phiB0Radians = positiveAngle(gammaBARadians - signedAngleDelta(phiARadians - gammaABRadians));
 				const faceTraversal = buildSymmetricFaceTraversal(phiB0Radians, gammaBARadians, azimuthSampleCount);
 				readCitySummit(staticInput.cityNed2EcefMatrices, cityBIndex, triangleSummit);
 

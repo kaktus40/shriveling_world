@@ -11,7 +11,7 @@ import {
 	ALPHA_SUPPORT_EPSILON_RADIANS,
 	RAY_ORIGIN_EPSILON_METERS,
 } from './cone-intersection-constants';
-import { wrapPositive, wrapSigned } from './cone-intersection-angular';
+import { positiveAngle, signedAngleDelta } from './cone-intersection-angular';
 import { validateAlphaAwareValues } from './cone-intersection-validation';
 import {
 	buildAlphaAwareFaceTraversalFromFastFaces,
@@ -105,7 +105,7 @@ export function computeConeIntersectionAlphaAwareOrderCpu(
 				const pairOffset = (cityAIndex * cityCount + cityBIndex) * CITY_PAIR_INVARIANT_STRIDE;
 				const gammaABRadians = staticInput.cityPairInvariants[pairOffset];
 				const gammaBARadians = staticInput.cityPairInvariants[pairOffset + 1];
-				const phiB0Radians = wrapPositive(gammaBARadians - wrapSigned(phiARadians - gammaABRadians));
+				const phiB0Radians = positiveAngle(gammaBARadians - signedAngleDelta(phiARadians - gammaABRadians));
 				const alphaOffset = cityBIndex * azimuthSampleCount;
 				const traversal = buildAlphaAwareFaceTraversalFromFastFaces(
 					phiB0Radians,

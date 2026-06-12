@@ -1,10 +1,6 @@
-import { PI, TWO_PI } from '../../../shared';
+import { TWO_PI } from '../../../shared';
 import { ALPHA_SUPPORT_EPSILON_RADIANS } from './cone-intersection-constants';
-import {
-	positiveModulo,
-	wrapPositive,
-	wrapSigned,
-} from './cone-intersection-angular';
+import { positiveAngle, positiveModulo, signedAngleDelta } from './cone-intersection-angular';
 import { validateAlphaAwareValues } from './cone-intersection-validation';
 
 /** Characterization of one exhaustive alpha-aware face traversal. */
@@ -34,9 +30,9 @@ export function buildSymmetricFaceTraversal(
 		throw new RangeError('symmetric traversal requires finite angles and at least three azimuth samples');
 	}
 	const sampleStepRadians = TWO_PI / azimuthSampleCount;
-	const normalizedPhiB0 = wrapPositive(phiB0Radians);
+	const normalizedPhiB0 = positiveAngle(phiB0Radians);
 	const startFaceIndex = Math.min(Math.floor(normalizedPhiB0 / sampleStepRadians), azimuthSampleCount - 1);
-	const direction = wrapSigned(gammaBARadians - normalizedPhiB0) < 0 ? -1 : 1;
+	const direction = signedAngleDelta(gammaBARadians - normalizedPhiB0) < 0 ? -1 : 1;
 	const traversal = new Uint32Array(azimuthSampleCount);
 	for (let visitIndex = 0; visitIndex < azimuthSampleCount; visitIndex += 1) {
 		traversal[visitIndex] = positiveModulo(startFaceIndex + direction * visitIndex, azimuthSampleCount);
@@ -61,9 +57,9 @@ export function buildAlternatingFaceTraversal(
 		throw new RangeError('alternating traversal requires finite angles and at least three azimuth samples');
 	}
 	const sampleStepRadians = TWO_PI / azimuthSampleCount;
-	const normalizedPhiB0 = wrapPositive(phiB0Radians);
+	const normalizedPhiB0 = positiveAngle(phiB0Radians);
 	const startFaceIndex = Math.min(Math.floor(normalizedPhiB0 / sampleStepRadians), azimuthSampleCount - 1);
-	const direction = wrapSigned(gammaBARadians - normalizedPhiB0) < 0 ? -1 : 1;
+	const direction = signedAngleDelta(gammaBARadians - normalizedPhiB0) < 0 ? -1 : 1;
 	const traversal = new Uint32Array(azimuthSampleCount);
 	let outputIndex = 0;
 	traversal[outputIndex] = startFaceIndex;
@@ -150,9 +146,10 @@ export function buildAlphaAwareFaceTraversalFromFastFaces(
 ): AlphaAwareFaceTraversal {
 	const faceCount = fastFaces.length;
 	const sampleStepRadians = TWO_PI / faceCount;
-	const startFaceIndex = Math.min(Math.floor(wrapPositive(phiB0Radians) / sampleStepRadians), faceCount - 1);
-	const endFaceIndex = Math.min(Math.floor(wrapPositive(gammaBARadians) / sampleStepRadians), faceCount - 1);
-	const direction = wrapSigned(gammaBARadians - wrapPositive(phiB0Radians)) < 0 ? -1 : 1;
+	const normalizedPhiB0 = positiveAngle(phiB0Radians);
+	const startFaceIndex = Math.min(Math.floor(normalizedPhiB0 / sampleStepRadians), faceCount - 1);
+	const endFaceIndex = Math.min(Math.floor(positiveAngle(gammaBARadians) / sampleStepRadians), faceCount - 1);
+	const direction = signedAngleDelta(gammaBARadians - normalizedPhiB0) < 0 ? -1 : 1;
 	const selected = new Uint8Array(faceCount);
 	const priority: number[] = [];
 	const appendPriority = (faceIndex: number): void => {
