@@ -10,10 +10,10 @@ import {
 } from '../validation';
 import type { WebGpuComputeContext, WebGpuComputeResources } from '../types';
 import {
-	createCurveGeometryDispatchResources,
 	type GpuBufferAllocation,
 	type GpuBufferUsageFlags,
 } from '../buffers';
+import { createCurveGeometryDispatchResources } from './curve-geometry-buffers';
 
 export interface WebGpuCurveGeometryPassInput {
 	readonly context: WebGpuComputeContext;
