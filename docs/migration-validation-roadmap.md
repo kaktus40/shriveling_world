@@ -1568,6 +1568,10 @@ Travail deja realise:
   - `src/lib/components/workspace/WorkspaceComputePanel.svelte`;
   - `src/lib/components/workspace/WorkspaceDatasetDetails.svelte`;
   - `src/lib/components/workspace/WorkspaceQueryPanel.svelte`;
+- extraction de `QueryNodeEditor.svelte` vers:
+  - `src/lib/components/query/QueryNodeGroupEditor.svelte`;
+  - `src/lib/components/query/QueryNodeLeafEditor.svelte`;
+  - `src/lib/components/query/queryEditor.ts`;
 - reduction de `src/routes/workspace/+page.svelte` a un role
   d orchestration;
 - maintien des contrats metier et compute identiques.
