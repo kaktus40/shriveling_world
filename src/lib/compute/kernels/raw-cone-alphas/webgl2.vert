@@ -4,9 +4,6 @@ precision highp float;
 precision highp int;
 precision highp uint;
 
-const float TWO_PI = 6.283185307179586;
-const float ANGULAR_EPSILON = 1e-6;
-
 uniform sampler2D u_cityLinkOffsets;
 uniform usampler2D u_cityLinkCounts;
 uniform sampler2D u_cityLinkAzimuthRadians;
@@ -15,14 +12,6 @@ uniform sampler2D u_cityFastestTerrestrialAlphaRadians;
 uniform vec4 u_uniforms;
 
 out float tf_coneAlphaRadians;
-
-float positiveAngle(float angleRadians) {
-	float remainder = mod(angleRadians, TWO_PI);
-	if (remainder < 0.0) {
-		remainder += TWO_PI;
-	}
-	return remainder;
-}
 
 float selectComplexConeAlpha(uint cityIndex, float azimuthRadians) {
 	uint count = texelFetch(u_cityLinkCounts, ivec2(int(cityIndex), 0), 0).r;
@@ -41,8 +30,8 @@ float selectComplexConeAlpha(uint cityIndex, float azimuthRadians) {
 		uint linkIndex = offset + localIndex;
 		float linkAzimuth = texelFetch(u_cityLinkAzimuthRadians, ivec2(int(linkIndex), 0), 0).r;
 		float linkAlpha = texelFetch(u_cityLinkAlphaRadians, ivec2(int(linkIndex), 0), 0).r;
-		float candidateLowerDistance = positiveAngle(azimuthRadians - linkAzimuth);
-		float candidateUpperDistance = positiveAngle(linkAzimuth - azimuthRadians);
+		float candidateLowerDistance = positive_angle(azimuthRadians - linkAzimuth);
+		float candidateUpperDistance = positive_angle(linkAzimuth - azimuthRadians);
 		if (
 			candidateLowerDistance < lowerDistance - ANGULAR_EPSILON ||
 			(abs(candidateLowerDistance - lowerDistance) <= ANGULAR_EPSILON && linkAlpha < lowerAlpha)

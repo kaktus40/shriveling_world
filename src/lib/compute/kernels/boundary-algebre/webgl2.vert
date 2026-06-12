@@ -3,10 +3,6 @@
 precision highp float;
 precision highp int;
 
-#define PI 3.1415926535897932384626433832795
-#define TWO_PI 6.283185307179586476925286766559
-#define EPSILON 1e-6
-
 uniform sampler2D u_cityMatrices;
 uniform isampler2D u_cityContourIndexes;
 uniform sampler2D u_contourNVectors;
@@ -20,52 +16,6 @@ out vec4 tf_boundaryEcef;
 
 vec3 readContourNVector(int pointIndex) {
 	return texelFetch(u_contourNVectors, ivec2(pointIndex, 0), 0).xyz;
-}
-
-vec2 lonLatFromNVector(vec3 nvector) {
-	vec3 normalized = normalize(nvector);
-	float latitude = atan(normalized.z, sqrt(normalized.x * normalized.x + normalized.y * normalized.y));
-	float longitude = atan(normalized.y, normalized.x);
-	while (longitude > PI) {
-		longitude -= TWO_PI;
-	}
-	while (longitude < -PI) {
-		longitude += TWO_PI;
-	}
-	return vec2(longitude, latitude);
-}
-
-float shiftAngleNear(float angleRadians, float referenceRadians) {
-	float shifted = angleRadians;
-	while (shifted - referenceRadians > PI) {
-		shifted -= TWO_PI;
-	}
-	while (referenceRadians - shifted > PI) {
-		shifted += TWO_PI;
-	}
-	return shifted;
-}
-
-bool isAngleInsideContinuousInterval(float angleRadians, float minRadians, float maxRadians) {
-	float centerRadians = (minRadians + maxRadians) * 0.5;
-	float shifted = shiftAngleNear(angleRadians, centerRadians);
-	return shifted >= minRadians && shifted <= maxRadians;
-}
-
-vec3 greatCircleFromBearing(vec3 townNvector, vec3 north, vec3 east, float azimuthRadians) {
-	vec3 direction = normalize(north * cos(azimuthRadians) + east * sin(azimuthRadians));
-	return normalize(cross(townNvector, direction));
-}
-
-float initialBearingRadians(vec3 north, vec3 east, vec3 targetNvector) {
-	float sine = dot(targetNvector, east);
-	float cosine = dot(targetNvector, north);
-	float bearing = atan(sine, cosine);
-	return bearing < 0.0 ? bearing + TWO_PI : bearing;
-}
-
-float angularDistanceRadians(vec3 a, vec3 b) {
-	return acos(clamp(dot(normalize(a), normalize(b)), -1.0, 1.0));
 }
 
 vec3 intersectGreatCircleWithSegment(vec3 greatCircleNormal, vec3 segmentStart, vec3 segmentEnd) {
@@ -111,10 +61,10 @@ void main() {
 	vec2 interval = texelFetch(u_azimuthIntervals, intervalCoords, 0).rg;
 	float minRadians = interval.x;
 	float maxRadians = interval.y;
-	vec3 greatCircleNormal = greatCircleFromBearing(townNvector, north, east, (minRadians + maxRadians) * 0.5);
+	vec3 greatCircleNormal = great_circle_from_bearing(townNvector, north, east, (minRadians + maxRadians) * 0.5);
 	int contourIndex = texelFetch(u_cityContourIndexes, ivec2(int(cityIndex), 0), 0).r;
 	if (contourIndex < 0 || uint(contourIndex) >= contourCount) {
-		vec2 townLonLat = lonLatFromNVector(townNvector);
+		vec2 townLonLat = lonlat_from_nvector(townNvector);
 		tf_boundaryAngular = vec4(townLonLat.x, townLonLat.y, -1.0, 0.0);
 		tf_boundaryEcef = vec4(0.0);
 		gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
@@ -124,7 +74,7 @@ void main() {
 	int contourOffset = texelFetch(u_contourOffsets, ivec2(contourIndex, 0), 0).r;
 	int contourSize = texelFetch(u_contourSizes, ivec2(contourIndex, 0), 0).r;
 	if (contourSize < 3) {
-		vec2 townLonLat = lonLatFromNVector(townNvector);
+		vec2 townLonLat = lonlat_from_nvector(townNvector);
 		tf_boundaryAngular = vec4(townLonLat.x, townLonLat.y, -1.0, 0.0);
 		tf_boundaryEcef = vec4(0.0);
 		gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
@@ -140,11 +90,11 @@ void main() {
 		if (candidate.x == 0.0 && candidate.y == 0.0 && candidate.z == 0.0) {
 			continue;
 		}
-		float candidateAzimuth = initialBearingRadians(north, east, candidate);
-		if (!isAngleInsideContinuousInterval(candidateAzimuth, minRadians, maxRadians)) {
+		float candidateAzimuth = initial_bearing_radians(north, east, candidate);
+		if (!is_angle_inside_continuous_interval(candidateAzimuth, minRadians, maxRadians)) {
 			continue;
 		}
-		float distance = angularDistanceRadians(candidate, townNvector);
+		float distance = angular_distance_radians(candidate, townNvector);
 		if (distance < bestDistance) {
 			bestDistance = distance;
 			bestCandidate = candidate;
@@ -152,11 +102,11 @@ void main() {
 	}
 
 	if (bestDistance < 1e29) {
-		vec2 bestLonLat = lonLatFromNVector(bestCandidate);
+		vec2 bestLonLat = lonlat_from_nvector(bestCandidate);
 		tf_boundaryAngular = vec4(bestLonLat.x, bestLonLat.y, bestDistance, 1.0);
 		tf_boundaryEcef = vec4(bestCandidate * u_uniforms.x, 1.0);
 	} else {
-		vec2 townLonLat = lonLatFromNVector(townNvector);
+		vec2 townLonLat = lonlat_from_nvector(townNvector);
 		tf_boundaryAngular = vec4(townLonLat.x, townLonLat.y, -1.0, 0.0);
 		tf_boundaryEcef = vec4(0.0);
 	}

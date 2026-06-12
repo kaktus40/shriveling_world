@@ -1,6 +1,3 @@
-const TWO_PI: f32 = 6.283185307179586;
-const ANGULAR_EPSILON: f32 = 1e-6;
-
 struct RawConeUniforms {
 	roadAlphaRadians: f32,
 	attenuationRadians: f32,
@@ -15,14 +12,6 @@ struct RawConeUniforms {
 @group(0) @binding(4) var<storage, read> cityFastestTerrestrialAlphaRadians: array<f32>;
 @group(0) @binding(5) var<uniform> uniforms: RawConeUniforms;
 @group(0) @binding(6) var<storage, read_write> coneAlphaRadians: array<f32>;
-
-fn positiveAngle(angleRadians: f32) -> f32 {
-	var remainder = angleRadians % TWO_PI;
-	if (remainder < 0.0) {
-		remainder = remainder + TWO_PI;
-	}
-	return remainder;
-}
 
 fn selectComplexConeAlpha(cityIndex: u32, azimuthRadians: f32) -> f32 {
 	let count = cityLinkCounts[cityIndex];
@@ -41,8 +30,8 @@ fn selectComplexConeAlpha(cityIndex: u32, azimuthRadians: f32) -> f32 {
 		let linkIndex = offset + localIndex;
 		let linkAzimuth = cityLinkAzimuthRadians[linkIndex];
 		let linkAlpha = cityLinkAlphaRadians[linkIndex];
-		let candidateLowerDistance = positiveAngle(azimuthRadians - linkAzimuth);
-		let candidateUpperDistance = positiveAngle(linkAzimuth - azimuthRadians);
+		let candidateLowerDistance = positive_angle(azimuthRadians - linkAzimuth);
+		let candidateUpperDistance = positive_angle(linkAzimuth - azimuthRadians);
 		if (
 			candidateLowerDistance < lowerDistance - ANGULAR_EPSILON ||
 			(abs(candidateLowerDistance - lowerDistance) <= ANGULAR_EPSILON && linkAlpha < lowerAlpha)

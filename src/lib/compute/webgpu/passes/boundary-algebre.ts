@@ -1,4 +1,5 @@
-import boundaryAlgebreShaderSource from '../../kernels/boundary-algebre/webgpu.wgsl?raw';
+import boundaryAlgebreMathSource from '../../kernels/shared/math/webgpu.wgsl?raw';
+import boundaryAlgebreKernelSource from '../../kernels/boundary-algebre/webgpu.wgsl?raw';
 import { EARTH_RADIUS_METERS } from '../../../shared';
 import type { DatasetDiagnostic } from '../../../domain/data';
 import { buildAzimuthIntervals, packAzimuthIntervals } from '../../../domain/geojson';
@@ -13,6 +14,8 @@ import {
 	createBoundaryAlgebreDispatchResources,
 	type GpuBufferUsageFlags,
 } from '../buffers';
+
+const boundaryAlgebreShaderSource = `${boundaryAlgebreMathSource}\n${boundaryAlgebreKernelSource}`;
 
 export interface WebGpuBoundaryRaycastPassInput {
 	readonly context: WebGpuComputeContext;

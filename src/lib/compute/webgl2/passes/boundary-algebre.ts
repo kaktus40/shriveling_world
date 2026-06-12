@@ -1,4 +1,5 @@
-import boundaryAlgebreVertexShaderSource from '../../kernels/boundary-algebre/webgl2.vert?raw';
+import boundaryAlgebreMathSource from '../../kernels/shared/math/webgl2.glsl?raw';
+import boundaryAlgebreKernelSource from '../../kernels/boundary-algebre/webgl2.vert?raw';
 import { EARTH_RADIUS_METERS } from '../../../shared';
 import type { DatasetDiagnostic } from '../../../domain/data';
 import { buildAzimuthIntervals, packAzimuthIntervals } from '../../../domain/geojson';
@@ -15,6 +16,8 @@ import {
 } from '../buffers';
 import { bindBoundaryTextures } from '../pass-bindings';
 import type { WebGl2ComputeResources } from '../types';
+
+const boundaryAlgebreVertexShaderSource = `${boundaryAlgebreMathSource}\n${boundaryAlgebreKernelSource}`;
 
 export interface WebGl2BoundaryRaycastPassInput {
 	readonly gl: WebGL2RenderingContext;

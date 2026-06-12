@@ -1,4 +1,5 @@
-import rawConeAlphasVertexShaderSource from '../../kernels/raw-cone-alphas/webgl2.vert?raw';
+import rawConeAlphasMathSource from '../../kernels/shared/math/webgl2.glsl?raw';
+import rawConeAlphasKernelSource from '../../kernels/raw-cone-alphas/webgl2.vert?raw';
 import type { DatasetDiagnostic } from '../../../domain/data';
 import type { ComputeWorkflowResult, StageTiming } from '../../core';
 import { measureAsyncStage } from '../../core/timing';
@@ -12,6 +13,8 @@ import {
 } from '../buffers';
 import type { WebGl2ComputeResources } from '../types';
 import { bindRawConeAlphaTextures, shapeToCode } from '../pass-utils';
+
+const rawConeAlphasVertexShaderSource = `${rawConeAlphasMathSource}\n${rawConeAlphasKernelSource}`;
 
 export interface WebGl2RawConeAlphaPassInput {
 	readonly gl: WebGL2RenderingContext;

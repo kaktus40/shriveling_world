@@ -5,3 +5,5 @@ export * from './dynamic-town-cpu';
 export * from './raw-cone-cpu';
 export * from './cone-intersection-cpu';
 export * from './final-cone-cpu';
+export * from './cone-intersection-traversal';
+export * from './cone-intersection-constants';

@@ -13,16 +13,20 @@ import {
 	type SymmetricConeIntersectionStaticInput,
 } from '../types';
 import { RAW_CONE_RIM_ECEF_STRIDE, getRawConeAzimuthRadians } from './raw-cone-cpu';
-import { PI, TWO_PI } from '../../../shared';
-
-/** Default algebraic tolerance used to reject parallel or degenerate faces. */
-export const RAY_TRIANGLE_DETERMINANT_EPSILON = 1e-7;
-
-/** Default minimum accepted distance in front of a ray origin, in meters. */
-export const RAY_ORIGIN_EPSILON_METERS = 1e-5;
-
-/** Default tolerance used to distinguish fast alpha samples from Road alpha. */
-export const ALPHA_SUPPORT_EPSILON_RADIANS = 1e-6;
+import {
+	ALPHA_SUPPORT_EPSILON_RADIANS,
+	RAY_ORIGIN_EPSILON_METERS,
+	RAY_TRIANGLE_DETERMINANT_EPSILON,
+} from './cone-intersection-constants';
+import {
+	buildAlphaAwareFaceTraversal,
+	buildAlphaAwareFaceTraversalFromFastFaces,
+	buildSymmetricFaceTraversal,
+	classifyFastConeFaces,
+	validateAlphaAwareValues,
+	wrapPositive,
+	wrapSigned,
+} from './cone-intersection-traversal';
 
 /** Three-dimensional vector accepted by the CPU intersection primitive. */
 export type Vector3 = readonly [number, number, number];
@@ -201,226 +205,6 @@ export function computeConeIntersectionOracleCpu(
 	};
 }
 
-/**
- * Returns every face index once, ordered from the symmetric ray toward B->A.
- *
- * `phiB0` is the symmetric image in B's local referential of the considered
- * ray of A. The traversal follows the shortest signed direction from `phiB0`
- * to `gammaBA`, then continues around the circular cone. No face is removed.
- */
-export function buildSymmetricFaceTraversal(
-	phiB0Radians: number,
-	gammaBARadians: number,
-	azimuthSampleCount: number,
-): Uint32Array {
-	if (
-		!Number.isFinite(phiB0Radians) ||
-		!Number.isFinite(gammaBARadians) ||
-		!Number.isSafeInteger(azimuthSampleCount) ||
-		azimuthSampleCount < 3
-	) {
-		throw new RangeError('symmetric traversal requires finite angles and at least three azimuth samples');
-	}
-	const sampleStepRadians = TWO_PI / azimuthSampleCount;
-	const normalizedPhiB0 = wrapPositive(phiB0Radians);
-	const startFaceIndex = Math.min(Math.floor(normalizedPhiB0 / sampleStepRadians), azimuthSampleCount - 1);
-	const direction = wrapSigned(gammaBARadians - normalizedPhiB0) < 0 ? -1 : 1;
-	const traversal = new Uint32Array(azimuthSampleCount);
-	for (let visitIndex = 0; visitIndex < azimuthSampleCount; visitIndex += 1) {
-		traversal[visitIndex] = positiveModulo(startFaceIndex + direction * visitIndex, azimuthSampleCount);
-	}
-	return traversal;
-}
-
-/**
- * Returns every face index once, alternating around the symmetric ray.
- *
- * The first direction follows the shortest signed route from `phiB0` toward
- * `gammaBA`. The traversal then alternates on both sides of `phiB0` so the
- * priority zone remains centered while still being exhaustive.
- */
-export function buildAlternatingFaceTraversal(
-	phiB0Radians: number,
-	gammaBARadians: number,
-	azimuthSampleCount: number,
-): Uint32Array {
-	if (
-		!Number.isFinite(phiB0Radians) ||
-		!Number.isFinite(gammaBARadians) ||
-		!Number.isSafeInteger(azimuthSampleCount) ||
-		azimuthSampleCount < 3
-	) {
-		throw new RangeError('alternating traversal requires finite angles and at least three azimuth samples');
-	}
-	const sampleStepRadians = TWO_PI / azimuthSampleCount;
-	const normalizedPhiB0 = wrapPositive(phiB0Radians);
-	const startFaceIndex = Math.min(Math.floor(normalizedPhiB0 / sampleStepRadians), azimuthSampleCount - 1);
-	const direction = wrapSigned(gammaBARadians - normalizedPhiB0) < 0 ? -1 : 1;
-	const traversal = new Uint32Array(azimuthSampleCount);
-	let outputIndex = 0;
-	traversal[outputIndex] = startFaceIndex;
-	outputIndex += 1;
-	for (let offset = 1; outputIndex < azimuthSampleCount; offset += 1) {
-		const forwardFaceIndex = positiveModulo(startFaceIndex + direction * offset, azimuthSampleCount);
-		if (forwardFaceIndex !== startFaceIndex) {
-			traversal[outputIndex] = forwardFaceIndex;
-			outputIndex += 1;
-		}
-		if (outputIndex >= azimuthSampleCount) {
-			break;
-		}
-		const backwardFaceIndex = positiveModulo(startFaceIndex - direction * offset, azimuthSampleCount);
-		if (backwardFaceIndex !== startFaceIndex && backwardFaceIndex !== forwardFaceIndex) {
-			traversal[outputIndex] = backwardFaceIndex;
-			outputIndex += 1;
-		}
-	}
-	return traversal;
-}
-
-/** Characterization of one exhaustive alpha-aware face traversal. */
-export interface AlphaAwareFaceTraversal {
-	/** Every face exactly once, with priority-window faces first. */
-	faceIndexes: Uint32Array;
-	/** Number of leading entries belonging to the priority window. */
-	priorityFaceCount: number;
-	/** Number of priority faces touching at least one fast alpha sample. */
-	priorityFastFaceCount: number;
-}
-
-/**
- * Classifies faces touching an alpha sample strictly faster than Road.
- *
- * A face spans two consecutive cone samples and is marked `1` when either
- * endpoint has `alpha < roadAlpha - epsilon`. The circular closing face is
- * classified with the same rule.
- */
-export function classifyFastConeFaces(
-	coneAlphaRadians: ArrayLike<number>,
-	roadAlphaRadians: number,
-	alphaEpsilonRadians = ALPHA_SUPPORT_EPSILON_RADIANS,
-): Uint8Array {
-	validateAlphaAwareValues(coneAlphaRadians.length, roadAlphaRadians, 0, alphaEpsilonRadians);
-	const fastFaces = new Uint8Array(coneAlphaRadians.length);
-	for (let faceIndex = 0; faceIndex < coneAlphaRadians.length; faceIndex += 1) {
-		const nextFaceIndex = (faceIndex + 1) % coneAlphaRadians.length;
-		if (!Number.isFinite(coneAlphaRadians[faceIndex])) {
-			throw new RangeError('cone alpha samples must be finite');
-		}
-		if (
-			coneAlphaRadians[faceIndex] < roadAlphaRadians - alphaEpsilonRadians ||
-			coneAlphaRadians[nextFaceIndex] < roadAlphaRadians - alphaEpsilonRadians
-		) {
-			fastFaces[faceIndex] = 1;
-		}
-	}
-	return fastFaces;
-}
-
-/**
- * Builds the exhaustive alpha-aware order for one ray of A against cone B.
- *
- * The leading priority window contains, in order:
- * - the short circular corridor from `phiB0` to `gammaBA`;
- * - the two exterior faces touching the corridor boundaries;
- * - fast faces in the bilateral neighborhood of `phiB0`.
- *
- * Remaining faces follow an alternating left/right order around `phiB0`.
- * No face is removed.
- */
-export function buildAlphaAwareFaceTraversal(
-	phiB0Radians: number,
-	gammaBARadians: number,
-	coneAlphaRadians: ArrayLike<number>,
-	options: AlphaAwareConeIntersectionOptions,
-): AlphaAwareFaceTraversal {
-	const alphaEpsilonRadians = options.alphaEpsilonRadians ?? ALPHA_SUPPORT_EPSILON_RADIANS;
-	validateAlphaAwareValues(
-		coneAlphaRadians.length,
-		options.roadAlphaRadians,
-		options.bilateralNeighborhoodFaceCount,
-		alphaEpsilonRadians,
-	);
-	if (!Number.isFinite(phiB0Radians) || !Number.isFinite(gammaBARadians)) {
-		throw new RangeError('alpha-aware traversal requires finite phiB0 and gammaBA angles');
-	}
-
-	return buildAlphaAwareFaceTraversalFromFastFaces(
-		phiB0Radians,
-		gammaBARadians,
-		classifyFastConeFaces(coneAlphaRadians, options.roadAlphaRadians, alphaEpsilonRadians),
-		options.bilateralNeighborhoodFaceCount,
-	);
-}
-
-function buildAlphaAwareFaceTraversalFromFastFaces(
-	phiB0Radians: number,
-	gammaBARadians: number,
-	fastFaces: Uint8Array,
-	bilateralNeighborhoodFaceCount: number,
-): AlphaAwareFaceTraversal {
-	const faceCount = fastFaces.length;
-	const sampleStepRadians = TWO_PI / faceCount;
-	const startFaceIndex = Math.min(Math.floor(wrapPositive(phiB0Radians) / sampleStepRadians), faceCount - 1);
-	const endFaceIndex = Math.min(Math.floor(wrapPositive(gammaBARadians) / sampleStepRadians), faceCount - 1);
-	const direction = wrapSigned(gammaBARadians - wrapPositive(phiB0Radians)) < 0 ? -1 : 1;
-	const selected = new Uint8Array(faceCount);
-	const priority: number[] = [];
-	const appendPriority = (faceIndex: number): void => {
-		const normalized = positiveModulo(faceIndex, faceCount);
-		if (selected[normalized] === 0) {
-			selected[normalized] = 1;
-			priority.push(normalized);
-		}
-	};
-
-	let corridorFaceIndex = startFaceIndex;
-	for (let visited = 0; visited < faceCount; visited += 1) {
-		appendPriority(corridorFaceIndex);
-		if (corridorFaceIndex === endFaceIndex) {
-			break;
-		}
-		corridorFaceIndex = positiveModulo(corridorFaceIndex + direction, faceCount);
-	}
-	appendPriority(startFaceIndex - direction);
-	appendPriority(endFaceIndex + direction);
-
-	for (let distance = 0; distance <= bilateralNeighborhoodFaceCount; distance += 1) {
-		const lowerFaceIndex = positiveModulo(startFaceIndex - distance, faceCount);
-		const upperFaceIndex = positiveModulo(startFaceIndex + distance, faceCount);
-		if (fastFaces[lowerFaceIndex] === 1) {
-			appendPriority(lowerFaceIndex);
-		}
-		if (fastFaces[upperFaceIndex] === 1) {
-			appendPriority(upperFaceIndex);
-		}
-	}
-
-	const traversal = new Uint32Array(faceCount);
-	traversal.set(priority);
-	let outputIndex = priority.length;
-	for (const faceIndex of buildAlternatingFaceTraversal(phiB0Radians, gammaBARadians, faceCount)) {
-		if (selected[faceIndex] === 0) {
-			traversal[outputIndex] = faceIndex;
-			outputIndex += 1;
-		}
-	}
-
-	return {
-		faceIndexes: traversal,
-		priorityFaceCount: priority.length,
-		priorityFastFaceCount: priority.reduce((count, faceIndex) => count + fastFaces[faceIndex], 0),
-	};
-}
-
-/**
- * Clips cones exhaustively while visiting B faces in symmetric-ray order.
- *
- * This characterization strategy must match {@link computeConeIntersectionOracleCpu}
- * exactly: it changes only face order and never removes a face. The additional
- * visit-order output measures whether the heuristic finds the final minimum
- * early enough to justify later conservative pruning structures.
- */
 export function computeConeIntersectionSymmetricOrderCpu(
 	staticInput: SymmetricConeIntersectionStaticInput,
 	rawCones: RawConePrecompute,
@@ -529,13 +313,6 @@ export function computeConeIntersectionSymmetricOrderCpu(
 	};
 }
 
-/**
- * Clips cones exhaustively while prioritizing the alpha-aware search window.
- *
- * This characterization implementation remains conformant with the oracle:
- * every face is visited exactly once. Diagnostics quantify whether the final
- * winning face is discovered inside the proposed priority window.
- */
 export function computeConeIntersectionAlphaAwareOrderCpu(
 	staticInput: SymmetricConeIntersectionStaticInput,
 	rawCones: RawConePrecompute,
@@ -679,14 +456,6 @@ export function computeConeIntersectionAlphaAwareOrderCpu(
 	};
 }
 
-/**
- * Clips cones exhaustively while pruning conservative alpha-aware blocks.
- *
- * The geometry remains identical to the oracle because a block is rejected
- * only when its conservative entry bound cannot improve the current best
- * distance. The output keeps the same diagnostics as the alpha-aware order
- * reference and adds block visitation counters for benchmarks.
- */
 export function computeConeIntersectionAlphaAwareBlockPrunedCpu(
 	staticInput: SymmetricConeIntersectionStaticInput,
 	rawCones: RawConePrecompute,
@@ -913,26 +682,6 @@ function validatePairInputs(staticInput: SymmetricConeIntersectionStaticInput, c
 	}
 }
 
-function validateAlphaAwareValues(
-	azimuthSampleCount: number,
-	roadAlphaRadians: number,
-	bilateralNeighborhoodFaceCount: number,
-	alphaEpsilonRadians: number,
-): void {
-	if (!Number.isSafeInteger(azimuthSampleCount) || azimuthSampleCount < 3) {
-		throw new RangeError('alpha-aware traversal requires at least three azimuth samples');
-	}
-	if (!Number.isFinite(roadAlphaRadians) || roadAlphaRadians < 0 || roadAlphaRadians > PI / 2) {
-		throw new RangeError('roadAlphaRadians must be finite and within [0, PI / 2]');
-	}
-	if (!Number.isSafeInteger(bilateralNeighborhoodFaceCount) || bilateralNeighborhoodFaceCount < 0) {
-		throw new RangeError('bilateralNeighborhoodFaceCount must be a non-negative safe integer');
-	}
-	if (!Number.isFinite(alphaEpsilonRadians) || alphaEpsilonRadians < 0) {
-		throw new RangeError('alphaEpsilonRadians must be finite and non-negative');
-	}
-}
-
 function validateBlockPruningValues(blockFaceCount: number): void {
 	if (!Number.isSafeInteger(blockFaceCount) || blockFaceCount < 1) {
 		throw new RangeError('blockFaceCount must be a strictly positive safe integer');
@@ -1033,21 +782,6 @@ function readRawRim(
 
 function isFiniteVector(vector: Vector3): boolean {
 	return Number.isFinite(vector[0]) && Number.isFinite(vector[1]) && Number.isFinite(vector[2]);
-}
-
-function wrapPositive(angleRadians: number): number {
-	const remainder = angleRadians % TWO_PI;
-	return remainder < 0 ? remainder + TWO_PI : remainder;
-}
-
-function wrapSigned(angleRadians: number): number {
-	const positive = wrapPositive(angleRadians);
-	return positive > PI ? positive - TWO_PI : positive;
-}
-
-function positiveModulo(value: number, modulus: number): number {
-	const remainder = value % modulus;
-	return remainder < 0 ? remainder + modulus : remainder;
 }
 
 function isPreferredIntersection(

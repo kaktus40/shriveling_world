@@ -12,6 +12,9 @@ Current layout:
 shared/ray-intersect-triangle/
   webgpu.wgsl
   webgl2.glsl
+shared/math/
+  webgpu.wgsl
+  webgl2.glsl
 city-ned2ecef/
   webgpu.wgsl
   webgl2.vert
