@@ -1862,7 +1862,7 @@ identiques lorsque plusieurs modes partagent la meme origine et destination;
 la deduplication pourra etre ajoutee sans changer le contrat public.
 
 La reference CPU est implementee dans
-`src/lib/domain/precompute/curve-cpu.ts`. Elle reproduit les points historiques
+`src/lib/domain/precompute/cpu/curve-cpu.ts`. Elle reproduit les points historiques
 `P` et `Q` par midpoints normalises successifs et produit directement
 `[A, P, Q, B]` en ECEF metres. Les profils WebGL2 et WebGPU utilisent le meme
 contrat pour echantillonner les courbes en geometrie render-ready, sans

@@ -1,11 +1,11 @@
-import { TWO_PI } from '../../shared/constants';
+import { TWO_PI } from '../../../shared/constants';
 import {
 	angularDistanceRadians,
 	buildNed2EcefMatrix,
 	initialBearingRadians,
 	readMatrixColumn3,
 	readNVectorFromNed2Ecef,
-} from '../../shared/spherical';
+} from '../../../shared/spherical';
 import {
 	CITY_LON_LAT_STRIDE,
 	CITY_NED2ECEF_MATRIX_STRIDE,
@@ -18,7 +18,7 @@ import {
 	type StaticTownInvariantPrecompute,
 	type StaticTownPrecompute,
 	type StaticTownPrecomputeOptions,
-} from './types';
+} from '../types';
 import { selectOverlapCandidatesCpu } from './overlap-cpu';
 import { computeCurveControlPointsCpu } from './curve-cpu';
 

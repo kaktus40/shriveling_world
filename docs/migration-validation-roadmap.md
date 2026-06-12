@@ -745,7 +745,7 @@ Implementation commencee:
   villes et arêtes compactes sans recopier les colonnes libres du reseau
   lossless;
 - `src/lib/domain/precompute/types.ts` definit les premiers contrats et strides;
-- `src/lib/domain/precompute/static-town-cpu.ts` implemente la reference CPU
+- `src/lib/domain/precompute/cpu/static-town-cpu.ts` implemente la reference CPU
   des invariants par ville et par paire ordonnee;
 - `src/lib/domain/precompute/backend.ts` formalise le contrat commun et la
   chaine de repli `WebGPU -> WebGL2 -> CPU`;
@@ -753,10 +753,10 @@ Implementation commencee:
   phase et globalement, et instrumente le profil CPU;
 - `src/lib/domain/precompute/views.ts` fournit les premieres vues legeres sur
   les buffers partages;
-- `src/lib/domain/precompute/overlap-cpu.ts` reproduit la selection historique
+- `src/lib/domain/precompute/cpu/overlap-cpu.ts` reproduit la selection historique
   des voisins par secteur, la redistribution des quotas et l'ordre final par
   azimut, sans dupliquer les invariants de paires;
-- `src/lib/domain/precompute/curve-cpu.ts` construit `curveEdgePairs` et les
+- `src/lib/domain/precompute/cpu/curve-cpu.ts` construit `curveEdgePairs` et les
   controles `[A, P, Q, B]` uniquement pour les arêtes connues, en ECEF metres;
 - `tests/unit/precompute/static-town-cpu.test.ts` caracterise l'ordre stable,
   les unites SI, les azimuts, distances, secteurs, paires diagonales et
@@ -789,7 +789,7 @@ Implementation CPU du precalcul dynamique annuel:
 
 - `PreparedDataset` porte maintenant les periodes inclusives de chaque arête
   dans deux `Int32Array`, avec sentinelles explicites pour les bornes absentes;
-- `src/lib/domain/precompute/dynamic-town-cpu.ts` implemente la production
+- `src/lib/domain/precompute/cpu/dynamic-town-cpu.ts` implemente la production
   annuelle et la production du span complet;
 - les sorties utilisent `offset + count`, des tableaux separes et aucun trou;
 - `DynamicCityLinksView` fournit des getters sans recopier les buffers;
@@ -799,7 +799,7 @@ Implementation CPU du precalcul dynamique annuel:
 
 Implementation CPU de la generation des cones bruts:
 
-- `src/lib/domain/precompute/raw-cone-cpu.ts` formalise la reference des trois
+- `src/lib/domain/precompute/cpu/raw-cone-cpu.ts` formalise la reference des trois
   formes `road`, `fastest-terrestrial` et `complex`;
 - la loi complexe reprend les voisins circulaires, l'atténuation vers Road et
   l'interpolation `smoothstep` prevues par `rawCones.frag`;

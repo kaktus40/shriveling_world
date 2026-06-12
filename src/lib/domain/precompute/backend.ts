@@ -1,5 +1,5 @@
 import type { StaticTownInput, StaticTownPrecompute, StaticTownPrecomputeOptions } from './types';
-import { computeStaticTownPrecomputeCpu } from './static-town-cpu';
+import { computeStaticTownPrecomputeCpu } from './cpu';
 import { benchmarkStaticTownInvariantsCpu } from './benchmark';
 import type { ComputeBenchmarkOptions, StaticTownBenchmarkReport } from './benchmark';
 

@@ -11,9 +11,9 @@ import {
 	type RawConePrecompute,
 	type SymmetricConeIntersectionPrecompute,
 	type SymmetricConeIntersectionStaticInput,
-} from './types';
+} from '../types';
 import { RAW_CONE_RIM_ECEF_STRIDE, getRawConeAzimuthRadians } from './raw-cone-cpu';
-import { PI, TWO_PI } from '../../shared';
+import { PI, TWO_PI } from '../../../shared';
 
 /** Default algebraic tolerance used to reject parallel or degenerate faces. */
 export const RAY_TRIANGLE_DETERMINANT_EPSILON = 1e-7;

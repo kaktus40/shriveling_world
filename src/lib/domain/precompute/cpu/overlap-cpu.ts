@@ -3,7 +3,7 @@ import {
 	UNUSED_INDEX,
 	type CityPairInvariantBuffers,
 	type OverlapCandidateBuffers,
-} from './types';
+} from '../types';
 
 interface OverlapCandidate {
 	cityIndex: number;

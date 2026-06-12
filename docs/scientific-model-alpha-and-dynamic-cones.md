@@ -284,7 +284,7 @@ requêtes, interactions et futures evolutions algorithmiques.
 ## Etat De L'Implementation CPU
 
 Le profil CPU de reference est implemente dans
-`src/lib/domain/precompute/dynamic-town-cpu.ts`.
+`src/lib/domain/precompute/cpu/dynamic-town-cpu.ts`.
 
 - `PreparedDataset.edgeYearBegins` et `edgeYearEnds` compactent les periodes
   inclusives des arêtes sans relire le reseau lossless;
@@ -302,7 +302,7 @@ Ces sorties constituent la reference attendue pour les futurs profils WebGL2
 et WebGPU.
 
 La passe suivante est implementee dans
-`src/lib/domain/precompute/raw-cone-cpu.ts`:
+`src/lib/domain/precompute/cpu/raw-cone-cpu.ts`:
 
 - `computeConeAlphaSamplesCpu` selectionne les alphas directionnels;
 - `computeRawConePrecomputeCpu` produit le bord ECEF brut;

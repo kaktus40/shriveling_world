@@ -12,8 +12,7 @@ import {
 	type DynamicTownPrecompute,
 	type OverlapCandidateBuffers,
 } from './types';
-import { RAW_CONE_RIM_ECEF_STRIDE } from './raw-cone-cpu';
-import { getCityPairIndex } from './static-town-cpu';
+import { RAW_CONE_RIM_ECEF_STRIDE, getCityPairIndex } from './cpu';
 
 /**
  * Allocation-light view over one city in a shared invariant buffer.

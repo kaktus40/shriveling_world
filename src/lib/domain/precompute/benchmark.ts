@@ -3,23 +3,20 @@ import {
 	computeCityInvariantsCpu,
 	computeCityPairInvariantsCpu,
 	computeStaticTownPrecomputeCpu,
-} from './static-town-cpu';
-import { selectOverlapCandidatesCpu } from './overlap-cpu';
-import { computeCurveControlPointsCpu } from './curve-cpu';
-import type { StaticTownInput, StaticTownPrecomputeOptions } from './types';
-import type { PreparedDataset } from '../data';
-import type { StaticTownPrecompute } from './types';
-import {
+	selectOverlapCandidatesCpu,
+	computeCurveControlPointsCpu,
 	computeDynamicTownPrecomputeByYearCpu,
 	computeDynamicTownPrecomputeForYearCpu,
-} from './dynamic-town-cpu';
-import { computeConeAlphaSamplesCpu, computeRawConePrecomputeCpu } from './raw-cone-cpu';
-import {
+	computeConeAlphaSamplesCpu,
+	computeRawConePrecomputeCpu,
 	computeConeIntersectionAlphaAwareBlockPrunedCpu,
 	computeConeIntersectionAlphaAwareOrderCpu,
 	computeConeIntersectionOracleCpu,
 	computeConeIntersectionSymmetricOrderCpu,
-} from './cone-intersection-cpu';
+} from './cpu';
+import type { StaticTownInput, StaticTownPrecomputeOptions } from './types';
+import type { PreparedDataset } from '../data';
+import type { StaticTownPrecompute } from './types';
 import type {
 	AlphaAwareBlockPrunedConeIntersectionOptions,
 	AlphaAwareConeIntersectionOptions,

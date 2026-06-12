@@ -587,7 +587,7 @@ l'oracle sur les jeux de conformite.
 La premiere reference de conformite est implementee dans:
 
 ```text
-src/lib/domain/precompute/cone-intersection-cpu.ts
+src/lib/domain/precompute/cpu/cone-intersection-cpu.ts
 ```
 
 `intersectRayTriangleDoubleSided` fournit la primitive Moller-Trumbore double

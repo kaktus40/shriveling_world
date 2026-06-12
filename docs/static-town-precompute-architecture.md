@@ -147,7 +147,7 @@ strategie devra etre caracterisee separement, car elle peut changer le resultat
 des intersections de cones.
 
 La reference CPU est implementee dans
-`src/lib/domain/precompute/overlap-cpu.ts`. Contrairement au tableau historique
+`src/lib/domain/precompute/cpu/overlap-cpu.ts`. Contrairement au tableau historique
 `townOverlaps`, elle ne duplique pas les azimuts aller/retour et la demi-distance:
 ces informations sont lues depuis `cityPairInvariants` avec le couple
 `(cityIndex, neighborCityIndex)`.

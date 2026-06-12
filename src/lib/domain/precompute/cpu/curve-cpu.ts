@@ -1,6 +1,6 @@
-import { EARTH_RADIUS_METERS } from '../../shared/constants';
-import { angularDistanceRadians, intermediateNVector, readMatrixColumn3, readNVectorFromNed2Ecef } from '../../shared/spherical';
-import { normalize3, scale3 } from '../../shared/vector3';
+import { EARTH_RADIUS_METERS } from '../../../shared/constants';
+import { angularDistanceRadians, intermediateNVector, readMatrixColumn3, readNVectorFromNed2Ecef } from '../../../shared/spherical';
+import { normalize3, scale3 } from '../../../shared/vector3';
 import {
 	CITY_NED2ECEF_MATRIX_STRIDE,
 	CURVE_CONTROL_POINT_STRIDE,
@@ -16,8 +16,8 @@ import {
 	type PreparedCurve,
 	type StaticTownPrecompute,
 	type CurveVertexBuffer,
-} from './types';
-import type { DatasetDiagnostic, PreparedDataset } from '../data';
+} from '../types';
+import type { DatasetDiagnostic, PreparedDataset } from '../../data';
 
 /**
  * Compacts already selected curve edges into dense origin/destination pairs.

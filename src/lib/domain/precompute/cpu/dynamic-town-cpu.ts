@@ -1,13 +1,13 @@
 import {
 	PREPARED_EDGE_STRIDE,
 	type PreparedDataset,
-} from '../data';
+} from '../../data';
 import {
 	CITY_PAIR_INVARIANT_STRIDE,
 	type DynamicTownPrecompute,
 	type DynamicTownPrecomputeByYear,
 	type StaticTownPrecompute,
-} from './types';
+} from '../types';
 import { getCityPairIndex } from './static-town-cpu';
 
 interface SelectedLink {

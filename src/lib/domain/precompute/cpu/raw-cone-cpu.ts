@@ -1,4 +1,4 @@
-import { FLOAT32_ANGULAR_EPSILON_RADIANS, TWO_PI } from '../../shared';
+import { FLOAT32_ANGULAR_EPSILON_RADIANS, TWO_PI } from '../../../shared';
 import {
 	CITY_NED2ECEF_MATRIX_STRIDE,
 	type ConeAlphaSampleBuffers,
@@ -6,7 +6,7 @@ import {
 	type RawConePrecompute,
 	type RawConePrecomputeOptions,
 	type StaticTownPrecompute,
-} from './types';
+} from '../types';
 
 /** Number of float values used by one aligned raw cone ECEF rim point. */
 export const RAW_CONE_RIM_ECEF_STRIDE = 4;
