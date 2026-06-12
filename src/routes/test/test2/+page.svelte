@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { loadDatasetWorkspace, type DatasetWorkspaceSnapshot } from '$lib/application/workspace';
+	import { loadWorkspaceDataset, type WorkspaceDatasetSnapshot } from '$lib/application/workspace';
 	import {
 		runBoundaryPipeline,
 		type BoundaryPipelineResult,
@@ -18,7 +18,7 @@
 	let selectedContourIndex = 0;
 	let loading = false;
 	let errorMessage = '';
-	let workspace: DatasetWorkspaceSnapshot | null = null;
+	let workspace: WorkspaceDatasetSnapshot | null = null;
 	let boundary: BoundaryPipelineResult | null = null;
 
 	onMount(() => {
@@ -36,7 +36,7 @@
 		errorMessage = '';
 
 		try {
-			const loadedWorkspace = await loadDatasetWorkspace(fetch, selectedDataset);
+			const loadedWorkspace = await loadWorkspaceDataset(fetch, selectedDataset);
 			workspace = loadedWorkspace;
 			selectedGeoJsonFile = loadedWorkspace.geojsonEntries[0]?.fileName ?? '';
 			boundary =
@@ -63,7 +63,7 @@
 			return;
 		}
 
-		const entry = workspace.geojsonEntries.find((candidate) => candidate.fileName === selectedGeoJsonFile);
+		const entry = workspace.geojsonEntries.find((candidate: { fileName: string }) => candidate.fileName === selectedGeoJsonFile);
 		boundary = entry ? runBoundaryPipeline(entry.geojson, workspace.pipeline.preparedDataset) : null;
 		selectedContourIndex = 0;
 	}

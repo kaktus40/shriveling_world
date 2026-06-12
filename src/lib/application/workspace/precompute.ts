@@ -10,7 +10,7 @@ import {
 	type ConePipelineOptions,
 	type ConePipelineResult,
 } from '$lib/application/validation';
-import type { DatasetWorkspaceSnapshot } from './catalog';
+import type { WorkspaceDatasetSnapshot } from './catalog';
 
 /** Options controlling the prepared-workspace precompute snapshot. */
 export interface WorkspacePrecomputeRequest extends Partial<ConePipelineOptions> {
@@ -33,8 +33,8 @@ export interface WorkspacePrecomputeSnapshot {
  * the prepared dataset as-is and only vary the year or the geometry options
  * relevant to the precompute tranches.
  */
-export function computeDatasetWorkspacePrecompute(
-	workspace: DatasetWorkspaceSnapshot,
+export function computeWorkspacePrecompute(
+	workspace: WorkspaceDatasetSnapshot,
 	request: WorkspacePrecomputeRequest = {},
 ): WorkspacePrecomputeSnapshot {
 	const boundaryAzimuthSampleCount = request.boundaryAzimuthSampleCount ?? 360;
@@ -58,7 +58,7 @@ export function computeDatasetWorkspacePrecompute(
 
 /** Returns the GeoJSON feature collections already extracted by the workspace snapshot. */
 export function listWorkspaceGeoJsonEntries(
-	workspace: DatasetWorkspaceSnapshot,
+	workspace: WorkspaceDatasetSnapshot,
 ): readonly GeoJSON.FeatureCollection[] {
 	return workspace.geojsonEntries.map((entry) => entry.geojson);
 }

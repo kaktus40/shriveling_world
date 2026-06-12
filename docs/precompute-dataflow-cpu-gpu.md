@@ -882,7 +882,7 @@ Etat d'implementation:
   - calcul des intersections frontiere par couple `(ville, intervalle d'azimut)`;
   - sorties `townBoundaryAngular` et `townBoundaryEcef`.
 - `src/lib/application/workspace/precompute.ts` expose un helper applicatif
-  qui opère uniquement sur un `DatasetWorkspaceSnapshot` deja prepare et
+  qui opère uniquement sur un `WorkspaceDatasetSnapshot` deja prepare et
   isole les tranches de precompute dependantes de l'annee ou des options.
 - `src/lib/compute/core/invalidation.ts` formalise la granularite
   d'invalidation des options de compute multi-profil.

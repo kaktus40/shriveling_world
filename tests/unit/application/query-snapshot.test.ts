@@ -9,13 +9,13 @@ import {
 	type SourceFile,
 } from '$lib/domain/data';
 import { buildQueryDatasetSnapshot, executeQueryWorkerRequest, type QueryWorkerRequest } from '$lib/application/query';
-import type { DatasetWorkspaceSnapshot } from '$lib/application/workspace';
+import type { WorkspaceDatasetSnapshot } from '$lib/application/workspace';
 
 function csv(name: string, text: string): SourceFile {
 	return { name, text: text.trim() };
 }
 
-function buildWorkspace(): DatasetWorkspaceSnapshot {
+function buildWorkspace(): WorkspaceDatasetSnapshot {
 	const files = [
 		csv(
 			'cities.csv',

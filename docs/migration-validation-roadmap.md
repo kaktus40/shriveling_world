@@ -74,6 +74,9 @@ Utiliser les statuts suivants:
   de rendu.
 - La suite Playwright doit exposer au moins un smoke test de chargement
   applicatif avant validation de l'integration interactive complete.
+- Le contrat du requeteur applicatif est fixe dans
+  `docs/query-controller-contract.md` et doit rester partage entre `workspace`
+  et le futur `app`.
 - Les routes `src/routes/test/test1`, `test2` et `test3` sont les pages de
   validation interactives officielles de la migration.
 - Toute nouvelle page de validation doit etre justifiee par jalon et ne doit
@@ -1000,8 +1003,8 @@ Travail deja realise:
 - `src/lib/compute/core/invalidation.ts` formalise le diff des options de
   compute stack et la granularite d'invalidation des tranches de calcul;
 - la couche applicative `src/lib/application/workspace/precompute.ts` expose un helper
-  qui opere uniquement sur un `DatasetWorkspaceSnapshot` deja prepare;
-- le helper `computeDatasetWorkspacePrecompute` reutilise le snapshot prepare et ne
+  qui opere uniquement sur un `WorkspaceDatasetSnapshot` deja prepare;
+- le helper `computeWorkspacePrecompute` reutilise le snapshot prepare et ne
   remonte que les tranches de precalcul dependantes de l'annee ou des options;
 - `src/lib/application/workspace/invalidation.ts` adapte le diff compute core
   aux requetes issues du workspace;

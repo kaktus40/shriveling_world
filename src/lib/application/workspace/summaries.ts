@@ -4,10 +4,10 @@ import {
 	type PreparedTransportModeTimeline,
 	type QueryableField,
 } from '$lib/domain/data';
-import type { DatasetWorkspaceSnapshot } from './catalog';
+import type { WorkspaceDatasetSnapshot } from './catalog';
 
 /** Aggregated counts exposed by the workspace route. */
-export interface DatasetWorkspaceSummary {
+export interface WorkspaceDatasetSummary {
 	datasetName: string;
 	sourceFileCount: number;
 	inspectedFileCount: number;
@@ -49,10 +49,8 @@ export interface WorkspaceCitySummary {
 	outEdgeCount: number;
 }
 
-/**
- * Summarizes one workspace snapshot for a dataset-oriented application screen.
- */
-export function summarizeDatasetWorkspace(workspace: DatasetWorkspaceSnapshot): DatasetWorkspaceSummary {
+/** Summarizes one workspace snapshot for the workspace and app screens. */
+export function summarizeWorkspaceDataset(workspace: WorkspaceDatasetSnapshot): WorkspaceDatasetSummary {
 	const diagnostics = workspace.pipeline.preparedDataset.diagnostics;
 	return {
 		datasetName: workspace.datasetName,
@@ -72,7 +70,7 @@ export function summarizeDatasetWorkspace(workspace: DatasetWorkspaceSnapshot): 
 }
 
 /** Returns stable prepared mode summaries for application pages. */
-export function listWorkspaceModes(workspace: DatasetWorkspaceSnapshot): WorkspaceModeSummary[] {
+export function listWorkspaceModes(workspace: WorkspaceDatasetSnapshot): WorkspaceModeSummary[] {
 	return workspace.pipeline.preparedDataset.speedTimeline.modes.map((mode, modeIndex) =>
 		summarizeMode(mode, modeIndex),
 	);
@@ -80,7 +78,7 @@ export function listWorkspaceModes(workspace: DatasetWorkspaceSnapshot): Workspa
 
 /** Returns stable city previews suitable for dataset workspace pages. */
 export function listWorkspaceCities(
-	workspace: DatasetWorkspaceSnapshot,
+	workspace: WorkspaceDatasetSnapshot,
 	limit = 24,
 ): WorkspaceCitySummary[] {
 	const cityCount = Math.min(limit, workspace.pipeline.preparedDataset.cityCount);
@@ -106,7 +104,7 @@ export function listWorkspaceCities(
 
 /** Returns the most frequent queryable fields first. */
 export function listWorkspaceFields(
-	workspace: DatasetWorkspaceSnapshot,
+	workspace: WorkspaceDatasetSnapshot,
 	limit = 24,
 ): QueryableField[] {
 	return [...workspace.pipeline.baseNetwork.fields]

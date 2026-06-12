@@ -10,11 +10,11 @@ import {
 } from '$lib/domain/data';
 import {
 	listWorkspaceCities,
-	computeDatasetWorkspace,
+	computeWorkspaceDataset,
 	listWorkspaceFields,
 	listWorkspaceModes,
-	summarizeDatasetWorkspace,
-	type DatasetWorkspaceSnapshot,
+	summarizeWorkspaceDataset,
+	type WorkspaceDatasetSnapshot,
 } from '$lib/application/workspace';
 import type { ComputeProfile } from '$lib/compute';
 
@@ -22,7 +22,7 @@ function csv(name: string, text: string): SourceFile {
 	return { name, text: text.trim() };
 }
 
-function buildWorkspace(): DatasetWorkspaceSnapshot {
+function buildWorkspace(): WorkspaceDatasetSnapshot {
 	const files = [
 		csv(
 			'cities.csv',
@@ -103,7 +103,7 @@ cityCodeOri,cityCodeDes,transportModeCode,eYearBegin,eYearEnd
 
 test('workspace summaries expose dataset-level counts and diagnostics', () => {
 	const workspace = buildWorkspace();
-	const summary = summarizeDatasetWorkspace(workspace);
+	const summary = summarizeWorkspaceDataset(workspace);
 
 	assert.equal(summary.datasetName, 'fixture');
 	assert.equal(summary.sourceFileCount, 6);
@@ -158,7 +158,7 @@ test('workspace mode, city, and field previews stay aligned with prepared order'
 
 test('workspace compute runs on the cpu reference backend and reports benchmark stages', async () => {
 	const workspace = buildWorkspace();
-	const result = await computeDatasetWorkspace(workspace, {
+	const result = await computeWorkspaceDataset(workspace, {
 		profile: 'webgl2' as ComputeProfile,
 		forced: 'webgl2' as ComputeProfile,
 		allowFallback: true,

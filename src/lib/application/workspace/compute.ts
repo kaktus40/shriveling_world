@@ -12,10 +12,10 @@ import {
 	type ComputeResult,
 } from '$lib/compute';
 import { createDefaultConePipelineOptions } from '$lib/application/validation';
-import type { DatasetWorkspaceSnapshot } from './catalog';
+import type { WorkspaceDatasetSnapshot } from './catalog';
 
 /** Compute profile and benchmark exposed by the dataset workspace. */
-export interface DatasetWorkspaceCompute {
+export interface WorkspaceComputeResult {
 	selection: ComputeProfileSelection;
 	benchmark: ComputeBenchmarkReport;
 	result: ComputeResult;
@@ -37,10 +37,10 @@ export interface WorkspaceComputeRequest {
  * contract will later be used by WebGL2 and WebGPU without changing the
  * workspace API.
  */
-export async function computeDatasetWorkspace(
-	workspace: DatasetWorkspaceSnapshot,
+export async function computeWorkspaceDataset(
+	workspace: WorkspaceDatasetSnapshot,
 	request: WorkspaceComputeRequest = {},
-): Promise<DatasetWorkspaceCompute> {
+): Promise<WorkspaceComputeResult> {
 	const registry = createWorkspaceComputeBackendRegistry();
 	const selection = await selectComputeProfile(
 		{

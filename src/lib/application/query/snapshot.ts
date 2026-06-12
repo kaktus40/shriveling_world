@@ -1,6 +1,6 @@
 import type { TComparatorString } from '$lib/domain/query';
 import type { BaseCity, DatasetFileKind, QueryableField, SourceRecord } from '$lib/domain/data';
-import type { DatasetWorkspaceSnapshot } from '$lib/application/workspace';
+import type { WorkspaceDatasetSnapshot } from '$lib/application/workspace';
 import type { QueryDatasetSnapshot, QueryFieldDefinition, QueryFieldValueType } from './types';
 
 /**
@@ -12,7 +12,7 @@ import type { QueryDatasetSnapshot, QueryFieldDefinition, QueryFieldValueType } 
  * @param workspace Prepared dataset workspace.
  * @returns Query-ready snapshot for worker execution.
  */
-export function buildQueryDatasetSnapshot(workspace: DatasetWorkspaceSnapshot): QueryDatasetSnapshot {
+export function buildQueryDatasetSnapshot(workspace: WorkspaceDatasetSnapshot): QueryDatasetSnapshot {
 	const fields = buildFieldDefinitions(workspace);
 	const fieldByKey = new Map(fields.map((field) => [field.fieldKey, field]));
 	const cities = workspace.pipeline.baseNetwork.cities.map((city, cityIndex) =>
@@ -21,7 +21,7 @@ export function buildQueryDatasetSnapshot(workspace: DatasetWorkspaceSnapshot): 
 	return { fields, cities };
 }
 
-function buildFieldDefinitions(workspace: DatasetWorkspaceSnapshot): QueryFieldDefinition[] {
+function buildFieldDefinitions(workspace: WorkspaceDatasetSnapshot): QueryFieldDefinition[] {
 	const fields = workspace.pipeline.baseNetwork.fields
 		.filter((field) => field.sourceKind === 'cities' || field.sourceKind === 'cityLinkedAttributes')
 		.map((field) => {
@@ -48,7 +48,7 @@ function buildFieldDefinitions(workspace: DatasetWorkspaceSnapshot): QueryFieldD
 function buildCitySnapshot(
 	city: BaseCity,
 	cityIndex: number,
-	workspace: DatasetWorkspaceSnapshot,
+	workspace: WorkspaceDatasetSnapshot,
 	fieldByKey: Map<string, QueryFieldDefinition>,
 ) {
 	const cityRecord = workspace.pipeline.baseNetwork.sourceRecords[city.sourceRecordId];
@@ -89,7 +89,7 @@ function appendRecordValues(
 }
 
 function inferFieldValueType(
-	workspace: DatasetWorkspaceSnapshot,
+	workspace: WorkspaceDatasetSnapshot,
 	field: QueryableField,
 	sourceFileName: string,
 ): QueryFieldValueType {
@@ -108,7 +108,7 @@ function inferFieldValueType(
 }
 
 function collectFieldValues(
-	workspace: DatasetWorkspaceSnapshot,
+	workspace: WorkspaceDatasetSnapshot,
 	sourceKind: DatasetFileKind,
 	sourceFileName: string,
 	column: string,
@@ -126,7 +126,7 @@ function collectFieldValues(
 	return values;
 }
 
-function resolveRepresentativeSourceFileName(workspace: DatasetWorkspaceSnapshot, field: QueryableField): string {
+function resolveRepresentativeSourceFileName(workspace: WorkspaceDatasetSnapshot, field: QueryableField): string {
 	for (const record of workspace.pipeline.baseNetwork.sourceRecords) {
 		if (record.sourceKind === field.sourceKind && field.column in record.raw) {
 			return record.sourceFileName;

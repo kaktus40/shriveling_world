@@ -14,13 +14,13 @@
 		type QueryWorkerClient,
 	} from '$lib/application/query';
 	import {
-		type DatasetWorkspaceSnapshot,
-		type DatasetWorkspaceSummary,
-		type DatasetWorkspaceCompute,
+		type WorkspaceDatasetSnapshot,
+		type WorkspaceDatasetSummary,
+		type WorkspaceComputeResult,
 		type WorkspaceCitySummary,
 		type WorkspaceModeSummary,
-		loadWorkspacePageDataset,
-		computeWorkspacePage,
+		loadWorkspacePageState,
+		computeWorkspacePageState,
 	} from '$lib/application/workspace';
 	import type { DatasetDiagnostic, QueryableField } from '$lib/domain/data';
 	import type { QueryNode } from '$lib/domain/query';
@@ -31,8 +31,8 @@
 	};
 
 	let selectedDataset = data.datasets[0] ?? '';
-	let workspace: DatasetWorkspaceSnapshot | null = null;
-	let summary: DatasetWorkspaceSummary | null = null;
+	let workspace: WorkspaceDatasetSnapshot | null = null;
+	let summary: WorkspaceDatasetSummary | null = null;
 	let modes: WorkspaceModeSummary[] = [];
 	let cities: WorkspaceCitySummary[] = [];
 	let fieldPreview: QueryableField[] = [];
@@ -40,7 +40,7 @@
 	let queryTree: QueryNode | null = null;
 	let queryResult: QueryExecutionResult | null = null;
 	let queryWorker: QueryWorkerClient | null = null;
-	let workspaceCompute: DatasetWorkspaceCompute | null = null;
+	let workspaceCompute: WorkspaceComputeResult | null = null;
 	let selectedComputeProfile: ComputeProfile = 'cpu';
 	let selectedConeIntersectionStrategy: ComputeConeIntersectionStrategy = 'oracle';
 	let selectedComputeDiagnosticProfile: ComputeProfile | 'all' = 'all';
@@ -87,7 +87,7 @@
 		loading = true;
 		errorMessage = '';
 		try {
-			const loaded = await loadWorkspacePageDataset(fetch, selectedDataset);
+			const loaded = await loadWorkspacePageState(fetch, selectedDataset);
 			workspace = loaded.workspace;
 			summary = loaded.summary;
 			modes = loaded.modes;
@@ -99,7 +99,7 @@
 			queryError = '';
 			computeError = '';
 			await reloadCompute();
-			workspaceQueryController.scheduleRun();
+			workspaceQueryController.scheduleExecute();
 		} catch (error) {
 			workspace = null;
 			summary = null;
@@ -130,7 +130,7 @@
 		computeLoading = true;
 		computeError = '';
 		try {
-			workspaceCompute = await computeWorkspacePage(currentWorkspace, {
+			workspaceCompute = await computeWorkspacePageState(currentWorkspace, {
 				profile: selectedComputeProfile,
 				coneIntersectionStrategy: selectedConeIntersectionStrategy,
 			});
@@ -146,7 +146,7 @@
 		queryLoading = true;
 		queryError = '';
 		try {
-			await workspaceQueryController.run();
+			await workspaceQueryController.execute();
 		} catch (error) {
 			queryResult = null;
 			queryError = error instanceof Error ? error.message : String(error);

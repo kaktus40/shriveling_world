@@ -20,8 +20,8 @@ export interface QueryControllerBindings {
 }
 
 export interface QueryController {
-	run(): Promise<void>;
-	scheduleRun(): void;
+	execute(): Promise<void>;
+	scheduleExecute(): void;
 	reset(): void;
 	update(path: number[], nextNode: QueryNode): void;
 	remove(path: number[]): void;
@@ -30,10 +30,16 @@ export interface QueryController {
 	dispose(): void;
 }
 
+/**
+ * Creates one query controller shared by workspace and future application routes.
+ *
+ * The controller owns the editable query tree, schedules executions and keeps
+ * the worker boundary explicit.
+ */
 export function createQueryController(bindings: QueryControllerBindings): QueryController {
 	let queryRunTimer: ReturnType<typeof setTimeout> | null = null;
 
-	async function run(): Promise<void> {
+	async function execute(): Promise<void> {
 		const queryWorker = bindings.getQueryWorker();
 		const querySnapshot = bindings.getQuerySnapshot();
 		const queryTree = bindings.getQueryTree();
@@ -55,7 +61,7 @@ export function createQueryController(bindings: QueryControllerBindings): QueryC
 		}
 	}
 
-	function scheduleRun(): void {
+	function scheduleExecute(): void {
 		const queryWorker = bindings.getQueryWorker();
 		const querySnapshot = bindings.getQuerySnapshot();
 		const queryTree = bindings.getQueryTree();
@@ -69,7 +75,7 @@ export function createQueryController(bindings: QueryControllerBindings): QueryC
 
 		queryRunTimer = setTimeout(() => {
 			queryRunTimer = null;
-			void run();
+			void execute();
 		}, 80);
 	}
 
@@ -82,14 +88,14 @@ export function createQueryController(bindings: QueryControllerBindings): QueryC
 		bindings.setQueryTree(createDefaultQueryTree(querySnapshot.fields));
 		bindings.setQueryResult(null);
 		bindings.setQueryError('');
-		scheduleRun();
+		scheduleExecute();
 	}
 
 	function mutateTree(nextTree: QueryNode | null): void {
 		bindings.setQueryTree(nextTree);
 		bindings.setQueryResult(null);
 		bindings.setQueryError('');
-		scheduleRun();
+		scheduleExecute();
 	}
 
 	function update(path: number[], nextNode: QueryNode): void {
@@ -136,8 +142,8 @@ export function createQueryController(bindings: QueryControllerBindings): QueryC
 	}
 
 	return {
-		run,
-		scheduleRun,
+		execute,
+		scheduleExecute,
 		reset,
 		update,
 		remove,

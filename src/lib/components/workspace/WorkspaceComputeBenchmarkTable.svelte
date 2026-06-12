@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { DatasetWorkspaceCompute } from '$lib/application/workspace';
+	import type { WorkspaceComputeResult } from '$lib/application/workspace';
 
-	export let workspaceCompute: DatasetWorkspaceCompute | null = null;
+	export let workspaceCompute: WorkspaceComputeResult | null = null;
 </script>
 
 {#if workspaceCompute}

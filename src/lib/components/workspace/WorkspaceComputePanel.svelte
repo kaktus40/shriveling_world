@@ -1,11 +1,11 @@
 <script lang="ts">
-	import type { DatasetWorkspaceCompute } from '$lib/application/workspace';
+	import type { WorkspaceComputeResult } from '$lib/application/workspace';
 	import type { DatasetDiagnostic } from '$lib/domain/data';
 	import type { ComputeProfile } from '$lib/compute';
 	import DiagnosticsDetails from '$lib/components/shared/DiagnosticsDetails.svelte';
 	import WorkspaceComputeBenchmarkTable from './WorkspaceComputeBenchmarkTable.svelte';
 
-	export let workspaceCompute: DatasetWorkspaceCompute | null = null;
+	export let workspaceCompute: WorkspaceComputeResult | null = null;
 	export let selectedComputeDiagnosticProfile: ComputeProfile | 'all' = 'all';
 	export let computeDiagnostics: readonly DatasetDiagnostic[] = [];
 	export let onDiagnosticProfileChange: (profile: ComputeProfile | 'all') => void = () => undefined;

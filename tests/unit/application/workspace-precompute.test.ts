@@ -9,15 +9,15 @@ import {
 	type SourceFile,
 } from '$lib/domain/data';
 import {
-	computeDatasetWorkspacePrecompute,
-	type DatasetWorkspaceSnapshot,
+	computeWorkspacePrecompute,
+	type WorkspaceDatasetSnapshot,
 } from '$lib/application/workspace';
 
 function csv(name: string, text: string): SourceFile {
 	return { name, text: text.trim() };
 }
 
-function buildWorkspace(): DatasetWorkspaceSnapshot {
+function buildWorkspace(): WorkspaceDatasetSnapshot {
 	const files = [
 		csv(
 			'cities.csv',
@@ -98,8 +98,8 @@ cityCodeOri,cityCodeDes,transportModeCode,eYearBegin,eYearEnd
 
 test('prepared workspace precompute reuses the prepared dataset and isolates the yearly tranche', () => {
 	const workspace = buildWorkspace();
-	const first = computeDatasetWorkspacePrecompute(workspace, { year: 2000, boundaryAzimuthSampleCount: 8 });
-	const second = computeDatasetWorkspacePrecompute(workspace, { year: 2010, boundaryAzimuthSampleCount: 8 });
+	const first = computeWorkspacePrecompute(workspace, { year: 2000, boundaryAzimuthSampleCount: 8 });
+	const second = computeWorkspacePrecompute(workspace, { year: 2010, boundaryAzimuthSampleCount: 8 });
 
 	assert.equal(first.preparedDataset, workspace.pipeline.preparedDataset);
 	assert.equal(second.preparedDataset, workspace.pipeline.preparedDataset);

@@ -18,7 +18,7 @@ interface BundledDatasetEntry {
 }
 
 /** Common dataset workspace snapshot shared by future application routes. */
-export interface DatasetWorkspaceSnapshot {
+export interface WorkspaceDatasetSnapshot {
 	datasetName: string;
 	files: SourceFile[];
 	pipeline: {
@@ -55,10 +55,10 @@ export async function loadDatasetCatalog(fetchFn: typeof fetch): Promise<string[
  * @param datasetName Archive name present in `static/datasets`.
  * @returns Workspace snapshot ready for UI consumption.
  */
-export async function loadDatasetWorkspace(
+export async function loadWorkspaceDataset(
 	fetchFn: typeof fetch,
 	datasetName: string,
-): Promise<DatasetWorkspaceSnapshot> {
+): Promise<WorkspaceDatasetSnapshot> {
 	const files = await loadBundledDatasetFiles(fetchFn, datasetName);
 	return {
 		datasetName,

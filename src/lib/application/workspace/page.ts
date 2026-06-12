@@ -10,20 +10,20 @@ import {
 	listWorkspaceCities,
 	listWorkspaceFields,
 	listWorkspaceModes,
-	loadDatasetWorkspace,
-	summarizeDatasetWorkspace,
-	computeDatasetWorkspace,
-	type DatasetWorkspaceCompute,
-	type DatasetWorkspaceSnapshot,
-	type DatasetWorkspaceSummary,
+	loadWorkspaceDataset,
+	summarizeWorkspaceDataset,
+	computeWorkspaceDataset,
+	type WorkspaceComputeResult,
+	type WorkspaceDatasetSnapshot,
+	type WorkspaceDatasetSummary,
 	type WorkspaceCitySummary,
 	type WorkspaceModeSummary,
 } from './datasets';
 import type { ComputeConeIntersectionStrategy, ComputeProfile } from '$lib/compute';
 
-export interface WorkspacePageDatasetState {
-	workspace: DatasetWorkspaceSnapshot;
-	summary: DatasetWorkspaceSummary;
+export interface WorkspacePageState {
+	workspace: WorkspaceDatasetSnapshot;
+	summary: WorkspaceDatasetSummary;
 	modes: WorkspaceModeSummary[];
 	cities: WorkspaceCitySummary[];
 	fieldPreview: ReturnType<typeof listWorkspaceFields>;
@@ -36,15 +36,15 @@ export interface WorkspacePageComputeRequest {
 	coneIntersectionStrategy: ComputeConeIntersectionStrategy;
 }
 
-export async function loadWorkspacePageDataset(
+export async function loadWorkspacePageState(
 	fetcher: typeof fetch,
 	selectedDataset: string,
-): Promise<WorkspacePageDatasetState> {
-	const workspace = await loadDatasetWorkspace(fetcher, selectedDataset);
+): Promise<WorkspacePageState> {
+	const workspace = await loadWorkspaceDataset(fetcher, selectedDataset);
 	const querySnapshot = buildQueryDatasetSnapshot(workspace);
 	return {
 		workspace,
-		summary: summarizeDatasetWorkspace(workspace),
+		summary: summarizeWorkspaceDataset(workspace),
 		modes: listWorkspaceModes(workspace),
 		cities: listWorkspaceCities(workspace, 18),
 		fieldPreview: listWorkspaceFields(workspace, 20),
@@ -53,11 +53,11 @@ export async function loadWorkspacePageDataset(
 	};
 }
 
-export async function computeWorkspacePage(
-	workspace: DatasetWorkspaceSnapshot,
+export async function computeWorkspacePageState(
+	workspace: WorkspaceDatasetSnapshot,
 	request: WorkspacePageComputeRequest,
-): Promise<DatasetWorkspaceCompute> {
-	return computeDatasetWorkspace(workspace, {
+): Promise<WorkspaceComputeResult> {
+	return computeWorkspaceDataset(workspace, {
 		profile: request.profile,
 		forced: request.profile,
 		allowFallback: true,

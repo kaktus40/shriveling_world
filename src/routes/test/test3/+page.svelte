@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { PI } from '$lib/shared';
-	import { loadDatasetWorkspace, type DatasetWorkspaceSnapshot } from '$lib/application/workspace';
+	import { loadWorkspaceDataset, type WorkspaceDatasetSnapshot } from '$lib/application/workspace';
 	import {
 		createDefaultConePipelineOptions,
 		runConePipeline,
@@ -20,7 +20,7 @@
 	let selectedDataset = data.datasets[0] ?? '';
 	let loading = false;
 	let errorMessage = '';
-	let workspace: DatasetWorkspaceSnapshot | null = null;
+	let workspace: WorkspaceDatasetSnapshot | null = null;
 	let conePipeline: ConePipelineResult | null = null;
 	let selectedCityIndex = 0;
 	let selectedYear = 0;
@@ -46,7 +46,7 @@
 		errorMessage = '';
 
 		try {
-			workspace = await loadDatasetWorkspace(fetch, selectedDataset);
+			workspace = await loadWorkspaceDataset(fetch, selectedDataset);
 			const defaults = createDefaultConePipelineOptions(workspace.pipeline.preparedDataset);
 			selectedYear = defaults.year;
 			selectedShape = defaults.shape;

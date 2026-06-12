@@ -1,13 +1,13 @@
 <script lang="ts">
 	import type {
-		DatasetWorkspaceCompute,
-		DatasetWorkspaceSummary,
+		WorkspaceComputeResult,
+		WorkspaceDatasetSummary,
 	} from '$lib/application/workspace';
 	import type { ComputeConeIntersectionStrategy, ComputeProfile } from '$lib/compute';
 	import WorkspaceSummaryCard from './WorkspaceSummaryCard.svelte';
 
-	export let summary: DatasetWorkspaceSummary | null = null;
-	export let workspaceCompute: DatasetWorkspaceCompute | null = null;
+	export let summary: WorkspaceDatasetSummary | null = null;
+	export let workspaceCompute: WorkspaceComputeResult | null = null;
 	export let selectedComputeProfile: ComputeProfile = 'cpu';
 	export let selectedConeIntersectionStrategy: ComputeConeIntersectionStrategy = 'oracle';
 	export let computeLoading = false;
