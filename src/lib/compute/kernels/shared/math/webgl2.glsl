@@ -10,18 +10,6 @@ float positive_angle(float angleRadians) {
 	return remainder;
 }
 
-float wrap_positive(float angleRadians) {
-	return positive_angle(angleRadians);
-}
-
-float wrap_signed(float angleRadians) {
-	float positive = wrap_positive(angleRadians);
-	if (positive > PI) {
-		return positive - TWO_PI;
-	}
-	return positive;
-}
-
 float shift_angle_near(float angleRadians, float referenceRadians) {
 	float shifted = angleRadians;
 	while (shifted - referenceRadians > PI) {

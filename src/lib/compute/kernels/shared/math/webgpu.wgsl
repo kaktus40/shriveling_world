@@ -10,18 +10,6 @@ fn positive_angle(angle_radians: f32) -> f32 {
 	return remainder;
 }
 
-fn wrap_positive(angle_radians: f32) -> f32 {
-	return positive_angle(angle_radians);
-}
-
-fn wrap_signed(angle_radians: f32) -> f32 {
-	let positive = wrap_positive(angle_radians);
-	if (positive > PI) {
-		return positive - TWO_PI;
-	}
-	return positive;
-}
-
 fn shift_angle_near(angle_radians: f32, reference_radians: f32) -> f32 {
 	var shifted = angle_radians;
 	loop {
