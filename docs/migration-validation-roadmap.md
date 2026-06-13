@@ -1520,7 +1520,7 @@ Travail realise:
 - le workspace expose la comparaison des largeurs bilaterales alpha-aware;
 - le workspace propose aussi un banc synthetique avec villes libres,
   azimuts/alphas libres, presets random/corridor/cluster, comparaison ordre vs
-  pruning et apercu 3D minimal;
+  pruning, import/export JSON rejouable et apercu 3D minimal;
 - portage WebGL2 puis WebGPU du noyau `ciseledCones` avec comparaison readback
   contre l'oracle CPU;
 - contrat de cache memoire d'instance par annee pour

@@ -5,3 +5,5 @@ export * from './precompute';
 export * from './page';
 export * from './compute';
 export * from './synthetic';
+export * from './synthetic-presets';
+export * from './synthetic-replay';

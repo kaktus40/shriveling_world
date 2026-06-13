@@ -5,6 +5,10 @@
 		buildCorridorSyntheticPreset,
 		buildRandomSyntheticPreset,
 	} from '$lib/application/workspace/synthetic-presets';
+	import {
+		parseWorkspaceSyntheticHeuristicReplay,
+		serializeWorkspaceSyntheticHeuristicReplay,
+	} from '$lib/application/workspace/synthetic-replay';
 	import type {
 		WorkspaceSyntheticHeuristicReport,
 	} from '$lib/application/workspace/synthetic';
@@ -26,6 +30,8 @@
 	let sweepWidthsText = '1, 2, 4';
 	let randomCityCount = 5;
 	let randomLinksPerCity = 3;
+	let replayText = '';
+	let replayMessage = '';
 	let report: WorkspaceSyntheticHeuristicReport | null = null;
 	let errorMessage = '';
 	let running = false;
@@ -43,6 +49,7 @@
 	async function runSyntheticHeuristic(): Promise<void> {
 		running = true;
 		errorMessage = '';
+		replayMessage = '';
 		bestCase = null;
 		try {
 			report = benchmarkSyntheticAlphaAwareHeuristic({
@@ -65,6 +72,45 @@
 		}
 	}
 
+	function exportReplay(): void {
+		replayText = serializeWorkspaceSyntheticHeuristicReplay({
+			cityCoordinatesText,
+			cityLinksText,
+			roadAlphaRadians,
+			azimuthSampleCount,
+			coneLengthMeters,
+			attenuationRadians,
+			sectorCount,
+			neighborLimit,
+			sweepWidths: parseSweepWidths(sweepWidthsText),
+		});
+		replayMessage = 'Replay exported.';
+	}
+
+	function importReplay(runAfterImport: boolean): void {
+		try {
+			const replay = parseWorkspaceSyntheticHeuristicReplay(replayText);
+			cityCoordinatesText = replay.cityCoordinatesText;
+			cityLinksText = replay.cityLinksText;
+			roadAlphaRadians = replay.roadAlphaRadians;
+			azimuthSampleCount = replay.azimuthSampleCount;
+			coneLengthMeters = replay.coneLengthMeters;
+			attenuationRadians = replay.attenuationRadians;
+			sectorCount = replay.sectorCount;
+			neighborLimit = replay.neighborLimit;
+			sweepWidthsText = replay.sweepWidths.join(', ');
+			report = null;
+			bestCase = null;
+			errorMessage = '';
+			replayMessage = 'Replay imported.';
+			if (runAfterImport) {
+				void runSyntheticHeuristic();
+			}
+		} catch (error) {
+			replayMessage = error instanceof Error ? error.message : String(error);
+		}
+	}
+
 	function generateRandomSyntheticSet(): void {
 		setSyntheticSet(buildRandomSyntheticPreset(randomCityCount, randomLinksPerCity));
 	}
@@ -83,6 +129,7 @@
 		report = null;
 		bestCase = null;
 		errorMessage = '';
+		replayMessage = '';
 	}
 
 	function sweepMedianMilliseconds(report: WorkspaceSyntheticHeuristicReport['cases'][number]['order']): string {
@@ -160,6 +207,9 @@
 		<button type="button" on:click={generateRandomSyntheticSet}>Generate random set</button>
 		<button type="button" on:click={generateCorridorSyntheticSet}>Generate corridor set</button>
 		<button type="button" on:click={generateClusterSyntheticSet}>Generate cluster set</button>
+		<button type="button" on:click={exportReplay}>Export replay</button>
+		<button type="button" on:click={() => importReplay(false)}>Import replay</button>
+		<button type="button" on:click={() => importReplay(true)}>Import and run</button>
 		<button on:click={runSyntheticHeuristic} disabled={running}>{running ? 'Running...' : 'Run synthetic sweep'}</button>
 	</div>
 
@@ -172,6 +222,16 @@
 	{#if errorMessage}
 		<p class="error">{errorMessage}</p>
 	{/if}
+
+	<div class="replay">
+		<label>
+			<span>Replay JSON</span>
+			<textarea bind:value={replayText} rows="8" placeholder="Export a replay, or paste one here to import and run."></textarea>
+		</label>
+		{#if replayMessage}
+			<p class="replay-note">{replayMessage}</p>
+		{/if}
+	</div>
 
 	{#if report}
 		<div class="summary">
@@ -271,6 +331,17 @@
 	.error {
 		margin: 0;
 		color: #ff9d8f;
+	}
+
+	.replay {
+		display: grid;
+		gap: 0.6rem;
+	}
+
+	.replay-note {
+		margin: 0;
+		color: #8ae0dc;
+		font-size: 0.88rem;
 	}
 
 	table {
