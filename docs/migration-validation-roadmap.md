@@ -1910,3 +1910,4 @@ Entrees:
 - 2026-06-07 - M3.1 - validated - commit `0bd9ca0` - tests d'integration du pipeline lossless, invariance a l'ordre et diagnostics complets.
 - 2026-06-07 - M3/M4/M8 - in_progress - commit `ff17606` - routes SvelteKit `test1/test2/test3` portees sur le pipeline moderne et pile legacy Sapper/Three/Rollup supprimee.
 - 2026-06-12 - M6 - validated - commit `b104449` - contrat compute canonique fige, orchestrateur explicite partage entre workspace et future app.
+- 2026-06-13 - M8 - validated - commit `ca32520` - heuristique alpha-aware, banc synthetique, replay, cache annuel mesure et criteres de cloture formalises.
