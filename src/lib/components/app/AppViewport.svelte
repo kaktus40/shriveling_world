@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { AppCameraMode, AppPageState, AppRepresentationMode } from '$lib/application/app';
+	import type { AppMeasurementSelection, AppMeasurementSummary } from '$lib/application/app/measurement';
 	import type { AppSceneController, AppSceneState } from '$lib/application/app/scene';
 	import type { WorkspaceComputeResult } from '$lib/application/workspace';
 	import type { WorkspaceCitySummary } from '$lib/application/workspace';
@@ -14,8 +15,12 @@
 	export let representationStart: AppRepresentationMode = 'globe';
 	export let representationEnd: AppRepresentationMode = 'network';
 	export let representationPercent = 50;
+	export let measurementSelection: AppMeasurementSelection;
+	export let queryMatchedCityIndexes: readonly number[] = [];
 	export let loading = false;
 	export let selectedCity: WorkspaceCitySummary | null = null;
+	export let showCityLabels = false;
+	export let measurementSummary: AppMeasurementSummary | null = null;
 	export let onCityIndexChange: (value: number) => void = () => undefined;
 	export let onYearChange: (value: number) => void = () => undefined;
 	export let onCameraModeChange: (value: AppCameraMode) => void = () => undefined;
@@ -32,6 +37,9 @@
 		representationStart,
 		representationEnd,
 		representationPercent,
+		measurementSelection,
+		showCityLabels,
+		queryMatchedCityIndexes,
 	});
 
 	onMount(() => {
@@ -52,9 +60,9 @@
 					const nextIndex = Math.min(yearOptions.length - 1, Math.max(0, currentIndex + step));
 					onYearChange(yearOptions[nextIndex] ?? selectedYear);
 				},
-					onCameraModeChange: (nextMode) => onCameraModeChange(nextMode),
-				});
+				onCameraModeChange: (nextMode) => onCameraModeChange(nextMode),
 			});
+		});
 
 		return () => {
 			controller?.dispose();
@@ -75,13 +83,15 @@
 
 	<div class="scene-hud">
 		<div class="scene-badge">Babylon scene</div>
-			<div class="scene-status">
-				<span>{cameraMode}</span>
-				<span>{selectedYearLabel || selectedYear || '—'}</span>
-				<span>{selectedCity ? `${selectedCityIndex} · ${selectedCity.cityCode}` : 'No city'}</span>
-				<span>{representationStart} → {representationEnd}</span>
-				<span>{representationPercent}%</span>
-			</div>
+		<div class="scene-status">
+			<span>{cameraMode}</span>
+			<span>{selectedYearLabel || selectedYear || '—'}</span>
+			<span>{selectedCity ? `${selectedCityIndex} · ${selectedCity.cityLabel}` : 'No city'}</span>
+			<span>{representationStart} → {representationEnd}</span>
+			<span>{representationPercent}%</span>
+			<span>{showCityLabels ? 'city labels on' : 'city labels off'}</span>
+			<span>{queryMatchedCityIndexes.length} query match(es)</span>
+		</div>
 	</div>
 
 	<div class="scene-info">
@@ -99,6 +109,13 @@
 			</li>
 			<li>{workspaceCompute?.result.curveGeometry ? 'Curve layer ready' : 'Curve layer pending'}</li>
 			<li>{representationStart} to {representationEnd} at {representationPercent}%</li>
+			<li>{showCityLabels ? 'City labels visible' : 'City labels hidden'}</li>
+			<li>{queryMatchedCityIndexes.length} query match(es)</li>
+			<li>
+				{measurementSummary?.centralAngleDegrees == null
+					? 'Measurement plane pending'
+					: `A/O/B ${measurementSummary.centralAngleDegrees.toFixed(2)}°`}
+			</li>
 			<li>Selection index {selectedCityIndex}</li>
 			<li>Keyboard: `+/-` zoom, `[`/`]` year, `1/2/3` camera mode</li>
 		</ul>

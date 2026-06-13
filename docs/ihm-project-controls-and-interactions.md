@@ -143,15 +143,15 @@ destination cible et leur comportement attendu.
 | dataset | `app` > `Data` | selection immediate du dataset; recharge du snapshot; reset des selections invalides | repris |
 | year | `app` > `Navigation` | slider horizontal pleine largeur place en haut; visible au survol; changement fluide sans relecture du dataset; mise a jour du rendu et du calcul interactif | repris |
 | city selection | `app` > `Navigation` | selection d une ville par liste et par picking; recentrage de la camera | repris |
-| show cities name | `app` > `Display` | bascule d affichage des labels de villes; ne declenche pas de recalcul | a reprendre |
+| show cities name | `app` > `Layers` | bascule d affichage des labels de villes; ne declenche pas de recalcul | repris |
 | taille du texte | `app` > `Display` | ajuste l echelle des labels; met a jour uniquement les meshes texte | a reprendre |
 | text color | `app` > `Display` | change la couleur des labels; rendu immediat | a reprendre |
 | camera mode (`orbit`, `inspect`, `free`) | `app` > `Navigation` | selection exclusive de mode; keyboard shortcuts synchrones | repris |
 | zoom souris / `+/-` | `app` > `Navigation` | zoom immediat dans les bornes de la camera | repris |
 | picking de ville | `app` > `Navigation` | clic sur un marqueur de ville; selection et focus de la ville | repris |
 | reset scene | `app` > `Navigation` | remet la scene a l etat selectionne par le snapshot | repris |
-| center viewport on city | `app` > `Tools` | recentrage local autour d une ville avec conservation du repere de la ville | a ajouter |
-| rotate around local vertical axis | `app` > `Tools` | rotation autour de l axe vertical local, lisible et reversible | a ajouter |
+| center viewport on city | `app` > `Tools` | recentrage local autour d une ville avec conservation du repere de la ville | repris |
+| rotate around local vertical axis | `app` > `Tools` | rotation autour de l axe vertical local, lisible et reversible | repris |
 
 ### B. Lumiere Et Atmosphere
 
@@ -235,10 +235,10 @@ destination cible et leur comportement attendu.
 
 | Controle attendu | Destination cible | Interaction attendue | Statut |
 | --- | --- | --- | --- |
-| angle between 3 points | `app` > `Tools` | mesure immediate dans un overlay; trois points selectionnes dans la scene ou dans le second viewport | a ajouter |
-| city A / city B / Earth center plane | `app` > `Tools` | cree un plan de mesure pour visualiser un angle ou un grand cercle de reference | a ajouter |
-| second measurement viewport | `app` > `Tools` | affiche un viewport dedie a la mesure et a l inspection geometrique sans masquer la scene principale | a ajouter |
-| interactive cone emphasis by query | `app` > `Query` | applique un accent couleur, opacite ou visuel sur les cones correspondant a la requete courante | a ajouter |
+| angle between 3 points | `app` > `Tools` | mesure immediate dans un overlay; trois points selectionnes dans la scene ou dans le second viewport | repris |
+| city A / city B / Earth center plane | `app` > `Tools` | cree un plan de mesure pour visualiser un angle ou un grand cercle de reference | repris |
+| second measurement viewport | `app` > `Tools` | affiche un viewport dedie a la mesure et a l inspection geometrique sans masquer la scene principale | repris |
+| interactive cone emphasis by query | `app` > `Query` | le panneau requete affiche les villes matchées; cliquer un resultat recentre la ville et accentue les couches liees a la ville selectionnee | repris partiellement |
 
 ## Distribution Recommandee Par Surface
 
@@ -259,7 +259,7 @@ Regrouper:
   - recentrage local;
   - rotation locale.
 - `Layers`:
-  - cities names;
+  - city labels;
   - boundary;
   - final cones;
   - curves;
@@ -274,7 +274,7 @@ Regrouper:
 - `Query`:
   - requeteur AST;
   - execution et resultat;
-  - accent visuel sur les cones.
+  - accent visuel sur les cones via la selection d un resultat.
 - `Tools`:
   - mesure d angle;
   - plan de reference;
@@ -317,10 +317,14 @@ Regrouper:
   - lumiere;
   - ombres;
   - calibration visuelle structurale.
-- `Advanced`:
-  - precision;
-  - stylage fin des labels;
-  - autres reglages de calibration qui peuvent forcer un recalcul complet.
+Le groupe `Advanced` n est plus une surface autonome:
+
+- les reglages de precision vont dans `workspace` lorsqu ils forcent un recalcul
+  complet;
+- les reglages de rendu fins et les labels vont dans `app` lorsqu ils modifient
+  seulement la presentation;
+- les cas limites de calibration restent documentes mais distribues dans les
+  deux surfaces selon leur effet reel.
 
 ## Interactions Attendues Par Domaine
 
@@ -392,7 +396,8 @@ Regrouper:
 - Le requeteur reste partage entre `workspace` et `app`.
 - La modification de l arbre AST ne doit pas coupler la vue au moteur de calcul.
 - L execution du requeteur doit rester visible et reproductible.
-- Dans `app`, la requete peut servir a teinter, accentuer ou masquer des cones.
+- Dans `app`, la requete peut servir a teinter, accentuer ou masquer des cones; la
+  selection d un resultat doit recentrer la ville correspondante.
 
 ### Mesure
 

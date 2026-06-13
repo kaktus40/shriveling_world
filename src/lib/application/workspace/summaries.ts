@@ -42,6 +42,7 @@ export interface WorkspaceCitySummary {
 	cityIndex: number;
 	cityId: number;
 	cityCode: number;
+	cityLabel: string;
 	longitudeRadians: number;
 	latitudeRadians: number;
 	linkedRecordCount: number;
@@ -85,6 +86,7 @@ export function listWorkspaceCities(
 	return Array.from({ length: cityCount }, (_, cityIndex) => {
 		const preparedView = new PreparedCityView(workspace.pipeline.preparedDataset, cityIndex);
 		const baseCity = workspace.pipeline.baseNetwork.cities[cityIndex];
+		const sourceRecord = workspace.pipeline.baseNetwork.sourceRecords[baseCity.sourceRecordId];
 		const linkedRecordCount = Object.values(baseCity.linkedRecords).reduce(
 			(sum, recordIds) => sum + recordIds.length,
 			0,
@@ -93,6 +95,7 @@ export function listWorkspaceCities(
 			cityIndex,
 			cityId: preparedView.cityId,
 			cityCode: preparedView.cityCode,
+			cityLabel: deriveCityLabel(sourceRecord?.raw.name ?? sourceRecord?.raw.cityName ?? preparedView.cityCode),
 			longitudeRadians: preparedView.longitudeRadians,
 			latitudeRadians: preparedView.latitudeRadians,
 			linkedRecordCount,
@@ -100,6 +103,14 @@ export function listWorkspaceCities(
 			outEdgeCount: baseCity.outEdgeIds.length,
 		};
 	});
+}
+
+function deriveCityLabel(fallback: unknown): string {
+	const text = String(fallback ?? '').trim();
+	if (text) {
+		return text;
+	}
+	return 'Unknown city';
 }
 
 /** Returns the most frequent queryable fields first. */

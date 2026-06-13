@@ -1711,10 +1711,21 @@ Travail deja realise:
     calculees operatoires;
   - `src/lib/components/app/AppViewport.svelte` comme viewport plein ecran;
   - `src/lib/components/app/AppControlPanel.svelte` comme chrome de controle;
+  - `src/lib/components/app/AppMeasurementPanel.svelte` comme boite a outils
+    de mesure;
+  - `src/lib/components/app/AppMeasurementViewport.svelte` comme viewport de
+    reference pour les mesures geometriques;
+  - `src/lib/components/app/AppQueryPanel.svelte` comme panneau de requete
+    compact et orienté focus de resultat;
   - scene plein ecran;
   - panneaux de controle en surimpression;
   - menus visibles au survol;
   - selection de dataset, annee, ville et mode de camera;
+  - bascule d affichage des labels de villes au-dessus des cones;
+  - mesure d angle entre 3 points, plan A/B/centre de la Terre et rotation
+    locale autour d une ville;
+  - requeteur partage avec `workspace` pour mettre en evidence les villes
+    matchées et recentrer la scene sur un resultat;
   - chargement des geometries calculees reelles pour les couches metier
     (frontieres, cones finaux, courbes);
   - premier niveau d interaction inspire du code historique `toBabylon`
@@ -1734,6 +1745,10 @@ Critere d acceptance:
   surimpression au survol.
 - les couches metier calculees sont branchees via un contrat explicite et
   restent decouplees de la scene Babylon.
+- le requeteur partage peut deja recentrer la vue et accentuer les couches liees
+  a une ville selectionnee depuis le resultat.
+- les labels de villes et les outils de mesure sont des composants dedies et
+  maintenables.
 
 Validation:
 

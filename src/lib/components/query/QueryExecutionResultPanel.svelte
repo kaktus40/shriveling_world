@@ -6,6 +6,9 @@
 	export let queryResult: QueryExecutionResult | null = null;
 	export let cityIds: readonly number[] = [];
 	export let cityCodes: readonly number[] = [];
+	export let selectedCityIndex = -1;
+	export let selectable = false;
+	export let onSelectCityIndex: (cityIndex: number) => void = () => undefined;
 
 	function queryMatchRows(limit = 10): Array<{ cityIndex: number; cityId: number; cityCode: number }> {
 		if (!queryResult) {
@@ -55,26 +58,40 @@
 			{currentQueryResult.diagnostics.filter((diagnostic) => diagnostic.severity === 'error').length}
 			error(s).
 		</p>
-		<table>
-			<thead>
-				<tr>
-					<th>Idx</th>
-					<th>City id</th>
-					<th>City code</th>
-					<th>Preview</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each queryMatchRows() as match}
+			<table>
+				<thead>
 					<tr>
-						<td>{match.cityIndex}</td>
-						<td>{match.cityId}</td>
-						<td>{match.cityCode}</td>
-						<td>{queryMatchPreview(match.cityIndex)}</td>
+						<th>Idx</th>
+						<th>City id</th>
+						<th>City code</th>
+						<th>Preview</th>
+						{#if selectable}
+							<th>Focus</th>
+						{/if}
 					</tr>
-				{/each}
-			</tbody>
-		</table>
+				</thead>
+				<tbody>
+					{#each queryMatchRows() as match}
+						<tr class:selected={match.cityIndex === selectedCityIndex}>
+							<td>{match.cityIndex}</td>
+							<td>{match.cityId}</td>
+							<td>{match.cityCode}</td>
+							<td>{queryMatchPreview(match.cityIndex)}</td>
+							{#if selectable}
+								<td>
+									<button
+										type="button"
+										class="focus-button"
+										on:click={() => onSelectCityIndex(match.cityIndex)}
+									>
+										Focus
+									</button>
+								</td>
+							{/if}
+						</tr>
+					{/each}
+				</tbody>
+			</table>
 		<DiagnosticsDetails title="Result diagnostics" subtitle="raw payloads and validation notes" headingTag="h3">
 			<div class="diagnostic-list">
 				{#each currentQueryResult.diagnostics as diagnostic}
@@ -95,6 +112,10 @@
 	.query-column {
 		display: grid;
 		gap: 0.85rem;
+	}
+
+	tr.selected td {
+		background: rgba(136, 214, 210, 0.08);
 	}
 
 	.query-column h3 {
@@ -144,6 +165,20 @@
 		font-size: 0.82rem;
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
+	}
+
+	.focus-button {
+		border: 1px solid rgba(138, 168, 178, 0.22);
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.04);
+		color: inherit;
+		padding: 0.3rem 0.55rem;
+		font: inherit;
+		cursor: pointer;
+	}
+
+	.focus-button:hover {
+		background: rgba(255, 255, 255, 0.08);
 	}
 
 	pre {

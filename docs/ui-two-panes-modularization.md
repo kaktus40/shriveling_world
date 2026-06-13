@@ -47,6 +47,7 @@ Responsabilites:
 - rendu 3D principal;
 - navigation temporelle fluide;
 - requeteur humain sur arbre AST;
+- panneau de requete compact pour le focus sur les villes matchées;
 - ajustement du rendu final;
 - affichage des couches metier calculees en provenances du compute partage
   (frontieres, cones finaux, courbes) sans recopier la logique de calcul;
@@ -99,12 +100,18 @@ Principes:
 - les menus de controle apparaissent au passage de la souris;
 - les interactions clavier/souris restent concentrees dans la couche app,
   jamais dans le compute.
+- les labels de villes restent controlables depuis une petite surface de
+  presentation, sans melanger leur creation avec le compute.
+- les outils de mesure vivent dans des composants dedies et peuvent etre
+  affiches au-dessus de la scene ou dans un second viewport.
 - la premiere coque Babylon de `app` doit rester mince et pilotable via un
   controleur de scene dedie, pas via un gros `+page.svelte`.
 - les geometries calculees reelles doivent arriver dans la scene via un
   contrat explicite de couches metier, pas via un transfert d etat implicite.
 - les marqueurs de villes, les couches metier et les adaptations Babylon
   restent dans des modules distincts pour garder le client lisible.
+- le panneau de requete peut recentrer la ville selectionnee et accentuer les
+  couches de la scene sans exposer la logique de calcul.
 
 ## Regles De Maintenabilite
 

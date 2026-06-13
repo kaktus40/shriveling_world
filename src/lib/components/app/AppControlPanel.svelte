@@ -10,11 +10,13 @@
 	export let representationStart: AppRepresentationMode = 'globe';
 	export let representationEnd: AppRepresentationMode = 'network';
 	export let representationPercent = 50;
+	export let showCityLabels = false;
 	export let loading = false;
 	export let selectedCity: WorkspaceCitySummary | null = null;
 	export let onDatasetChange: (value: string) => void = () => undefined;
 	export let onCityIndexChange: (value: number) => void = () => undefined;
 	export let onCameraModeChange: (value: AppCameraMode) => void = () => undefined;
+	export let onShowCityLabelsChange: (value: boolean) => void = () => undefined;
 	export let onResetScene: () => void = () => undefined;
 
 	let expanded = false;
@@ -57,7 +59,7 @@
 
 	<div class="teaser">
 		<span>{selectedDataset || 'No dataset selected'}</span>
-		<span>{selectedCity ? `${selectedCityIndex} · ${selectedCity.cityCode}` : 'No city'}</span>
+		<span>{selectedCity ? `${selectedCityIndex} · ${selectedCity.cityLabel}` : 'No city'}</span>
 		<span>{cameraModeLabels[cameraMode]}</span>
 		<span>
 			{representationModeLabels[representationStart]} → {representationModeLabels[representationEnd]}
@@ -91,7 +93,7 @@
 				>
 					{#each appState?.cities ?? [] as city}
 						<option value={city.cityIndex}>
-							{city.cityIndex} - {city.cityCode}
+							{city.cityIndex} - {city.cityLabel}
 						</option>
 					{/each}
 				</select>
@@ -118,6 +120,18 @@
 			{:else}
 				<span>Waiting for dataset</span>
 			{/if}
+		</div>
+
+		<div class="display-toggle">
+			<label class="toggle">
+				<input
+					type="checkbox"
+					checked={showCityLabels}
+					disabled={loading}
+					on:change={(event) => onShowCityLabelsChange((event.currentTarget as HTMLInputElement).checked)}
+				/>
+				<span>City labels on cones</span>
+			</label>
 		</div>
 
 		<div class="hints">
@@ -194,6 +208,27 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.45rem;
+	}
+
+	.display-toggle {
+		display: grid;
+		gap: 0.35rem;
+	}
+
+	.toggle {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.55rem;
+		padding: 0.4rem 0.55rem;
+		border-radius: 0.85rem;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid rgba(138, 168, 178, 0.12);
+		color: #dce9ea;
+		font-size: 0.85rem;
+	}
+
+	.toggle input {
+		accent-color: #88d6d2;
 	}
 
 	.teaser span,

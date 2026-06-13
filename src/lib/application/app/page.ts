@@ -6,6 +6,7 @@ import {
 	type WorkspaceDatasetSummary,
 	type WorkspaceCitySummary,
 } from '$lib/application/workspace';
+import { buildAppQueryState, type AppQueryState } from './query';
 
 /** Canonical camera modes exposed by the application shell. */
 export const APP_CAMERA_MODES = ['orbit', 'inspect', 'free'] as const;
@@ -28,6 +29,7 @@ export interface AppSelectionState {
 	readonly representationStart: AppRepresentationMode;
 	readonly representationEnd: AppRepresentationMode;
 	readonly representationPercent: number;
+	readonly showCityLabels: boolean;
 }
 
 /**
@@ -41,6 +43,7 @@ export interface AppPageState {
 	readonly summary: WorkspaceDatasetSummary;
 	readonly cities: readonly WorkspaceCitySummary[];
 	readonly yearOptions: readonly number[];
+	readonly querySnapshot: AppQueryState['querySnapshot'];
 	readonly selection: AppSelectionState;
 }
 
@@ -57,6 +60,7 @@ export async function loadAppPageState(
 ): Promise<AppPageState> {
 	const workspace = await loadWorkspaceDataset(fetcher, selectedDataset);
 	const summary = summarizeWorkspaceDataset(workspace);
+	const queryState = buildAppQueryState(workspace);
 	const yearOptions = buildYearOptions(
 		workspace.pipeline.preparedDataset.speedTimeline.span.beginYear,
 		workspace.pipeline.preparedDataset.speedTimeline.span.endYear,
@@ -67,6 +71,7 @@ export async function loadAppPageState(
 		summary,
 		cities: listWorkspaceCities(workspace, 24),
 		yearOptions,
+		querySnapshot: queryState.querySnapshot,
 		selection: {
 			datasetName: selectedDataset,
 			year: yearOptions[0] ?? summary.yearBegin,
@@ -75,6 +80,7 @@ export async function loadAppPageState(
 			representationStart: 'globe',
 			representationEnd: 'network',
 			representationPercent: 50,
+			showCityLabels: false,
 		},
 	};
 }

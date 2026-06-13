@@ -94,4 +94,10 @@ describe('app render helpers', () => {
 		const layersHigh = buildAppBusinessLayers(buildMinimalComputeResult(), 100);
 		assert.ok((layersLow[0]?.opacity ?? 0) < (layersHigh[0]?.opacity ?? 0));
 	});
+
+	test('focus the selected business layer when a city is selected', () => {
+		const unfocusedLayers = buildAppBusinessLayers(buildMinimalComputeResult(), 100, null);
+		const focusedLayers = buildAppBusinessLayers(buildMinimalComputeResult(), 100, 0);
+		assert.ok((focusedLayers[0]?.opacity ?? 0) > (unfocusedLayers[0]?.opacity ?? 0));
+	});
 });

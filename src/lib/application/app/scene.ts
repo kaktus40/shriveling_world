@@ -16,6 +16,7 @@ import { APP_GLOBE_RADIUS, projectCityToAppPoint } from './geometry';
 import { createAppBusinessLayerController } from './business-layers';
 import { createAppCityMarkerController } from './city-markers';
 import { buildAppBusinessLayers } from './render';
+import type { AppMeasurementSelection } from './measurement';
 import type { AppCameraMode, AppPageState, AppRepresentationMode } from './page';
 
 export interface AppSceneState {
@@ -23,10 +24,13 @@ export interface AppSceneState {
 	readonly workspaceCompute: WorkspaceComputeResult | null;
 	readonly selectedYear: number;
 	readonly selectedCityIndex: number;
+	readonly queryMatchedCityIndexes: readonly number[];
 	readonly cameraMode: AppCameraMode;
 	readonly representationStart: AppRepresentationMode;
 	readonly representationEnd: AppRepresentationMode;
 	readonly representationPercent: number;
+	readonly showCityLabels: boolean;
+	readonly measurementSelection: AppMeasurementSelection;
 }
 
 export interface AppSceneHooks {
@@ -112,7 +116,8 @@ export function createAppScene(
 		}
 		if (pointerInfo.type === PointerEventTypes.POINTERDOWN && cityIndex !== null) {
 			activeCityIndex = cityIndex;
-			cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex);
+			cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex, currentState.queryMatchedCityIndexes);
+			cityMarkers.setLabelVisibility(currentState.showCityLabels);
 			hooks.onCityPick?.(cityIndex);
 			hooks.onCameraModeChange?.('inspect');
 			focusSelectedCity();
@@ -163,7 +168,7 @@ export function createAppScene(
 		const nextIndex = currentIndex < 0 ? 0 : (currentIndex + step + cities.length) % cities.length;
 		const nextCity = cities[nextIndex];
 		activeCityIndex = nextCity.cityIndex;
-		cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex);
+		cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex, currentState.queryMatchedCityIndexes);
 		hooks.onCityPick?.(nextCity.cityIndex);
 		hooks.onCameraModeChange?.('inspect');
 		focusSelectedCity();
@@ -174,11 +179,13 @@ export function createAppScene(
 			return;
 		}
 		hoveredCityIndex = cityIndex;
-		cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex);
+		cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex, currentState.queryMatchedCityIndexes);
 	}
 
 	function applyCameraMode(state: AppSceneState): void {
-		const selectedCity = state.appState?.cities.find((city) => city.cityIndex === state.selectedCityIndex);
+		const selectedCityIndex =
+			state.measurementSelection.focusCityIndex ?? state.selectedCityIndex;
+		const selectedCity = state.appState?.cities.find((city) => city.cityIndex === selectedCityIndex);
 		switch (state.cameraMode) {
 			case 'inspect':
 				camera.radius = inspectRadius;
@@ -190,6 +197,7 @@ export function createAppScene(
 							...projectCityToAppPoint(selectedCity.longitudeRadians, selectedCity.latitudeRadians, globeRadius),
 						),
 					);
+					camera.alpha = (state.measurementSelection.localRotationDegrees * Math.PI) / 180;
 				}
 				break;
 			case 'free':
@@ -222,7 +230,8 @@ export function createAppScene(
 	}
 
 	function focusSelectedCity(): void {
-		const selectedCity = currentState.appState?.cities.find((city) => city.cityIndex === activeCityIndex);
+		const focusCityIndex = currentState.measurementSelection.focusCityIndex ?? activeCityIndex;
+		const selectedCity = currentState.appState?.cities.find((city) => city.cityIndex === focusCityIndex);
 		if (!selectedCity) {
 			return;
 		}
@@ -246,16 +255,26 @@ export function createAppScene(
 		activeCityIndex = nextState.selectedCityIndex;
 		applyCameraMode(nextState);
 		applyYearTone(nextState);
-		cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex);
+		cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex, nextState.queryMatchedCityIndexes);
+		cityMarkers.setLabelVisibility(nextState.showCityLabels);
 		businessLayers.update(
-			buildAppBusinessLayers(nextState.workspaceCompute?.result ?? null, nextState.representationPercent),
+			buildAppBusinessLayers(
+				nextState.workspaceCompute?.result ?? null,
+				nextState.representationPercent,
+				nextState.selectedCityIndex,
+			),
 		);
 	}
 
 	cityMarkers.setCities(initialState.appState?.cities ?? []);
-	cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex);
+	cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex, initialState.queryMatchedCityIndexes);
+	cityMarkers.setLabelVisibility(initialState.showCityLabels);
 	businessLayers.update(
-		buildAppBusinessLayers(initialState.workspaceCompute?.result ?? null, initialState.representationPercent),
+		buildAppBusinessLayers(
+			initialState.workspaceCompute?.result ?? null,
+			initialState.representationPercent,
+			initialState.selectedCityIndex,
+		),
 	);
 	applyCameraMode(initialState);
 	applyYearTone(initialState);

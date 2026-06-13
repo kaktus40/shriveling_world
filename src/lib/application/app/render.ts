@@ -33,6 +33,7 @@ export function ecefToAppPoint(xMeters: number, yMeters: number, zMeters: number
 export function buildAppBusinessLayers(
 	result: ComputeResult | null,
 	representationPercent = 50,
+	focusCityIndex: number | null = null,
 ): readonly AppBusinessLayerDescriptor[] {
 	if (!result) {
 		return [];
@@ -42,11 +43,19 @@ export function buildAppBusinessLayers(
 	const layers: AppBusinessLayerDescriptor[] = [];
 
 	for (const [runIndex, geojsonRun] of result.geojsonRuns.entries()) {
+		// The operational shell uses the current city focus as a stable ordering hint
+		// for the matching business layer. The mapping stays local to this adapter so
+		// it can be swapped later if the compute output gains an explicit city link.
+		const isFocused = focusCityIndex === runIndex;
+		const boundaryColor: AppColor3 = isFocused ? [0.7, 0.9, 1] : [0.58, 0.8, 0.96];
+		const finalConeColor: AppColor3 = isFocused ? [1, 0.83, 0.36] : [0.96, 0.73, 0.35];
+		const boundaryOpacity = isFocused ? 0.52 + representationBlend * 0.34 : 0.35 + representationBlend * 0.45;
+		const finalConeOpacity = isFocused ? 0.48 + representationBlend * 0.38 : 0.28 + representationBlend * 0.52;
 		if (geojsonRun.boundaryRaycast) {
 			layers.push({
 				name: `boundary-${runIndex}-${geojsonRun.fileName}`,
-				color: [0.58, 0.8, 0.96],
-				opacity: 0.35 + representationBlend * 0.45,
+				color: boundaryColor,
+				opacity: boundaryOpacity,
 				polylines: buildCityPolylinesFromVec4Buffer(
 					geojsonRun.boundaryRaycast.townBoundaryEcef,
 					geojsonRun.boundaryRaycast.azimuthIntervalCount,
@@ -58,8 +67,8 @@ export function buildAppBusinessLayers(
 		if (geojsonRun.finalCones) {
 			layers.push({
 				name: `final-cones-${runIndex}-${geojsonRun.fileName}`,
-				color: [0.96, 0.73, 0.35],
-				opacity: 0.28 + representationBlend * 0.52,
+				color: finalConeColor,
+				opacity: finalConeOpacity,
 				polylines: buildCityPolylinesFromVec4Buffer(
 					geojsonRun.finalCones.finalConeGeometryEcef,
 					geojsonRun.finalCones.azimuthSampleCount,

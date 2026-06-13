@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import AppControlPanel from '$lib/components/app/AppControlPanel.svelte';
+	import AppMeasurementPanel from '$lib/components/app/AppMeasurementPanel.svelte';
+	import AppMeasurementViewport from '$lib/components/app/AppMeasurementViewport.svelte';
+	import AppQueryPanel from '$lib/components/app/AppQueryPanel.svelte';
 	import AppRepresentationRail from '$lib/components/app/AppRepresentationRail.svelte';
 	import AppYearRail from '$lib/components/app/AppYearRail.svelte';
 	import AppViewport from '$lib/components/app/AppViewport.svelte';
@@ -10,7 +13,27 @@
 		type AppCameraMode,
 		type AppRepresentationMode,
 	} from '$lib/application/app';
+	import {
+		buildAppMeasurementSummary,
+		createDefaultAppMeasurementSelection,
+		resetAppMeasurementSelection,
+		setAppMeasurementFocusCity,
+		setAppMeasurementLocalRotation,
+		setAppMeasurementSlot,
+		type AppMeasurementSelection,
+		type AppMeasurementSummary,
+	} from '$lib/application/app/measurement';
+	import { collectAppQueryMatchedCityIndexes } from '$lib/application/app/query';
 	import { loadAppSceneCompute } from '$lib/application/app/compute';
+	import {
+		createDefaultQueryTree,
+		createQueryController,
+		createQueryWorkerClient,
+		type QueryExecutionResult,
+		type QueryWorkerClient,
+		type QueryController,
+	} from '$lib/application/query';
+	import type { QueryNode } from '$lib/domain/query';
 	import type { WorkspaceComputeResult } from '$lib/application/workspace';
 	import type { WorkspaceCitySummary } from '$lib/application/workspace';
 
@@ -27,16 +50,55 @@
 	let representationStart: AppRepresentationMode = 'globe';
 	let representationEnd: AppRepresentationMode = 'network';
 	let representationPercent = 50;
+	let showCityLabels = false;
+	let queryTree: QueryNode | null = null;
+	let queryResult: QueryExecutionResult | null = null;
+	let queryError = '';
+	let queryLoading = false;
+	let queryWorker: QueryWorkerClient | null = null;
+	let queryController: QueryController | null = null;
+	let measurementSelection: AppMeasurementSelection = createDefaultAppMeasurementSelection(0);
 	let loading = false;
 	let errorMessage = '';
 	let selectedCity: WorkspaceCitySummary | null = null;
 	let selectedYearLabel: number | string = '';
 	let computeRequestId = 0;
+	let queryMatchedCityIndexes: readonly number[] = [];
+	let queryCityIds: readonly number[] = [];
+	let queryCityCodes: readonly number[] = [];
+	let measurementSummary: AppMeasurementSummary | null = null;
+	$: queryMatchedCityIndexes = collectAppQueryMatchedCityIndexes(queryResult);
+	$: queryCityIds = appState?.cities.map((city) => city.cityId) ?? [];
+	$: queryCityCodes = appState?.cities.map((city) => city.cityCode) ?? [];
+	$: measurementSummary = buildAppMeasurementSummary(appState, measurementSelection);
 
 	onMount(() => {
+		queryWorker = createQueryWorkerClient();
+		queryController = createQueryController({
+			getQueryWorker: () => queryWorker,
+			getQuerySnapshot: () => appState?.querySnapshot ?? null,
+			getQueryTree: () => queryTree,
+			setQueryTree: (next) => {
+				queryTree = next;
+			},
+			setQueryResult: (next) => {
+				queryResult = next;
+				queryError = '';
+			},
+			setQueryError: (next) => {
+				queryError = next;
+			},
+		});
 		if (selectedDataset) {
 			void reloadApp();
 		}
+
+		return () => {
+			queryController?.dispose();
+			queryController = null;
+			queryWorker?.terminate();
+			queryWorker = null;
+		};
 	});
 
 	async function reloadApp(): Promise<void> {
@@ -55,10 +117,19 @@
 			representationStart = loaded.selection.representationStart;
 			representationEnd = loaded.selection.representationEnd;
 			representationPercent = loaded.selection.representationPercent;
+			showCityLabels = loaded.selection.showCityLabels;
+			queryTree = createDefaultQueryTree(loaded.querySnapshot.fields);
+			measurementSelection = createDefaultAppMeasurementSelection(loaded.selection.cityIndex);
+			queryResult = null;
+			queryError = '';
+			queryController?.reset();
 			await reloadAppCompute(loaded, selectedYear);
 		} catch (error) {
 			appState = null;
 			workspaceCompute = null;
+			queryTree = null;
+			queryResult = null;
+			queryError = '';
 			errorMessage = error instanceof Error ? error.message : String(error);
 		} finally {
 			loading = false;
@@ -108,6 +179,8 @@
 
 	function handleCityIndexChange(next: number): void {
 		selectedCityIndex = next;
+		measurementSelection = setAppMeasurementFocusCity(measurementSelection, next);
+		cameraMode = 'inspect';
 	}
 
 	function handleCameraModeChange(next: AppCameraMode): void {
@@ -126,6 +199,69 @@
 		representationPercent = next;
 	}
 
+	function handleShowCityLabelsChange(next: boolean): void {
+		showCityLabels = next;
+	}
+
+	function handleMeasurementSetPoint(slot: 'a' | 'b' | 'c'): void {
+		measurementSelection = setAppMeasurementSlot(measurementSelection, slot, selectedCityIndex);
+	}
+
+	function handleMeasurementClearPoint(slot: 'a' | 'b' | 'c'): void {
+		measurementSelection = setAppMeasurementSlot(measurementSelection, slot, null);
+	}
+
+	function handleMeasurementCenterOnSelectedCity(): void {
+		measurementSelection = setAppMeasurementFocusCity(measurementSelection, selectedCityIndex);
+		cameraMode = 'inspect';
+	}
+
+	function handleMeasurementRotationChange(next: number): void {
+		measurementSelection = setAppMeasurementLocalRotation(measurementSelection, next);
+	}
+
+	function resetMeasurementTools(): void {
+		measurementSelection = resetAppMeasurementSelection(selectedCityIndex);
+	}
+
+	async function handleQueryRun(): Promise<void> {
+		if (!queryController) {
+			return;
+		}
+		queryLoading = true;
+		try {
+			await queryController.execute();
+		} finally {
+			queryLoading = false;
+		}
+	}
+
+	function handleQueryReset(): void {
+		queryController?.reset();
+	}
+
+	function handleQueryChange(path: number[], nextNode: QueryNode): void {
+		queryController?.update(path, nextNode);
+	}
+
+	function handleQueryDelete(path: number[]): void {
+		queryController?.remove(path);
+	}
+
+	function handleQueryInsert(path: number[], child: QueryNode): void {
+		queryController?.insert(path, child);
+	}
+
+	function handleQueryMove(path: number[], direction: -1 | 1): void {
+		queryController?.move(path, direction);
+	}
+
+	function handleQueryCitySelect(cityIndex: number): void {
+		selectedCityIndex = cityIndex;
+		measurementSelection = setAppMeasurementFocusCity(measurementSelection, cityIndex);
+		cameraMode = 'inspect';
+	}
+
 	function resetScene(): void {
 		selectedYear = appState?.selection.year ?? selectedYear;
 		selectedCityIndex = appState?.selection.cityIndex ?? selectedCityIndex;
@@ -133,6 +269,8 @@
 		representationStart = appState?.selection.representationStart ?? representationStart;
 		representationEnd = appState?.selection.representationEnd ?? representationEnd;
 		representationPercent = appState?.selection.representationPercent ?? representationPercent;
+		showCityLabels = appState?.selection.showCityLabels ?? showCityLabels;
+		measurementSelection = resetAppMeasurementSelection(selectedCityIndex);
 		if (appState) {
 			void reloadAppCompute(appState, selectedYear);
 		}
@@ -159,6 +297,9 @@
 		{representationStart}
 		{representationEnd}
 		{representationPercent}
+		{measurementSelection}
+		{showCityLabels}
+		{queryMatchedCityIndexes}
 		{loading}
 		{selectedCity}
 		onCityIndexChange={handleCityIndexChange}
@@ -183,12 +324,45 @@
 			{representationStart}
 			{representationEnd}
 			{representationPercent}
+			{showCityLabels}
 			{loading}
 			{selectedCity}
 			onDatasetChange={handleDatasetChange}
 			onCityIndexChange={handleCityIndexChange}
 			onCameraModeChange={handleCameraModeChange}
+			onShowCityLabelsChange={handleShowCityLabelsChange}
 			onResetScene={resetScene}
+		/>
+
+		<AppMeasurementPanel
+			{selectedCityIndex}
+			{selectedCity}
+			{measurementSelection}
+			{measurementSummary}
+			{loading}
+			onSetPoint={handleMeasurementSetPoint}
+			onClearPoint={handleMeasurementClearPoint}
+			onCenterOnSelectedCity={handleMeasurementCenterOnSelectedCity}
+			onRotationChange={handleMeasurementRotationChange}
+			onReset={resetMeasurementTools}
+		/>
+
+		<AppQueryPanel
+			querySnapshot={appState?.querySnapshot ?? null}
+			{queryTree}
+			{queryResult}
+			{queryError}
+			{queryLoading}
+			{selectedCityIndex}
+			cityIds={queryCityIds}
+			cityCodes={queryCityCodes}
+			onRun={handleQueryRun}
+			onReset={handleQueryReset}
+			onChange={handleQueryChange}
+			onDelete={handleQueryDelete}
+			onInsert={handleQueryInsert}
+			onMove={handleQueryMove}
+			onSelectCityIndex={handleQueryCitySelect}
 		/>
 
 		<AppRepresentationRail
@@ -201,6 +375,16 @@
 			onRepresentationPercentChange={handleRepresentationPercentChange}
 		/>
 	</div>
+
+	<AppMeasurementViewport
+		measurementSummary={measurementSummary}
+		{loading}
+		onFocusPoint={(cityIndex) => {
+			selectedCityIndex = cityIndex;
+			measurementSelection = setAppMeasurementFocusCity(measurementSelection, cityIndex);
+			cameraMode = 'inspect';
+		}}
+	/>
 
 	{#if errorMessage}
 		<div class="error-banner" role="alert">
