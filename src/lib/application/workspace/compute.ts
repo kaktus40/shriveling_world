@@ -36,6 +36,14 @@ export interface WorkspaceComputeRequest {
 	forced?: ComputeProfile;
 	allowFallback?: boolean;
 	benchmark?: boolean;
+	dynamicYear?: number;
+	curve?: {
+		enabled?: boolean;
+		year?: number;
+		pointsPerCurve?: number;
+		curvePosition?: 'above' | 'below' | 'below-when-possible' | 'stick-to-cone';
+		coefficient?: number;
+	};
 	coneIntersectionStrategy?: ComputeConeIntersectionStrategy;
 }
 
@@ -53,6 +61,7 @@ export async function computeWorkspaceDataset(
 	const orchestrator = createComputeOrchestrator(createWorkspaceComputeBackendRegistry());
 	const coneOptions = createDefaultConePipelineOptions(workspace.pipeline.preparedDataset);
 	const shouldBenchmark = request.benchmark ?? true;
+	const dynamicYear = request.dynamicYear ?? workspace.pipeline.preparedDataset.speedTimeline.span.beginYear;
 	const result = await orchestrator.computeFrame(
 		{
 			sourceFiles: workspace.files,
@@ -67,13 +76,22 @@ export async function computeWorkspaceDataset(
 			benchmark: request.benchmark ?? true,
 			boundaryRaycast: { azimuthSampleCount: 360 },
 			staticTown: { sectorCount: 360, neighborLimit: Math.min(Math.max(workspace.pipeline.preparedDataset.cityCount - 1, 0), 16) },
-			dynamicYear: workspace.pipeline.preparedDataset.speedTimeline.span.beginYear,
+			dynamicYear,
 			rawCone: {
 				shape: coneOptions.shape,
 				azimuthSampleCount: coneOptions.azimuthSampleCount,
 				coneLengthMeters: coneOptions.coneLengthMeters,
 				attenuationRadians: coneOptions.attenuationRadians,
 			},
+			curve: request.curve?.enabled === true
+				? {
+						enabled: true,
+						year: request.curve.year ?? dynamicYear,
+						pointsPerCurve: request.curve.pointsPerCurve ?? 15,
+						curvePosition: request.curve.curvePosition ?? 'above',
+						coefficient: request.curve.coefficient ?? 1,
+					}
+				: undefined,
 			coneIntersection: {
 				enabled: true,
 				strategy: request.coneIntersectionStrategy ?? 'oracle',

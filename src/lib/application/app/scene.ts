@@ -1,25 +1,26 @@
 import {
-	AbstractMesh,
 	ArcRotateCamera,
 	Color3,
 	Color4,
 	Engine,
 	HemisphericLight,
 	KeyboardEventTypes,
-	Mesh,
 	MeshBuilder,
 	PointerEventTypes,
 	Scene,
 	StandardMaterial,
 	Vector3,
-	type Nullable,
 } from '@babylonjs/core';
+import type { WorkspaceComputeResult } from '$lib/application/workspace';
+import { APP_GLOBE_RADIUS, projectCityToAppPoint } from './geometry';
+import { createAppBusinessLayerController } from './business-layers';
+import { createAppCityMarkerController } from './city-markers';
+import { buildAppBusinessLayers } from './render';
 import type { AppCameraMode, AppPageState } from './page';
-import type { WorkspaceCitySummary } from '$lib/application/workspace';
-import { projectCityToAppPoint } from './geometry';
 
 export interface AppSceneState {
 	readonly appState: AppPageState | null;
+	readonly workspaceCompute: WorkspaceComputeResult | null;
 	readonly selectedYear: number;
 	readonly selectedCityIndex: number;
 	readonly cameraMode: AppCameraMode;
@@ -36,17 +37,12 @@ export interface AppSceneController {
 	dispose(): void;
 }
 
-interface CityMarker {
-	readonly cityIndex: number;
-	readonly mesh: Mesh;
-	readonly material: StandardMaterial;
-}
-
-const globeRadius = 12;
+const globeRadius = APP_GLOBE_RADIUS;
 const orbitRadius = 28;
 const inspectRadius = 16;
 const freeRadius = 36;
 
+/** Builds the Babylon scene used by the operational application surface. */
 export function createAppScene(
 	canvas: HTMLCanvasElement,
 	initialState: AppSceneState,
@@ -75,25 +71,13 @@ export function createAppScene(
 
 	new HemisphericLight('AppLight', new Vector3(0.3, 1, 0.2), scene).intensity = 1.2;
 
-	const globeMaterial = new StandardMaterial('AppGlobeMaterial', scene);
-	globeMaterial.diffuseColor = new Color3(0.06, 0.17, 0.2);
-	globeMaterial.emissiveColor = new Color3(0.03, 0.06, 0.08);
-	globeMaterial.specularColor = new Color3(0.45, 0.55, 0.58);
-
-	const atmosphereMaterial = new StandardMaterial('AppAtmosphereMaterial', scene);
-	atmosphereMaterial.diffuseColor = new Color3(0.11, 0.2, 0.23);
-	atmosphereMaterial.emissiveColor = new Color3(0.08, 0.12, 0.15);
-	atmosphereMaterial.alpha = 0.12;
-	atmosphereMaterial.specularColor = new Color3(0.7, 0.85, 0.9);
-
-	const markerBaseColor = new Color3(0.17, 0.58, 0.56);
-	const markerBaseEmissive = new Color3(0.04, 0.18, 0.18);
-	const markerFocusColor = new Color3(0.96, 0.77, 0.29);
-	const markerFocusEmissive = new Color3(0.28, 0.2, 0.05);
-	const markerHoverColor = new Color3(0.45, 0.88, 0.84);
-	const markerHoverEmissive = new Color3(0.13, 0.28, 0.28);
-
 	const globe = MeshBuilder.CreateSphere('AppGlobe', { diameter: globeRadius * 2, segments: 48 }, scene);
+	const globeMaterial = createColorMaterial(
+		scene,
+		'AppGlobeMaterial',
+		new Color3(0.06, 0.17, 0.2),
+		new Color3(0.03, 0.06, 0.08),
+	);
 	globe.material = globeMaterial;
 
 	const atmosphere = MeshBuilder.CreateSphere(
@@ -101,22 +85,31 @@ export function createAppScene(
 		{ diameter: globeRadius * 2.08, segments: 48 },
 		scene,
 	);
+	const atmosphereMaterial = createColorMaterial(
+		scene,
+		'AppAtmosphereMaterial',
+		new Color3(0.11, 0.2, 0.23),
+		new Color3(0.08, 0.12, 0.15),
+		0.12,
+	);
 	atmosphere.material = atmosphereMaterial;
 	atmosphere.isPickable = false;
 
-	const markers: CityMarker[] = [];
+	const cityMarkers = createAppCityMarkerController(scene);
+	const businessLayers = createAppBusinessLayerController(scene);
 	let hoveredCityIndex: number | null = null;
 	let currentState: AppSceneState = initialState;
 	let activeCityIndex = initialState.selectedCityIndex;
 
 	scene.onPointerObservable.add((pointerInfo) => {
 		const pickedMesh = pointerInfo.pickInfo?.pickedMesh ?? null;
-		const cityIndex = resolveCityIndex(pickedMesh);
+		const cityIndex = cityMarkers.resolveCityIndex(pickedMesh);
 		if (pointerInfo.type === PointerEventTypes.POINTERMOVE) {
 			setHoveredCityIndex(cityIndex);
 		}
 		if (pointerInfo.type === PointerEventTypes.POINTERDOWN && cityIndex !== null) {
 			activeCityIndex = cityIndex;
+			cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex);
 			hooks.onCityPick?.(cityIndex);
 			hooks.onCameraModeChange?.('inspect');
 			focusSelectedCity();
@@ -167,14 +160,10 @@ export function createAppScene(
 		const nextIndex = currentIndex < 0 ? 0 : (currentIndex + step + cities.length) % cities.length;
 		const nextCity = cities[nextIndex];
 		activeCityIndex = nextCity.cityIndex;
+		cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex);
 		hooks.onCityPick?.(nextCity.cityIndex);
 		hooks.onCameraModeChange?.('inspect');
 		focusSelectedCity();
-	}
-
-	function resolveCityIndex(mesh: Nullable<AbstractMesh>): number | null {
-		const cityIndex = mesh?.metadata ? Number((mesh.metadata as { cityIndex?: number }).cityIndex) : NaN;
-		return Number.isFinite(cityIndex) ? cityIndex : null;
 	}
 
 	function setHoveredCityIndex(cityIndex: number | null): void {
@@ -182,46 +171,7 @@ export function createAppScene(
 			return;
 		}
 		hoveredCityIndex = cityIndex;
-		refreshMarkerMaterials();
-	}
-
-	function createMarkers(state: AppSceneState): void {
-		markers.splice(0).forEach(({ mesh, material }) => {
-			mesh.dispose();
-			material.dispose();
-		});
-		const cities = state.appState?.cities ?? [];
-		for (const city of cities) {
-			const mesh = MeshBuilder.CreateSphere(`CityMarker-${city.cityIndex}`, { diameter: 0.46 }, scene);
-			mesh.position = new Vector3(...projectCityToAppPoint(city.longitudeRadians, city.latitudeRadians, globeRadius + 0.1));
-			mesh.isPickable = true;
-			mesh.metadata = { cityIndex: city.cityIndex, cityCode: city.cityCode };
-			const material = new StandardMaterial(`AppMarkerMaterial-${city.cityIndex}`, scene);
-			material.diffuseColor = markerBaseColor.clone();
-			material.emissiveColor = markerBaseEmissive.clone();
-			material.specularColor = new Color3(0.85, 0.9, 0.9);
-			mesh.material = material;
-			markers.push({ cityIndex: city.cityIndex, mesh, material });
-		}
-		refreshMarkerMaterials();
-	}
-
-	function refreshMarkerMaterials(): void {
-		for (const marker of markers) {
-			if (marker.cityIndex === hoveredCityIndex) {
-				marker.material.diffuseColor.copyFrom(markerHoverColor);
-				marker.material.emissiveColor.copyFrom(markerHoverEmissive);
-				marker.mesh.scaling.setAll(1.18);
-			} else if (marker.cityIndex === activeCityIndex) {
-				marker.material.diffuseColor.copyFrom(markerFocusColor);
-				marker.material.emissiveColor.copyFrom(markerFocusEmissive);
-				marker.mesh.scaling.setAll(1.35);
-			} else {
-				marker.material.diffuseColor.copyFrom(markerBaseColor);
-				marker.material.emissiveColor.copyFrom(markerBaseEmissive);
-				marker.mesh.scaling.setAll(1);
-			}
-		}
+		cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex);
 	}
 
 	function applyCameraMode(state: AppSceneState): void {
@@ -232,11 +182,11 @@ export function createAppScene(
 				camera.upperRadiusLimit = 40;
 				camera.lowerRadiusLimit = 8;
 				if (selectedCity) {
-					camera.setTarget(new Vector3(...projectCityToAppPoint(
-						selectedCity.longitudeRadians,
-						selectedCity.latitudeRadians,
-						globeRadius,
-					)));
+					camera.setTarget(
+						new Vector3(
+							...projectCityToAppPoint(selectedCity.longitudeRadians, selectedCity.latitudeRadians, globeRadius),
+						),
+					);
 				}
 				break;
 			case 'free':
@@ -282,20 +232,24 @@ export function createAppScene(
 
 	function syncState(nextState: AppSceneState): void {
 		const previousDatasetName = currentState.appState?.workspace.datasetName;
+		const previousCityCount = currentState.appState?.cities.length ?? 0;
 		currentState = nextState;
 		if (
 			nextState.appState?.workspace.datasetName !== previousDatasetName ||
-			nextState.appState?.cities.length !== markers.length
+			(nextState.appState?.cities.length ?? 0) !== previousCityCount
 		) {
-			createMarkers(nextState);
+			cityMarkers.setCities(nextState.appState?.cities ?? []);
 		}
 		activeCityIndex = nextState.selectedCityIndex;
 		applyCameraMode(nextState);
 		applyYearTone(nextState);
-		refreshMarkerMaterials();
+		cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex);
+		businessLayers.update(buildAppBusinessLayers(nextState.workspaceCompute?.result ?? null));
 	}
 
-	createMarkers(initialState);
+	cityMarkers.setCities(initialState.appState?.cities ?? []);
+	cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex);
+	businessLayers.update(buildAppBusinessLayers(initialState.workspaceCompute?.result ?? null));
 	applyCameraMode(initialState);
 	applyYearTone(initialState);
 	hooks.onCityPick?.(activeCityIndex);
@@ -313,8 +267,24 @@ export function createAppScene(
 		},
 		dispose() {
 			resizeObserver.disconnect();
+			cityMarkers.dispose();
+			businessLayers.dispose();
 			scene.dispose();
 			engine.dispose();
 		},
 	};
+}
+
+function createColorMaterial(
+	scene: Scene,
+	name: string,
+	diffuseColor: Color3,
+	emissiveColor: Color3,
+	alpha = 1,
+) {
+	const material = new StandardMaterial(name, scene);
+	material.diffuseColor = diffuseColor;
+	material.emissiveColor = emissiveColor;
+	material.alpha = alpha;
+	return material;
 }

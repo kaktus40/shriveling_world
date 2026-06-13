@@ -48,6 +48,8 @@ Responsabilites:
 - navigation temporelle fluide;
 - requeteur humain sur arbre AST;
 - ajustement du rendu final;
+- affichage des couches metier calculees en provenances du compute partage
+  (frontieres, cones finaux, courbes) sans recopier la logique de calcul;
 - export vers des outils externes comme Blender;
 - reutilisation des memes donnees preparees et du meme orchestrateur compute.
 - chrome UI en surimpression plutot qu interface pleine page.
@@ -93,8 +95,12 @@ Principes:
 - les menus de controle apparaissent au passage de la souris;
 - les interactions clavier/souris restent concentrees dans la couche app,
   jamais dans le compute.
-- la premiere coque Babylon de `app` doit rester minces et pilotable via un
+- la premiere coque Babylon de `app` doit rester mince et pilotable via un
   controleur de scene dedie, pas via un gros `+page.svelte`.
+- les geometries calculees reelles doivent arriver dans la scene via un
+  contrat explicite de couches metier, pas via un transfert d etat implicite.
+- les marqueurs de villes, les couches metier et les adaptations Babylon
+  restent dans des modules distincts pour garder le client lisible.
 
 ## Regles De Maintenabilite
 

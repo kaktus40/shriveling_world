@@ -1698,12 +1698,22 @@ Travail deja realise:
   - `src/routes/app/+page.svelte` comme shell operationnel mince;
   - `src/lib/application/app/page.ts` comme contrat d etat partage;
   - `src/lib/application/app/scene.ts` comme controleur Babylon;
+  - `src/lib/application/app/render.ts` comme extraction pure des couches
+    metier rendables;
+  - `src/lib/application/app/business-layers.ts` comme adaptateur Babylon des
+    couches calculees;
+  - `src/lib/application/app/city-markers.ts` comme couche de marqueurs et de
+    picking des villes;
+  - `src/lib/application/app/compute.ts` comme chargement des geometries
+    calculees operatoires;
   - `src/lib/components/app/AppViewport.svelte` comme viewport plein ecran;
   - `src/lib/components/app/AppControlPanel.svelte` comme chrome de controle;
   - scene plein ecran;
   - panneaux de controle en surimpression;
   - menus visibles au survol;
   - selection de dataset, annee, ville et mode de camera;
+  - chargement des geometries calculees reelles pour les couches metier
+    (frontieres, cones finaux, courbes);
   - premier niveau d interaction inspire du code historique `toBabylon`
     (orbite, zoom a la molette, picking de ville).
 
@@ -1719,6 +1729,8 @@ Critere d acceptance:
   compute;
 - la scene Babylon prend toute la place et les outils apparaissent en
   surimpression au survol.
+- les couches metier calculees sont branchees via un contrat explicite et
+  restent decouplees de la scene Babylon.
 
 Validation:
 

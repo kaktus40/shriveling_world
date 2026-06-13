@@ -1,3 +1,6 @@
+/** Canonical Babylon globe radius used by the operational app shell. */
+export const APP_GLOBE_RADIUS = 12;
+
 /**
  * Projects a city expressed in spherical coordinates to the app globe space.
  *
@@ -9,7 +12,7 @@
 export function projectCityToAppPoint(
 	longitudeRadians: number,
 	latitudeRadians: number,
-	radius = 12,
+	radius = APP_GLOBE_RADIUS,
 ): readonly [number, number, number] {
 	const cLatitude = Math.cos(latitudeRadians);
 	const sLatitude = Math.sin(latitudeRadians);

@@ -2,9 +2,11 @@
 	import { onMount } from 'svelte';
 	import type { AppCameraMode, AppPageState } from '$lib/application/app';
 	import type { AppSceneController, AppSceneState } from '$lib/application/app/scene';
+	import type { WorkspaceComputeResult } from '$lib/application/workspace';
 	import type { WorkspaceCitySummary } from '$lib/application/workspace';
 
 	export let appState: AppPageState | null = null;
+	export let workspaceCompute: WorkspaceComputeResult | null = null;
 	export let selectedYear = 0;
 	export let selectedYearLabel: number | string = '';
 	export let selectedCityIndex = 0;
@@ -20,18 +22,20 @@
 
 	const getSceneState = (): AppSceneState => ({
 		appState,
+		workspaceCompute,
 		selectedYear,
 		selectedCityIndex,
 		cameraMode,
 	});
 
 	onMount(() => {
-		if (!canvas) {
+		const canvasElement = canvas;
+		if (!canvasElement) {
 			return undefined;
 		}
 
 		void import('$lib/application/app/scene').then(({ createAppScene }) => {
-			controller = createAppScene(canvas, getSceneState(), {
+			controller = createAppScene(canvasElement, getSceneState(), {
 				onCityPick: (cityIndex) => onCityIndexChange(cityIndex),
 				onYearStep: (step) => {
 					if (!appState) {
@@ -81,6 +85,11 @@
 		<ul>
 			<li>{appState ? `${appState.summary.cityCount} cities loaded` : 'No dataset loaded yet'}</li>
 			<li>{appState ? `${appState.summary.edgeCount} edges ready` : 'Waiting for compute data'}</li>
+			<li>
+				{workspaceCompute?.result.geojsonRuns.reduce((count, run) => count + (run.finalCones ? 1 : 0), 0) ?? 0}
+				final cone layer(s)
+			</li>
+			<li>{workspaceCompute?.result.curveGeometry ? 'Curve layer ready' : 'Curve layer pending'}</li>
 			<li>Selection index {selectedCityIndex}</li>
 			<li>Keyboard: `+/-` zoom, `[`/`]` year, `1/2/3` camera mode</li>
 		</ul>

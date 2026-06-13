@@ -3,6 +3,8 @@
 	import AppControlPanel from '$lib/components/app/AppControlPanel.svelte';
 	import AppViewport from '$lib/components/app/AppViewport.svelte';
 	import { loadAppPageState, type AppPageState, type AppCameraMode } from '$lib/application/app';
+	import { loadAppSceneCompute } from '$lib/application/app/compute';
+	import type { WorkspaceComputeResult } from '$lib/application/workspace';
 	import type { WorkspaceCitySummary } from '$lib/application/workspace';
 
 	export let data: {
@@ -10,6 +12,7 @@
 	};
 
 	let appState: AppPageState | null = null;
+	let workspaceCompute: WorkspaceComputeResult | null = null;
 	let selectedDataset = data.datasets[0] ?? '';
 	let selectedYear = 0;
 	let selectedCityIndex = 0;
@@ -18,6 +21,7 @@
 	let errorMessage = '';
 	let selectedCity: WorkspaceCitySummary | null = null;
 	let selectedYearLabel: number | string = '';
+	let computeRequestId = 0;
 
 	onMount(() => {
 		if (selectedDataset) {
@@ -38,11 +42,36 @@
 			selectedYear = loaded.selection.year;
 			selectedCityIndex = loaded.selection.cityIndex;
 			cameraMode = loaded.selection.cameraMode;
+			await reloadAppCompute(loaded, selectedYear);
 		} catch (error) {
 			appState = null;
+			workspaceCompute = null;
 			errorMessage = error instanceof Error ? error.message : String(error);
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function reloadAppCompute(state: AppPageState, year: number): Promise<void> {
+		const requestId = ++computeRequestId;
+		loading = true;
+		errorMessage = '';
+		try {
+			const loadedCompute = await loadAppSceneCompute(state.workspace, { year });
+			if (requestId !== computeRequestId) {
+				return;
+			}
+			workspaceCompute = loadedCompute;
+		} catch (error) {
+			if (requestId !== computeRequestId) {
+				return;
+			}
+			workspaceCompute = null;
+			errorMessage = error instanceof Error ? error.message : String(error);
+		} finally {
+			if (requestId === computeRequestId) {
+				loading = false;
+			}
 		}
 	}
 
@@ -55,7 +84,13 @@
 	}
 
 	function handleYearChange(next: number): void {
+		if (next === selectedYear) {
+			return;
+		}
 		selectedYear = next;
+		if (appState) {
+			void reloadAppCompute(appState, next);
+		}
 	}
 
 	function handleCityIndexChange(next: number): void {
@@ -70,6 +105,9 @@
 		selectedYear = appState?.selection.year ?? selectedYear;
 		selectedCityIndex = appState?.selection.cityIndex ?? selectedCityIndex;
 		cameraMode = appState?.selection.cameraMode ?? 'orbit';
+		if (appState) {
+			void reloadAppCompute(appState, selectedYear);
+		}
 	}
 
 	$: selectedCity =
@@ -85,6 +123,7 @@
 <div class="app-shell">
 	<AppViewport
 		{appState}
+		{workspaceCompute}
 		{selectedYear}
 		{selectedYearLabel}
 		{selectedCityIndex}
