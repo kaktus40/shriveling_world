@@ -1694,6 +1694,18 @@ Travail deja realise:
 - reduction de `src/routes/workspace/+page.svelte` a un role
   d orchestration;
 - maintien des contrats metier et compute identiques.
+- pose d une coque `app` Babylon.js avec:
+  - `src/routes/app/+page.svelte` comme shell operationnel mince;
+  - `src/lib/application/app/page.ts` comme contrat d etat partage;
+  - `src/lib/application/app/scene.ts` comme controleur Babylon;
+  - `src/lib/components/app/AppViewport.svelte` comme viewport plein ecran;
+  - `src/lib/components/app/AppControlPanel.svelte` comme chrome de controle;
+  - scene plein ecran;
+  - panneaux de controle en surimpression;
+  - menus visibles au survol;
+  - selection de dataset, annee, ville et mode de camera;
+  - premier niveau d interaction inspire du code historique `toBabylon`
+    (orbite, zoom a la molette, picking de ville).
 
 Critere d acceptance:
 
@@ -1703,6 +1715,10 @@ Critere d acceptance:
 - les panneaux communs sont reutilisables;
 - les fichiers Svelte les plus gros ont ete reduits ou scindes;
 - les contrats metier restent inchanges.
+- la coque `app` expose deja un premier niveau d interaction sans polluer le
+  compute;
+- la scene Babylon prend toute la place et les outils apparaissent en
+  surimpression au survol.
 
 Validation:
 

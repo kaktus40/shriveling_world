@@ -38,6 +38,10 @@ But:
 - permettre la selection de villes;
 - executer des requetes metier sur les villes;
 - produire des extractions pour rendu differe, export ou traitement externe.
+- afficher une scene Babylon.js plein ecran;
+- superposer des menus de controle visibles au survol;
+- offrir un premier niveau d interaction inspire du code historique:
+  orbite, zoom, picking de ville, inspection.
 
 Responsabilites:
 - rendu 3D principal;
@@ -46,6 +50,7 @@ Responsabilites:
 - ajustement du rendu final;
 - export vers des outils externes comme Blender;
 - reutilisation des memes donnees preparees et du meme orchestrateur compute.
+- chrome UI en surimpression plutot qu interface pleine page.
 
 ## Couche Partagee
 
@@ -84,6 +89,12 @@ Principes:
 - la logique d etat et d orchestration vit dans `src/lib/features/*`;
 - les composants visuels generiques sont centralises dans `src/lib/shared-ui/*`;
 - les composants de domaine applicatif restent petits et reutilisables.
+- la scene Babylon occupe tout le viewport;
+- les menus de controle apparaissent au passage de la souris;
+- les interactions clavier/souris restent concentrees dans la couche app,
+  jamais dans le compute.
+- la premiere coque Babylon de `app` doit rester minces et pilotable via un
+  controleur de scene dedie, pas via un gros `+page.svelte`.
 
 ## Regles De Maintenabilite
 

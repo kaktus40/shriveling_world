@@ -16,6 +16,7 @@
         "characterize:datasets": "npm run fixtures:create && tsx scripts/characterize-datasets.ts"
     },
     "dependencies": {
+        "@babylonjs/core": "^9.12.0",
         "delaunator": "^5.1.0"
     },
     "devDependencies": {
