@@ -21,6 +21,7 @@
 	let report: WorkspaceSyntheticHeuristicReport | null = null;
 	let errorMessage = '';
 	let running = false;
+	let bestCase: ReturnType<typeof bestSyntheticCase> = null;
 
 	function parseSweepWidths(text: string): number[] {
 		return text
@@ -34,6 +35,7 @@
 	async function runSyntheticHeuristic(): Promise<void> {
 		running = true;
 		errorMessage = '';
+		bestCase = null;
 		try {
 			report = benchmarkSyntheticAlphaAwareHeuristic({
 				cityCoordinatesText,
@@ -48,6 +50,7 @@
 			});
 		} catch (error) {
 			report = null;
+			bestCase = null;
 			errorMessage = error instanceof Error ? error.message : String(error);
 		} finally {
 			running = false;
@@ -69,9 +72,34 @@
 			}
 			linkLines.push(linkTokens.join('; '));
 		}
+		setSyntheticSet(cityLines, linkLines);
+	}
+
+	function generateCorridorSyntheticSet(): void {
+		const cityLines: string[] = [];
+		const linkLines: string[] = [];
+		const span = Math.max(1, randomCityCount - 1);
+		for (let cityIndex = 0; cityIndex < randomCityCount; cityIndex += 1) {
+			const progress = cityIndex / span;
+			const lon = -0.9 + progress * 1.8;
+			const lat = 0.35 * Math.sin(progress * Math.PI * 2);
+			cityLines.push(`${lon.toFixed(4)} ${lat.toFixed(4)}`);
+			const linkTokens: string[] = [];
+			for (let linkIndex = 0; linkIndex < randomLinksPerCity; linkIndex += 1) {
+				const azimuth = (progress * Math.PI * 1.3 + linkIndex * 0.4) % (Math.PI * 2);
+				const alpha = 0.18 + progress * 0.2 + linkIndex * 0.03;
+				linkTokens.push(`${linkIndex}@${azimuth.toFixed(4)}:${alpha.toFixed(4)}`);
+			}
+			linkLines.push(linkTokens.join('; '));
+		}
+		setSyntheticSet(cityLines, linkLines);
+	}
+
+	function setSyntheticSet(cityLines: string[], linkLines: string[]): void {
 		cityCoordinatesText = cityLines.join('\n');
 		cityLinksText = linkLines.join('\n');
 		report = null;
+		bestCase = null;
 		errorMessage = '';
 	}
 
@@ -91,6 +119,35 @@
 		}
 		return `${(((order - blockPruned) / order) * 100).toFixed(1)}%`;
 	}
+
+	function bestSyntheticCase(report: WorkspaceSyntheticHeuristicReport):
+		| {
+				readonly width: number;
+				readonly gain: number;
+				readonly ratio: string;
+		  }
+		| null {
+		let selectedCase: WorkspaceSyntheticHeuristicReport['cases'][number] | null = null;
+		let selectedGain = Number.NEGATIVE_INFINITY;
+		for (const entry of report.cases) {
+			const gain = entry.order.testedFaceCount - entry.blockPruned.testedFaceCount;
+			if (gain > selectedGain) {
+				selectedCase = entry;
+				selectedGain = gain;
+			}
+		}
+		if (!selectedCase) {
+			return null;
+		}
+		const ratio = selectedCase.order.testedFaceCount === 0 ? 'n/a' : `${(((selectedGain ?? 0) / selectedCase.order.testedFaceCount) * 100).toFixed(1)}%`;
+		return {
+			width: selectedCase.bilateralNeighborhoodFaceCount,
+			gain: selectedGain,
+			ratio,
+		};
+	}
+
+	$: bestCase = report ? bestSyntheticCase(report) : null;
 </script>
 
 <article class="panel synthetic-panel">
@@ -119,6 +176,7 @@
 		<label><span>Random cities</span><input bind:value={randomCityCount} type="number" step="1" min="1" /></label>
 		<label><span>Links/city</span><input bind:value={randomLinksPerCity} type="number" step="1" min="1" /></label>
 		<button type="button" on:click={generateRandomSyntheticSet}>Generate random set</button>
+		<button type="button" on:click={generateCorridorSyntheticSet}>Generate corridor set</button>
 		<button on:click={runSyntheticHeuristic} disabled={running}>{running ? 'Running...' : 'Run synthetic sweep'}</button>
 	</div>
 
@@ -138,6 +196,10 @@
 			<span>Links {report.dynamicTown.cityLinkCounts.reduce((sum, count) => sum + count, 0)}</span>
 			<span>Widths {report.cases.length}</span>
 			<span>Road alpha {report.roadAlphaRadians.toFixed(3)}</span>
+			{#if bestCase}
+				<span>Best gain {bestCase.gain} faces</span>
+				<span>Best ratio {bestCase.ratio}</span>
+			{/if}
 		</div>
 		<table>
 			<thead>

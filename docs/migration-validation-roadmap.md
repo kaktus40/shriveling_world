@@ -1519,7 +1519,8 @@ Travail realise:
 - benchmark stable `cone-intersection-alpha-aware-block-pruned`;
 - le workspace expose la comparaison des largeurs bilaterales alpha-aware;
 - le workspace propose aussi un banc synthetique avec villes libres,
-  azimuts/alphas libres, comparaison ordre vs pruning et apercu 3D minimal;
+  azimuts/alphas libres, presets random/corridor, comparaison ordre vs
+  pruning et apercu 3D minimal;
 - portage WebGL2 puis WebGPU du noyau `ciseledCones` avec comparaison readback
   contre l'oracle CPU;
 - contrat de cache memoire d'instance par annee pour
