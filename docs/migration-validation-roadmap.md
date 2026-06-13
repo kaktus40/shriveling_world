@@ -1419,6 +1419,8 @@ Travail deja realise:
   city NED-to-ECEF et sur le raycast GeoJSON;
 - la parite des helpers math shader partages est verifiee par test source-level
   entre WGSL et GLSL;
+- les passes shader ne redéfinissent pas localement les helpers angulaires
+  partages;
 - la prochaine phase de M7 consiste surtout a durcir les comparaisons,
   harmoniser les derniers helpers math/shader encore locaux et consolider les
   readbacks de validation.
