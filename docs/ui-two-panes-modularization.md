@@ -53,6 +53,10 @@ Responsabilites:
 - export vers des outils externes comme Blender;
 - reutilisation des memes donnees preparees et du meme orchestrateur compute.
 - chrome UI en surimpression plutot qu interface pleine page.
+- slider d annee horizontal pleine largeur en haut de l ecran, visible au
+  survol;
+- variateur vertical de representation sur le bord droit, avec select de
+  representation a chaque extremite.
 
 ## Couche Partagee
 

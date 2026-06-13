@@ -40,7 +40,7 @@ Surface operationnelle quotidienne.
 Elle doit rester simple:
 
 - choix du dataset;
-- choix de l annee via slider;
+- choix de l annee via un slider horizontal pleine largeur en haut de l ecran;
 - selection de la ville;
 - navigation camera;
 - affichage et bascule des couches metier;
@@ -141,7 +141,7 @@ destination cible et leur comportement attendu.
 | Controle historique | Destination cible | Interaction attendue | Statut |
 | --- | --- | --- | --- |
 | dataset | `app` > `Data` | selection immediate du dataset; recharge du snapshot; reset des selections invalides | repris |
-| year | `app` > `Navigation` | slider d annee; changement fluide sans relecture du dataset; mise a jour du rendu et du calcul interactif | repris |
+| year | `app` > `Navigation` | slider horizontal pleine largeur place en haut; visible au survol; changement fluide sans relecture du dataset; mise a jour du rendu et du calcul interactif | repris |
 | city selection | `app` > `Navigation` | selection d une ville par liste et par picking; recentrage de la camera | repris |
 | show cities name | `app` > `Display` | bascule d affichage des labels de villes; ne declenche pas de recalcul | a reprendre |
 | taille du texte | `app` > `Display` | ajuste l echelle des labels; met a jour uniquement les meshes texte | a reprendre |
@@ -177,7 +177,7 @@ destination cible et leur comportement attendu.
 | standard parallel 2 | `workspace` > `Projection` | ajuste la projection conique; recalcul immediat des donnees projetees | a reprendre |
 | projection initiale | `workspace` > `Projection` | selection du mode de projection de depart | a reprendre |
 | projection finale | `workspace` > `Projection` | selection du mode de projection cible | a reprendre |
-| percent transition | `app` > `Display` ou `workspace` > `Projection` | slider de pourcentage de representation; interpolation visible entre deux representations | a reprendre |
+| percent transition | `app` > `Display` ou `workspace` > `Projection` | variateur vertical sur le bord droit de l ecran; prend toute la hauteur; select de representation a chaque extremite; interpolation visible entre deux representations | a reprendre |
 | orthographic / perspective swap | `app` > `Display` ou `workspace` > `Projection` | bascule de camera / representation selon le contexte | a reprendre |
 
 ### D. Cotes Cones
@@ -269,7 +269,8 @@ Regrouper:
   - couleurs de couche;
   - taille texte;
   - bascule orthographique si maintenue;
-  - pourcentage de representation via slider.
+  - pourcentage de representation via variateur vertical avec select aux deux
+    extremites.
 - `Query`:
   - requeteur AST;
   - execution et resultat;
@@ -338,7 +339,9 @@ Regrouper:
 
 ### Representation
 
-- Le pourcentage de representation doit etre accessible par slider.
+- Le pourcentage de representation doit etre accessible par un variateur
+  vertical place sur le bord droit de l ecran.
+- Un select de representation doit etre present a chaque extremite du variateur.
 - La transition entre representations doit etre lisible et progressive.
 - Le changement peut relancer les couches derivees, mais ne doit pas relire le
   dataset.
