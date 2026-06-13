@@ -58,11 +58,15 @@ export function bindCiseledConesTextures(
 	const overlapCandidatesLocation = gl.getUniformLocation(resources.program, 'u_overlapCandidates');
 	const overlapCandidateCountsLocation = gl.getUniformLocation(resources.program, 'u_overlapCandidateCounts');
 	const rawConeRimEcefLocation = gl.getUniformLocation(resources.program, 'u_rawConeRimEcef');
+	const cityPairInvariantsLocation = gl.getUniformLocation(resources.program, 'u_cityPairInvariants');
+	const coneAlphaRadiansLocation = gl.getUniformLocation(resources.program, 'u_coneAlphaRadians');
 	if (
 		!cityMatricesLocation ||
 		!overlapCandidatesLocation ||
 		!overlapCandidateCountsLocation ||
-		!rawConeRimEcefLocation
+		!rawConeRimEcefLocation ||
+		!cityPairInvariantsLocation ||
+		!coneAlphaRadiansLocation
 	) {
 		throw new Error('WebGL2 ciseled cones uniform lookup failed');
 	}
@@ -79,4 +83,12 @@ export function bindCiseledConesTextures(
 	gl.activeTexture(gl.TEXTURE3);
 	gl.bindTexture(gl.TEXTURE_2D, resources.rawConeRimEcefTexture);
 	gl.uniform1i(rawConeRimEcefLocation, 3);
+
+	gl.activeTexture(gl.TEXTURE4);
+	gl.bindTexture(gl.TEXTURE_2D, resources.cityPairInvariantsTexture);
+	gl.uniform1i(cityPairInvariantsLocation, 4);
+
+	gl.activeTexture(gl.TEXTURE5);
+	gl.bindTexture(gl.TEXTURE_2D, resources.coneAlphaRadiansTexture);
+	gl.uniform1i(coneAlphaRadiansLocation, 5);
 }

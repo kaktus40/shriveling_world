@@ -82,9 +82,19 @@ export interface CiseledConesDispatchInput {
 	readonly overlapCandidates: Uint32Array;
 	readonly overlapCandidateCounts: Uint32Array;
 	readonly rawConeRimEcef: Float32Array;
+	/** Dense city-pair invariants used by the alpha-aware ciseled heuristic. */
+	readonly cityPairInvariants: Float32Array;
+	/** Dense cone alpha samples, one value per city and azimuth sample. */
+	readonly coneAlphaRadians: Float32Array;
 	readonly cityCount: number;
 	readonly azimuthSampleCount: number;
 	readonly neighborLimit: number;
+	/** Road alpha used as the slow-reference threshold for the heuristic. */
+	readonly roadAlphaRadians: number;
+	/** Number of faces explored in the bilateral window around the symmetric ray. */
+	readonly bilateralNeighborhoodFaceCount: number;
+	/** Angular tolerance used to classify fast faces around the road threshold. */
+	readonly alphaEpsilonRadians: number;
 }
 
 /** WebGPU resources required by the ciseled-cones oracle WGSL pass. */
@@ -94,6 +104,9 @@ export interface CiseledConesDispatchResources {
 	readonly overlapCandidateCounts: GpuBufferAllocation;
 	readonly rawConeRimEcef: GpuBufferAllocation;
 	readonly uniform: GpuBufferAllocation;
+	readonly heuristics: GpuBufferAllocation;
+	readonly cityPairInvariants: GpuBufferAllocation;
+	readonly coneAlphaRadians: GpuBufferAllocation;
 	readonly coneIntersectionDistanceMeters: GpuBufferAllocation;
 	readonly ciseledConeRimEcef: GpuBufferAllocation;
 }

@@ -1,6 +1,7 @@
 import rawConeAlphasVertexShaderSource from '../kernels/raw-cone-alphas/webgl2.vert?raw';
 import cityNed2EcefVertexShaderSource from '../kernels/city-ned2ecef/webgl2.vert?raw';
 import boundaryAlgebreVertexShaderSource from '../kernels/boundary-algebre/webgl2.vert?raw';
+import sharedMathWebGl2ShaderSource from '../kernels/shared/math/webgl2.glsl?raw';
 import rayIntersectTriangleWebGl2ShaderSource from '../kernels/shared/ray-intersect-triangle/webgl2.glsl?raw';
 import ciseledConesVertexShaderSource from '../kernels/ciseled-cones/webgl2.vert?raw';
 import finalConesVertexShaderSource from '../kernels/final-cones/webgl2.vert?raw';
@@ -22,7 +23,7 @@ export function createWebGl2ComputeResources(gl: WebGL2RenderingContext): WebGl2
 	const boundaryProgram = createBoundaryAlgebreProgram(gl, boundaryAlgebreVertexShaderSource);
 	const ciseledConesProgram = createCiseledConesProgram(
 		gl,
-		`${rayIntersectTriangleWebGl2ShaderSource}\n${ciseledConesVertexShaderSource}`,
+		`${sharedMathWebGl2ShaderSource}\n${rayIntersectTriangleWebGl2ShaderSource}\n${ciseledConesVertexShaderSource}`,
 	);
 	const finalConesProgram = createFinalConesProgram(gl, finalConesVertexShaderSource);
 	const curveGeometryProgram = createCurveGeometryProgram(gl, curveGeometryVertexShaderSource);

@@ -83,8 +83,17 @@ function buildMinimalResult(): ComputeResult {
 			overlapCandidates: new Uint32Array([0]),
 			overlapCandidateCounts: new Uint32Array([1]),
 			neighborLimit: 1,
+			cityPairInvariants: new Float32Array([0.1, 0.2, 0.3, 0]),
 		} as ComputeResult['staticTown'],
-		dynamicTown: undefined,
+		dynamicTown: {
+			year: 2000,
+			roadAlphaRadians: 0.5,
+			cityFastestTerrestrialAlphaRadians: new Float32Array([0.4]),
+			cityLinkOffsets: new Uint32Array([0]),
+			cityLinkCounts: new Uint32Array([0]),
+			cityLinkAzimuthRadians: new Float32Array([0]),
+			cityLinkAlphaRadians: new Float32Array([0]),
+		} as ComputeResult['dynamicTown'],
 		rawCones: {
 			cityCount: 1,
 			azimuthSampleCount: 1,

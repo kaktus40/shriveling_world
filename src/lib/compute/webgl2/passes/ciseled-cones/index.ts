@@ -1,6 +1,9 @@
+import sharedMathVertexShaderSource from '../../../kernels/shared/math/webgl2.glsl?raw';
+import rayIntersectTriangleVertexShaderSource from '../../../kernels/shared/ray-intersect-triangle/webgl2.glsl?raw';
 import ciseledConesVertexShaderSource from '../../../kernels/ciseled-cones/webgl2.vert?raw';
 import type { DatasetDiagnostic } from '../../../../domain/data';
-import type { ComputeResult, StageTiming } from '../../../core';
+import type { ComputeOptions, ComputeResult, StageTiming } from '../../../core';
+import { ALPHA_SUPPORT_EPSILON_RADIANS } from '../../../../domain/precompute/cpu/cone-intersection-constants';
 import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
@@ -17,6 +20,7 @@ export interface WebGl2CiseledConePassInput {
 	readonly gl: WebGL2RenderingContext;
 	readonly result: ComputeResult;
 	readonly resources: WebGl2ComputeResources;
+	readonly coneIntersection?: ComputeOptions['coneIntersection'];
 }
 
 export interface WebGl2CiseledConePassResult {
@@ -31,7 +35,8 @@ export async function runWebGl2CiseledConePass(
 	const staticTown = input.result.staticTown;
 	const rawCones = input.result.rawCones;
 	const coneIntersections = input.result.coneIntersections;
-	if (!staticTown || !rawCones || !coneIntersections) {
+	const dynamicTown = input.result.dynamicTown;
+	if (!staticTown || !rawCones || !coneIntersections || !dynamicTown) {
 		return {
 			timing: {
 				stage: 'cone-intersections-precompute',
@@ -47,6 +52,7 @@ export async function runWebGl2CiseledConePass(
 
 	const cityCount = rawCones.cityCount;
 	const azimuthSampleCount = rawCones.azimuthSampleCount;
+	const alphaAwareOptions = input.coneIntersection?.alphaAware ?? {};
 	if (cityCount <= 0 || azimuthSampleCount <= 0) {
 		return {
 			timing: {
@@ -61,7 +67,12 @@ export async function runWebGl2CiseledConePass(
 		};
 	}
 
-	const program = input.resources.programCache?.get('ciseled-cones') ?? createCiseledConesProgram(input.gl, ciseledConesVertexShaderSource);
+	const program =
+		input.resources.programCache?.get('ciseled-cones') ??
+		createCiseledConesProgram(
+			input.gl,
+			`${sharedMathVertexShaderSource}\n${rayIntersectTriangleVertexShaderSource}\n${ciseledConesVertexShaderSource}`,
+		);
 	const dispatchResources = createCiseledConesDispatchResources(
 		input.gl,
 		program,
@@ -70,9 +81,15 @@ export async function runWebGl2CiseledConePass(
 			overlapCandidates: staticTown.overlapCandidates,
 			overlapCandidateCounts: staticTown.overlapCandidateCounts,
 			rawConeRimEcef: rawCones.rawConeRimEcef,
+			cityPairInvariants: staticTown.cityPairInvariants,
+			coneAlphaRadians: rawCones.coneAlphaRadians,
 			cityCount,
 			azimuthSampleCount,
 			neighborLimit: staticTown.neighborLimit,
+			roadAlphaRadians: dynamicTown.roadAlphaRadians,
+			bilateralNeighborhoodFaceCount:
+				alphaAwareOptions.bilateralNeighborhoodFaceCount ?? Math.min(Math.max(azimuthSampleCount, 1), 8),
+			alphaEpsilonRadians: alphaAwareOptions.alphaEpsilonRadians ?? ALPHA_SUPPORT_EPSILON_RADIANS,
 		},
 	);
 	const transformFeedback = input.gl.createTransformFeedback();
@@ -91,6 +108,13 @@ export async function runWebGl2CiseledConePass(
 				cityCount,
 				azimuthSampleCount,
 				staticTown.neighborLimit,
+				0,
+			);
+			input.gl.uniform4f(
+				dispatchResources.heuristicUniformLocation,
+				dynamicTown.roadAlphaRadians,
+				alphaAwareOptions.bilateralNeighborhoodFaceCount ?? Math.min(Math.max(azimuthSampleCount, 1), 8),
+				alphaAwareOptions.alphaEpsilonRadians ?? ALPHA_SUPPORT_EPSILON_RADIANS,
 				0,
 			);
 			bindCiseledConesTextures(input.gl, dispatchResources);

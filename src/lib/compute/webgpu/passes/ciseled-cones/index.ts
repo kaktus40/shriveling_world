@@ -1,6 +1,9 @@
+import sharedMathShaderSource from '../../../kernels/shared/math/webgpu.wgsl?raw';
+import rayIntersectTriangleShaderSource from '../../../kernels/shared/ray-intersect-triangle/webgpu.wgsl?raw';
 import ciseledConesShaderSource from '../../../kernels/ciseled-cones/webgpu.wgsl?raw';
 import type { DatasetDiagnostic } from '../../../../domain/data';
-import type { ComputeResult, StageTiming } from '../../../core';
+import type { ComputeOptions, ComputeResult, StageTiming } from '../../../core';
+import { ALPHA_SUPPORT_EPSILON_RADIANS } from '../../../../domain/precompute/cpu/cone-intersection-constants';
 import { measureAsyncStage } from '../../../core/timing';
 import {
 	compareFloat32Buffers,
@@ -23,6 +26,7 @@ export interface WebGpuCiseledConePassInput {
 		readonly UNIFORM: number;
 		readonly MAP_READ: number;
 	};
+	readonly coneIntersection?: ComputeOptions['coneIntersection'];
 }
 
 export interface WebGpuCiseledConePassResult {
@@ -37,7 +41,8 @@ export async function runWebGpuCiseledConePass(
 	const staticTown = input.result.staticTown;
 	const rawCones = input.result.rawCones;
 	const reference = input.result.coneIntersections;
-	if (!staticTown || !rawCones || !reference) {
+	const dynamicTown = input.result.dynamicTown;
+	if (!staticTown || !rawCones || !reference || !dynamicTown) {
 		return {
 			timing: {
 				stage: 'cone-intersections-precompute',
@@ -53,6 +58,7 @@ export async function runWebGpuCiseledConePass(
 
 	const cityCount = rawCones.cityCount;
 	const azimuthSampleCount = rawCones.azimuthSampleCount;
+	const alphaAwareOptions = input.coneIntersection?.alphaAware ?? {};
 	if (cityCount <= 0 || azimuthSampleCount <= 0) {
 		return {
 			timing: {
@@ -75,9 +81,15 @@ export async function runWebGpuCiseledConePass(
 			overlapCandidates: staticTown.overlapCandidates,
 			overlapCandidateCounts: staticTown.overlapCandidateCounts,
 			rawConeRimEcef: rawCones.rawConeRimEcef,
+			cityPairInvariants: staticTown.cityPairInvariants,
+			coneAlphaRadians: rawCones.coneAlphaRadians,
 			cityCount,
 			azimuthSampleCount,
 			neighborLimit: staticTown.neighborLimit,
+			roadAlphaRadians: dynamicTown.roadAlphaRadians,
+			bilateralNeighborhoodFaceCount:
+				alphaAwareOptions.bilateralNeighborhoodFaceCount ?? Math.min(Math.max(azimuthSampleCount, 1), 8),
+			alphaEpsilonRadians: alphaAwareOptions.alphaEpsilonRadians ?? ALPHA_SUPPORT_EPSILON_RADIANS,
 		},
 	);
 	const pipeline = await input.context.device.createComputePipelineAsync({
@@ -85,7 +97,9 @@ export async function runWebGpuCiseledConePass(
 		compute: {
 			module:
 				input.resources.shaderModuleCache?.get('ciseled-cones') ??
-				input.context.device.createShaderModule({ code: ciseledConesShaderSource }),
+				input.context.device.createShaderModule({
+					code: `${sharedMathShaderSource}\n${rayIntersectTriangleShaderSource}\n${ciseledConesShaderSource}`,
+				}),
 			entryPoint: 'main',
 		},
 	});
@@ -96,9 +110,12 @@ export async function runWebGpuCiseledConePass(
 			{ binding: 1, resource: { buffer: resources.overlapCandidates.buffer } },
 			{ binding: 2, resource: { buffer: resources.overlapCandidateCounts.buffer } },
 			{ binding: 3, resource: { buffer: resources.rawConeRimEcef.buffer } },
-			{ binding: 4, resource: { buffer: resources.uniform.buffer } },
-			{ binding: 5, resource: { buffer: resources.coneIntersectionDistanceMeters.buffer } },
-			{ binding: 6, resource: { buffer: resources.ciseledConeRimEcef.buffer } },
+			{ binding: 4, resource: { buffer: resources.cityPairInvariants.buffer } },
+			{ binding: 5, resource: { buffer: resources.coneAlphaRadians.buffer } },
+			{ binding: 6, resource: { buffer: resources.uniform.buffer } },
+			{ binding: 7, resource: { buffer: resources.heuristics.buffer } },
+			{ binding: 8, resource: { buffer: resources.coneIntersectionDistanceMeters.buffer } },
+			{ binding: 9, resource: { buffer: resources.ciseledConeRimEcef.buffer } },
 		],
 	});
 

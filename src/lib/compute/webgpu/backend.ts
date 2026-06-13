@@ -57,7 +57,7 @@ export class WebGpuComputeBackend implements ComputeBackend {
 				capabilities: webgpuCapabilities(true),
 			};
 		const result = await this.#cpuBackend.computeFrame(input, options, delegatedSelection);
-		const coneStages = await runWebGpuConeStages(context, result, await this.ensureResources());
+		const coneStages = await runWebGpuConeStages(context, result, await this.ensureResources(), options);
 		const extraTimings: StageTiming[] = [...coneStages.extraTimings];
 		const compareDiagnostics: DatasetDiagnostic[] = [...coneStages.diagnostics];
 

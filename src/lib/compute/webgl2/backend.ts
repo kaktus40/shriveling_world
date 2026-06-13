@@ -66,7 +66,7 @@ export class WebGl2ComputeBackend implements ComputeBackend {
 				capabilities: webgl2Capabilities(true),
 			};
 		const result = await this.#cpuBackend.computeFrame(input, options, delegatedSelection);
-		const coneStages = await runWebGl2ConeStages(this.ensureGl(), result, await this.ensureResources());
+		const coneStages = await runWebGl2ConeStages(this.ensureGl(), result, await this.ensureResources(), options);
 		const extraTimings: StageTiming[] = [...coneStages.extraTimings];
 		const compareDiagnostics: DatasetDiagnostic[] = [...coneStages.diagnostics];
 		this.#ciseledConeRimEcefBuffer = coneStages.ciseledConeRimEcefBuffer;

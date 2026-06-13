@@ -10,6 +10,18 @@ fn positive_angle(angle_radians: f32) -> f32 {
 	return remainder;
 }
 
+fn positive_mod_i32(value: i32, modulus: i32) -> i32 {
+	var remainder = value % modulus;
+	if (remainder < 0) {
+		remainder = remainder + modulus;
+	}
+	return remainder;
+}
+
+fn signed_angle_delta(angle_radians: f32) -> f32 {
+	return positive_angle(angle_radians + PI) - PI;
+}
+
 fn shift_angle_near(angle_radians: f32, reference_radians: f32) -> f32 {
 	var shifted = angle_radians;
 	loop {

@@ -89,9 +89,19 @@ export interface WebGl2CiseledConesDispatchInput {
 	readonly overlapCandidates: Uint32Array;
 	readonly overlapCandidateCounts: Uint32Array;
 	readonly rawConeRimEcef: Float32Array;
+	/** Dense city-pair invariants used by the alpha-aware ciseled heuristic. */
+	readonly cityPairInvariants: Float32Array;
+	/** Dense cone alpha samples, one value per city and azimuth sample. */
+	readonly coneAlphaRadians: Float32Array;
 	readonly cityCount: number;
 	readonly azimuthSampleCount: number;
 	readonly neighborLimit: number;
+	/** Road alpha used as the slow-reference threshold for the heuristic. */
+	readonly roadAlphaRadians: number;
+	/** Number of faces explored in the bilateral window around the symmetric ray. */
+	readonly bilateralNeighborhoodFaceCount: number;
+	/** Angular tolerance used to classify fast faces around the road threshold. */
+	readonly alphaEpsilonRadians: number;
 }
 
 /** WebGL2 resources required by the ciseled-cones WebGL2 pass. */
@@ -102,13 +112,18 @@ export interface WebGl2CiseledConesDispatchResources {
 	readonly overlapCandidatesTexture: WebGLTexture;
 	readonly overlapCandidateCountsTexture: WebGLTexture;
 	readonly rawConeRimEcefTexture: WebGLTexture;
+	readonly cityPairInvariantsTexture: WebGLTexture;
+	readonly coneAlphaRadiansTexture: WebGLTexture;
 	readonly coneIntersectionDistanceMetersBuffer: WebGLBuffer;
 	readonly ciseledConeRimEcefBuffer: WebGLBuffer;
 	readonly uniformLocation: WebGLUniformLocation;
+	readonly heuristicUniformLocation: WebGLUniformLocation;
 	readonly cityMatricesContract: ComputeGpuBufferContract;
 	readonly overlapCandidatesContract: ComputeGpuBufferContract;
 	readonly overlapCandidateCountsContract: ComputeGpuBufferContract;
 	readonly rawConeRimEcefContract: ComputeGpuBufferContract;
+	readonly cityPairInvariantsContract: ComputeGpuBufferContract;
+	readonly coneAlphaRadiansContract: ComputeGpuBufferContract;
 	readonly coneIntersectionDistanceMetersContract: ComputeGpuBufferContract;
 	readonly ciseledConeRimEcefContract: ComputeGpuBufferContract;
 }

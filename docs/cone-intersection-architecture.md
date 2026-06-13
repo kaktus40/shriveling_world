@@ -129,6 +129,10 @@ alternance gauche/droite autour de `phiB0`, puis continue exhaustivement.
 Cette alternance conserve la couverture complete tout en donnant une priorite
 plus stable aux faces proches du rayon symetrique.
 
+La meme priorisation alpha-aware est desormais portee par les profils
+WebGL2 et WebGPU, qui consomment les invariants de paires et les alphas de
+cone sous un contrat de buffers aligne sur le CPU.
+
 La zone ayant la probabilite la plus forte de contenir la premiere
 intersection est l'intervalle angulaire court entre `phiB0` et `gammaBA`.
 L'ordre de recherche privilegie est donc:

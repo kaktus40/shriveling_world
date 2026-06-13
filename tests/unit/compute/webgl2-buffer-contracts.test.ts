@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 
 import { createBoundaryAlgebreDispatchResources } from '$lib/compute/webgl2/passes/boundary-algebre/buffers';
+import { createCiseledConesDispatchResources } from '$lib/compute/webgl2/passes/ciseled-cones/buffers';
 import { createCityNed2EcefDispatchResources } from '$lib/compute/webgl2/passes/city-ned2ecef/buffers';
 import { createRawConeAlphasDispatchResources } from '$lib/compute/webgl2/passes/raw-cone-alphas/buffers';
 
@@ -183,6 +184,45 @@ test('webgl2 boundary raycast buffer contract stores the canonical uniform layou
 		{
 			target: gl.TRANSFORM_FEEDBACK_BUFFER,
 			byteLength: 4 * 4 * Float32Array.BYTES_PER_ELEMENT,
+			usage: gl.DYNAMIC_COPY,
+		},
+	]);
+});
+
+test('webgl2 ciseled cone buffer contract stores the alpha-aware heuristic uniforms', () => {
+	const gl = createFakeGl();
+	const resources = createCiseledConesDispatchResources(
+		gl,
+		{} as WebGLProgram,
+		{
+			cityNed2EcefMatrices: new Float32Array(32),
+			overlapCandidates: new Uint32Array([0]),
+			overlapCandidateCounts: new Uint32Array([1]),
+			rawConeRimEcef: new Float32Array([1, 2, 3, 1]),
+			cityPairInvariants: new Float32Array([0.1, 0.2, 0.3, 0]),
+			coneAlphaRadians: new Float32Array([0.4]),
+			cityCount: 1,
+			azimuthSampleCount: 1,
+			neighborLimit: 1,
+			roadAlphaRadians: 0.5,
+			bilateralNeighborhoodFaceCount: 2,
+			alphaEpsilonRadians: 1e-6,
+		},
+	);
+
+	expect(resources.uniformLocation).toBeDefined();
+	expect(resources.heuristicUniformLocation).toBeDefined();
+	expect(resources.cityPairInvariantsContract.name).toBe('cityPairInvariants');
+	expect(resources.coneAlphaRadiansContract.name).toBe('coneAlphaRadians');
+	expect(gl.bufferDataCalls).toEqual([
+		{
+			target: gl.TRANSFORM_FEEDBACK_BUFFER,
+			byteLength: 1 * Float32Array.BYTES_PER_ELEMENT,
+			usage: gl.DYNAMIC_COPY,
+		},
+		{
+			target: gl.TRANSFORM_FEEDBACK_BUFFER,
+			byteLength: 1 * 4 * Float32Array.BYTES_PER_ELEMENT,
 			usage: gl.DYNAMIC_COPY,
 		},
 	]);

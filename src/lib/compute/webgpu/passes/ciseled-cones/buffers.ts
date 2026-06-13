@@ -30,6 +30,18 @@ export function createCiseledConesDispatchResources(
 		size: 16,
 		usage: usage.UNIFORM | usage.COPY_DST,
 	});
+	const heuristicsBuffer = device.createBuffer({
+		size: 16,
+		usage: usage.UNIFORM | usage.COPY_DST,
+	});
+	const cityPairInvariantsBuffer = device.createBuffer({
+		size: input.cityPairInvariants.byteLength,
+		usage: usage.STORAGE | usage.COPY_DST,
+	});
+	const coneAlphaRadiansBuffer = device.createBuffer({
+		size: input.coneAlphaRadians.byteLength,
+		usage: usage.STORAGE | usage.COPY_DST,
+	});
 	const distanceBuffer = device.createBuffer({
 		size: input.cityCount * input.azimuthSampleCount * Float32Array.BYTES_PER_ELEMENT,
 		usage: usage.STORAGE | usage.COPY_SRC,
@@ -43,10 +55,17 @@ export function createCiseledConesDispatchResources(
 	device.queue.writeBuffer(overlapCandidatesBuffer, 0, input.overlapCandidates);
 	device.queue.writeBuffer(overlapCandidateCountsBuffer, 0, input.overlapCandidateCounts);
 	device.queue.writeBuffer(rawConeRimBuffer, 0, input.rawConeRimEcef);
+	device.queue.writeBuffer(cityPairInvariantsBuffer, 0, input.cityPairInvariants);
+	device.queue.writeBuffer(coneAlphaRadiansBuffer, 0, input.coneAlphaRadians);
 	device.queue.writeBuffer(
 		uniformBuffer,
 		0,
 		new Uint32Array([input.cityCount, input.azimuthSampleCount, input.neighborLimit, 0]),
+	);
+	device.queue.writeBuffer(
+		heuristicsBuffer,
+		0,
+		new Float32Array([input.roadAlphaRadians, input.bilateralNeighborhoodFaceCount, input.alphaEpsilonRadians, 0]),
 	);
 
 	return {
@@ -102,6 +121,38 @@ export function createCiseledConesDispatchResources(
 				strideBytes: 4 * Uint32Array.BYTES_PER_ELEMENT,
 				count: 1,
 				notes: ['[cityCount, azimuthSampleCount, neighborLimit, unused]'],
+			},
+		},
+		heuristics: {
+			buffer: heuristicsBuffer,
+			contract: {
+				name: 'ciseledConeHeuristics',
+				elementType: 'float32',
+				strideBytes: 4 * Float32Array.BYTES_PER_ELEMENT,
+				count: 1,
+				angularUnit: 'radians',
+				notes: ['[roadAlphaRadians, bilateralNeighborhoodFaceCount, alphaEpsilonRadians, unused]'],
+			},
+		},
+		cityPairInvariants: {
+			buffer: cityPairInvariantsBuffer,
+			contract: {
+				name: 'cityPairInvariants',
+				elementType: 'float32',
+				strideBytes: 4 * Float32Array.BYTES_PER_ELEMENT,
+				count: input.cityPairInvariants.length / 4,
+				notes: ['Ordered city-pair invariants sampled as a RGBA32F texture'],
+			},
+		},
+		coneAlphaRadians: {
+			buffer: coneAlphaRadiansBuffer,
+			contract: {
+				name: 'coneAlphaRadians',
+				elementType: 'float32',
+				strideBytes: Float32Array.BYTES_PER_ELEMENT,
+				count: input.coneAlphaRadians.length,
+				angularUnit: 'radians',
+				notes: ['Raw cone alpha samples sampled as a R32F texture'],
 			},
 		},
 		coneIntersectionDistanceMeters: {

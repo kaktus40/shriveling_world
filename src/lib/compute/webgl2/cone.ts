@@ -1,5 +1,5 @@
 import type { DatasetDiagnostic } from '../../domain/data';
-import type { ComputeResult, StageTiming } from '../core';
+import type { ComputeOptions, ComputeResult, StageTiming } from '../core';
 import type { WebGl2ComputeResources } from './types';
 import { runWebGl2CityMatrixPass } from './passes/city-ned2ecef';
 import { runWebGl2RawConeAlphaPass } from './passes/raw-cone-alphas';
@@ -10,6 +10,7 @@ export async function runWebGl2ConeStages(
 	gl: WebGL2RenderingContext,
 	result: ComputeResult,
 	resources: WebGl2ComputeResources,
+	options: ComputeOptions = {},
 ): Promise<{
 	extraTimings: StageTiming[];
 	diagnostics: DatasetDiagnostic[];
@@ -44,6 +45,7 @@ export async function runWebGl2ConeStages(
 			gl,
 			result,
 			resources,
+			coneIntersection: options.coneIntersection,
 		});
 		extraTimings.push(ciseledConePass.timing);
 		diagnostics.push(...ciseledConePass.diagnostics);

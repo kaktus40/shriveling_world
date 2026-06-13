@@ -2,6 +2,7 @@ import { type GpuBufferAllocation } from './buffers';
 import { getGpuBufferUsage } from '../shared/compute';
 import type { DatasetDiagnostic } from '../../domain/data';
 import type { ComputeResult, StageTiming } from '../core';
+import type { ComputeOptions } from '../core';
 import type { WebGpuComputeContext, WebGpuComputeResources } from './types';
 import { runWebGpuCityMatrixPass } from './passes/city-ned2ecef';
 import { runWebGpuRawConeAlphaPass } from './passes/raw-cone-alphas';
@@ -12,6 +13,7 @@ export async function runWebGpuConeStages(
 	context: WebGpuComputeContext,
 	result: ComputeResult,
 	resources: WebGpuComputeResources,
+	options: ComputeOptions = {},
 ): Promise<{
 	extraTimings: StageTiming[];
 	diagnostics: DatasetDiagnostic[];
@@ -49,6 +51,7 @@ export async function runWebGpuConeStages(
 			result,
 			resources,
 			usage: getGpuBufferUsage(),
+			coneIntersection: options.coneIntersection,
 		});
 		extraTimings.push(ciseledConePass.timing);
 		diagnostics.push(...ciseledConePass.diagnostics);

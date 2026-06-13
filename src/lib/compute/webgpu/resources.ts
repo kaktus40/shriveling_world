@@ -3,6 +3,7 @@ import boundaryAlgebreShaderSource from '../kernels/boundary-algebre/webgpu.wgsl
 import cityNed2EcefShaderSource from '../kernels/city-ned2ecef/webgpu.wgsl?raw';
 import curveGeometryShaderSource from '../kernels/curve-geometry/webgpu.wgsl?raw';
 import finalConesShaderSource from '../kernels/final-cones/webgpu.wgsl?raw';
+import sharedMathShaderSource from '../kernels/shared/math/webgpu.wgsl?raw';
 import rayIntersectTriangleShaderSource from '../kernels/shared/ray-intersect-triangle/webgpu.wgsl?raw';
 import ciseledConesShaderSource from '../kernels/ciseled-cones/webgpu.wgsl?raw';
 import type { ComputeGpuBufferContract, ComputeGpuPipelineContract } from '../gpu';
@@ -29,7 +30,7 @@ export function createWebGpuComputeResources(device: GPUDevice): WebGpuComputeRe
 	const cityMatrixModule = device.createShaderModule({ code: cityNed2EcefShaderSource });
 	const rawConeAlphaModule = device.createShaderModule({ code: rawConeAlphasShaderSource });
 	const ciseledConeModule = device.createShaderModule({
-		code: `${rayIntersectTriangleShaderSource}\n${ciseledConesShaderSource}`,
+		code: `${sharedMathShaderSource}\n${rayIntersectTriangleShaderSource}\n${ciseledConesShaderSource}`,
 	});
 	const finalConeModule = device.createShaderModule({ code: finalConesShaderSource });
 	const boundaryModule = device.createShaderModule({ code: boundaryAlgebreShaderSource });

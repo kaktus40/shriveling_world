@@ -235,7 +235,10 @@ Dispatch:
 | `texture unit 1` | `overlapCandidates` | `R32UI` | `1` entier | index dense ou `UNUSED_INDEX` | Voisins statiques retenus |
 | `texture unit 2` | `overlapCandidateCounts` | `R32UI` | `1` entier | compte dense | Nombre de voisins retenus par ville |
 | `texture unit 3` | `rawConeRimEcef` | `RGBA32F` | `4` floats | `[x, y, z, padding]` | Rims bruts dense city/azimut |
+| `texture unit 4` | `cityPairInvariants` | `RG32F` | `2` floats utilises | `gammaAB`, `gammaBA` | Invariants de paires pour l'heuristique alpha-aware |
+| `texture unit 5` | `coneAlphaRadians` | `R32F` | `1` float | alpha dense par ville/azimut | Alpha brut du cone courant |
 | `uniform u_uniforms` | `cityCount`, `azimuthSampleCount`, `neighborLimit`, reserve | `vec4<f32>` | `4` floats | compteurs sans reinterpretation angulaire | Uniform compact de passe |
+| `uniform u_heuristics` | `roadAlphaRadians`, `bilateralNeighborhoodFaceCount`, `alphaEpsilonRadians`, reserve | `vec4<f32>` | `4` floats | radians, compte de faces, tolerance | Parametres heuristiques alpha-aware |
 | transform feedback `tf_coneIntersectionDistanceMeters` | `coneIntersectionDistanceMeters` | `R32F` | `1` float | metres | Distance ciselee retenue |
 | transform feedback `tf_ciseledConeRimEcef` | `ciseledConeRimEcef` | `RGBA32F` | `4` floats | `[xMeters, yMeters, zMeters, validFlag]` | Rim ECEF cisele |
 
@@ -310,12 +313,37 @@ Dispatch:
 - `global_invocation_id.z = 0`
 - taille de workgroup: `1 x 1 x 1`
 
+#### `ciseled-cones/webgpu.wgsl`
+
+| Binding | Buffer logique | Type | Stride | Unite / ordre | Role |
+| --- | --- | --- | --- | --- | --- |
+| `0` | `cityNed2EcefMatrices` | `Float32Array` | `16` floats | matrice `NED2ECEF` column-major | Matrices ville de reference |
+| `1` | `overlapCandidates` | `Uint32Array` | `1` entier | index dense ou `UNUSED_INDEX` | Voisins statiques retenus |
+| `2` | `overlapCandidateCounts` | `Uint32Array` | `1` entier | compte dense | Nombre de voisins retenus par ville |
+| `3` | `rawConeRimEcef` | `Float32Array` | `4` floats | `[x, y, z, padding]` | Rims bruts dense city/azimut |
+| `4` | `cityPairInvariants` | `Float32Array` | `4` floats | `[gammaAB, gammaBA, distanceMeters, reserve]` | Invariants de paires pour l'heuristique alpha-aware |
+| `5` | `coneAlphaRadians` | `Float32Array` | `1` float | alpha dense par ville/azimut | Alpha brut du cone courant |
+| `6` | `uniforms` | `Float32Array(4)` | `4` floats | `[cityCount, azimuthSampleCount, neighborLimit, reserve]` | Uniform compact de passe |
+| `7` | `heuristics` | `Float32Array(4)` | `4` floats | `[roadAlphaRadians, bilateralNeighborhoodFaceCount, alphaEpsilonRadians, reserve]` | Parametres heuristiques alpha-aware |
+| `8` | `coneIntersectionDistanceMeters` | `Float32Array` | `1` float | metres | Distance ciselee retenue |
+| `9` | `ciseledConeRimEcef` | `Float32Array` | `4` floats | `[xMeters, yMeters, zMeters, validFlag]` | Rim ECEF cisele |
+
+Dispatch:
+
+- `global_invocation_id.x = azimuthSampleIndex`
+- `global_invocation_id.y = cityIndex`
+- `global_invocation_id.z = 0`
+- taille de workgroup: `1 x 1 x 1`
+
 Rappel contractuel:
 
 - les angles internes sont toujours en radians;
 - les distances internes sont toujours en metres;
 - les buffers d'entree sont compactes et dense by city / dense by azimuth;
 - les sorties gardent la meme convention d'indices que les buffers CPU.
+- `ciseledCones` consomme aussi `cityPairInvariants`, `coneAlphaRadians` et
+  des parametres heuristiques partages avec le CPU pour conserver la meme
+  priorisation alpha-aware sur les trois profils.
 
 Le helper TypeScript correspondant porte ce schema dans
 `src/lib/compute/webgpu/buffers.ts` afin de partager le contrat entre le
@@ -1420,7 +1448,7 @@ reproduire obligatoirement le nom de fichier a l'identique.
 | `boundaryAlgebre.frag` | Identifier la limite geographique valide pour une ville et un azimut | `u_towns`, `u_countries`, limites GeoJSON, azimuts echantillonnes | limites cartographiques, limites ECEF, index de contour associe | Porte | CPU -> WebGL2 -> WebGPU | Elle remplace la logique de raycast pays et prepare les contours pour la decoupe suivante. |
 | `countryMeshShader.frag` | Convertir les contours pays en maillage affichable | polygones GeoJSON, contours triangules, couches basse/haute | vertices, normales, uvs, indexes, mesh pays | Non porte | Rendu | Passe de rendu, utile pour valider les donnees GeoJSON et le maillage des pays. |
 | `rawCones.frag` | Generer les cones bruts avant toute intersection | villes statiques, villes dynamiques, alphas, longueurs, intervalles d'azimut | `RawConeBuffer` | Porte | CPU -> WebGL2 -> WebGPU | Une invocation correspond a un couple `(ville, azimut)`. La selection d'alpha est la partie la plus parallele et la plus interessante a accelerer. |
-| `ciseledCones.frag` | Cisailler les cones bruts sur les cones voisins et les supports choisis | `RawConeBuffer`, voisins statiques, BVH circulaire, invariants de paires | `CiseledConeBuffer`, diagnostics de coupe, `t` retenus | Porte | CPU -> WebGL2 -> WebGPU | Passe critique de filtrage. Elle garde la valeur minimale utile sans changer le contrat geometrique. |
+| `ciseledCones.frag` | Cisailler les cones bruts sur les cones voisins et les supports choisis | `RawConeBuffer`, voisins statiques, BVH circulaire, invariants de paires, alphas | `CiseledConeBuffer`, diagnostics de coupe, `t` retenus | Porte | CPU -> WebGL2 -> WebGPU | Passe critique de filtrage. L'heuristique alpha-aware est portee sur les trois profils avec le meme contrat de buffers. |
 | `finalCones.frag` | Finaliser la geometrie decoupee et emettre la geometrie finale 3D | cones ciseles, limites pays, acceptation du clipping | `FinalConeGeometryBuffer` | Porte | CPU -> WebGL2 -> WebGPU | Cette passe fusionne la reduction finale et l'emission de la geometrie prete a afficher. Elle reste independante du moteur de rendu. |
 | `curveMeshShader.ts` | Construire les courbes entre villes ou modes | points de controle, vitesses, annee, position sur la courbe | `CurveVertexBuffer` | Porte | CPU -> WebGL2 -> WebGPU | Passe compute partagee entre CPU, WebGL2 et WebGPU. Elle echantillonne les courbes en geometrie ECEF render-ready et reste independante du moteur de rendu. |
 | `rayIntersectTriangle.glsl` | Primitive d'intersection rayon/triangle | rayon, triangle, seuils numeriques | `t`, hit flag, point d'intersection | Porte comme primitive partagee GLSL/WGSL | CPU -> WebGL2 -> WebGPU | Ce n'est pas un passe autonome, mais une primitive partagee par les passes de coupe. |

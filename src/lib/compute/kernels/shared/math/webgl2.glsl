@@ -10,6 +10,18 @@ float positive_angle(float angleRadians) {
 	return remainder;
 }
 
+int positive_mod_i32(int value, int modulus) {
+	int remainder = value % modulus;
+	if (remainder < 0) {
+		remainder += modulus;
+	}
+	return remainder;
+}
+
+float signed_angle_delta(float angleRadians) {
+	return positive_angle(angleRadians + PI) - PI;
+}
+
 float shift_angle_near(float angleRadians, float referenceRadians) {
 	float shifted = angleRadians;
 	while (shifted - referenceRadians > PI) {

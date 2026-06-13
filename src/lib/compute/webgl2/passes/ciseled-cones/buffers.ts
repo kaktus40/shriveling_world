@@ -17,7 +17,14 @@ export function createCiseledConesDispatchResources(
 	const coneIntersectionDistanceMetersBuffer = gl.createBuffer();
 	const ciseledConeRimEcefBuffer = gl.createBuffer();
 	const uniformLocation = gl.getUniformLocation(program, 'u_uniforms');
-	if (!vertexArray || !coneIntersectionDistanceMetersBuffer || !ciseledConeRimEcefBuffer || !uniformLocation) {
+	const heuristicUniformLocation = gl.getUniformLocation(program, 'u_heuristics');
+	if (
+		!vertexArray ||
+		!coneIntersectionDistanceMetersBuffer ||
+		!ciseledConeRimEcefBuffer ||
+		!uniformLocation ||
+		!heuristicUniformLocation
+	) {
 		throw new Error('WebGL2 ciseled cones resource allocation failed');
 	}
 
@@ -69,6 +76,26 @@ export function createCiseledConesDispatchResources(
 			? input.rawConeRimEcef
 			: new Float32Array(rimTextureWidth * 4),
 	);
+	const cityPairInvariantsTexture = createFloatTexture2D(
+		gl,
+		gl.RGBA32F,
+		gl.RGBA,
+		Math.max(input.cityCount * input.cityCount, 1),
+		1,
+		input.cityPairInvariants.length > 0
+			? input.cityPairInvariants
+			: new Float32Array(Math.max(input.cityCount * input.cityCount, 1) * 4),
+	);
+	const coneAlphaRadiansTexture = createFloatTexture2D(
+		gl,
+		gl.R32F,
+		gl.RED,
+		Math.max(input.azimuthSampleCount, 1),
+		Math.max(input.cityCount, 1),
+		input.coneAlphaRadians.length > 0
+			? input.coneAlphaRadians
+			: new Float32Array(Math.max(input.cityCount, 1) * Math.max(input.azimuthSampleCount, 1)),
+	);
 
 	gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, coneIntersectionDistanceMetersBuffer);
 	gl.bufferData(
@@ -93,9 +120,12 @@ export function createCiseledConesDispatchResources(
 		overlapCandidatesTexture,
 		overlapCandidateCountsTexture,
 		rawConeRimEcefTexture,
+		cityPairInvariantsTexture,
+		coneAlphaRadiansTexture,
 		coneIntersectionDistanceMetersBuffer,
 		ciseledConeRimEcefBuffer,
 		uniformLocation,
+		heuristicUniformLocation,
 		cityMatricesContract: {
 			name: 'cityNed2EcefMatrices',
 			elementType: 'float32',
@@ -127,6 +157,21 @@ export function createCiseledConesDispatchResources(
 			linearUnit: 'meters',
 			coordinateOrder: 'ecef',
 			notes: ['Raw cone rims sampled as a RGBA32F texture'],
+		},
+		cityPairInvariantsContract: {
+			name: 'cityPairInvariants',
+			elementType: 'float32',
+			strideBytes: 4 * Float32Array.BYTES_PER_ELEMENT,
+			count: input.cityPairInvariants.length / 4,
+			notes: ['Ordered city-pair invariants sampled as a RGBA32F texture'],
+		},
+		coneAlphaRadiansContract: {
+			name: 'coneAlphaRadians',
+			elementType: 'float32',
+			strideBytes: Float32Array.BYTES_PER_ELEMENT,
+			count: input.coneAlphaRadians.length,
+			angularUnit: 'radians',
+			notes: ['Raw cone alpha samples sampled as a R32F texture'],
 		},
 		coneIntersectionDistanceMetersContract: {
 			name: 'coneIntersectionDistanceMeters',

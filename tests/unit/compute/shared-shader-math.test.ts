@@ -19,6 +19,8 @@ test('shared shader math mirrors the canonical helper set across WGSL and GLSL',
 
 	for (const helper of [
 		'positive_angle',
+		'positive_mod_i32',
+		'signed_angle_delta',
 		'shift_angle_near',
 		'is_angle_inside_continuous_interval',
 		'lonlat_from_nvector',
@@ -53,6 +55,8 @@ test('pass shaders do not redefine the shared angular helpers locally', () => {
 	];
 	const sharedHelpers = [
 		'positive_angle',
+		'positive_mod_i32',
+		'signed_angle_delta',
 		'shift_angle_near',
 		'is_angle_inside_continuous_interval',
 		'lonlat_from_nvector',
