@@ -1410,6 +1410,9 @@ Travail deja realise:
   WebGPU avec le meme contrat de sortie render-ready;
 - les passes cones principales sont deja en place sur les trois profils;
 - les helpers math partages existent deja en TS et WGSL/GLSL;
+- les contrats de buffers et d'uniforms des principaux builders WebGPU sont
+  testes de maniere explicite pour conserver les structs WGSL comme source de
+  verite;
 - la prochaine phase de M7 consiste surtout a durcir les comparaisons,
   harmoniser les derniers helpers math/shader encore locaux et consolider les
   readbacks de validation.
