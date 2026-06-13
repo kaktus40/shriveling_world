@@ -4,6 +4,7 @@
 	import WorkspaceNoticePanel from '$lib/components/workspace/WorkspaceNoticePanel.svelte';
 	import WorkspaceSummaryGrid from '$lib/components/workspace/WorkspaceSummaryGrid.svelte';
 	import WorkspaceComputePanel from '$lib/components/workspace/WorkspaceComputePanel.svelte';
+	import WorkspaceSyntheticHeuristicPanel from '$lib/components/workspace/WorkspaceSyntheticHeuristicPanel.svelte';
 	import WorkspaceDatasetDetails from '$lib/components/workspace/WorkspaceDatasetDetails.svelte';
 	import WorkspaceQueryPanel from '$lib/components/workspace/WorkspaceQueryPanel.svelte';
 	import {
@@ -219,6 +220,8 @@
 		{computeDiagnostics}
 		onDiagnosticProfileChange={(profile) => (selectedComputeDiagnosticProfile = profile)}
 	/>
+
+	<WorkspaceSyntheticHeuristicPanel />
 
 	<WorkspaceDatasetDetails
 		{modes}

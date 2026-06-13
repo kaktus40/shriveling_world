@@ -4,3 +4,4 @@ export * from './invalidation';
 export * from './precompute';
 export * from './page';
 export * from './compute';
+export * from './synthetic';
