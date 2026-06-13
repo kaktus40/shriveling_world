@@ -102,7 +102,7 @@ Utiliser les statuts suivants:
 | M5 | deferred | Prototype comparatif de rendu Babylon.js / luma.gl |
 | M6 | validated | Framework compute multi-profil et fallback WebGPU -> WebGL2 -> CPU |
 | M7 | validated | Portage WGSL / backend WebGPU des passes existantes |
-| M8 | in_progress | Nouveau pipeline d'intersections |
+| M8 | validated | Nouveau pipeline d'intersections |
 | M9.0 | in_progress | Modularisation UI en deux pans (workspace / app) |
 | M9 | todo | Integration interactive complete |
 | M9.1 | todo | Packaging client lourd Tauri |
@@ -1464,7 +1464,7 @@ Validation:
 
 ## M8: Nouveau Pipeline D'Intersections
 
-Statut: `in_progress`
+Statut: `validated`
 
 Objectif:
 
@@ -1555,14 +1555,10 @@ Etat de reflexion valide avant implementation de la filtration:
 - le cache d'instance par annee sera mesure separement et ne stockera que
   `coneIntersectionDistanceMeters`.
 
-Prochaine implementation:
+Hors perimetre du jalon valide:
 
-1. benchmarker plusieurs largeurs bilaterales sur les datasets reduits;
-2. regrouper les longues plages Road et les supports rapides en blocs;
-3. ajouter des volumes englobants conservateurs et mesurer le rejet reel;
-4. comparer chaque variante a l'oracle exhaustif;
-5. implementer ensuite le cache memoire d'instance par annee si l'on veut
-   activer la reutilisation effective.
+1. implementer un vrai cache memoire d'instance par annee si l'on veut
+   activer la reutilisation effective au lieu de seulement la mesurer.
 
 Cas tests minimum:
 
@@ -1621,10 +1617,10 @@ Validation:
   - `src/routes/test/test3/+page.svelte` expose les etapes CPU `staticTown`,
     `dynamicTown`, `rawCones` et `coneIntersections` sur les datasets
     compacts charges depuis l'application.
-- M8 reste `in_progress`: les blocs conservateurs et les mesures de cache
-  annuel sont en place; l'activation d'un vrai cache memoire d'instance par
-  annee reste un pas distinct si l'on veut passer de la mesure a la
-  reutilisation effective.
+- M8 est `validated`: les blocs conservateurs, les mesures de cache annuel,
+  les sweeps alpha-aware, les comparaisons `order` / `blockPruned`, les
+  presets synthétiques rejouables, et les readbacks GPU de validation sont
+  désormais en place et documentés.
 - Etat reel observe ulterieurement:
   - un prototype non route de laboratoire heuristique existe dans
     `src/lib/testing/ray-range-heuristics.ts`;
