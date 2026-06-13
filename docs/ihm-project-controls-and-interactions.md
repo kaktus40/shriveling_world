@@ -21,13 +21,15 @@ Objectifs:
 - Un controle de donnees, de calcul et de rendu ne doivent pas partager le meme
   regroupement visuel si leurs effets sont differents.
 - Les controles qui impactent le precalcul vivent dans `workspace`.
-- Les controles qui impactent surtout la lecture et la navigation vivent dans
-  `app`.
-- Les controles fins de calibration restent dans des panneaux avances, caches
-  par defaut ou regroupes dans `workspace`.
-- Les mutations structurelles declenchent une invalidation explicite.
-- Les mutations purement visuelles re-renderisent seulement la scene.
+- Les controles qui impactent surtout la lecture, la navigation et la lecture
+  des couches vivent dans `app`.
+- La calibration avancee n est pas une surface autonome. Elle est repartie
+  entre `workspace` et `app` selon l effet du controle.
+- Les changements structurels declenchent une invalidation explicite.
+- Les changements purement visuels re-renderisent seulement la scene.
 - Les actions export/import restent des boutons explicites.
+- Le changement de precision de calcul peut remettre en cause tous les calculs
+  derives et doit etre traite comme un recalcul complet.
 
 ## Surfaces Cibles
 
@@ -38,11 +40,12 @@ Surface operationnelle quotidienne.
 Elle doit rester simple:
 
 - choix du dataset;
-- choix de l annee;
+- choix de l annee via slider;
 - selection de la ville;
 - navigation camera;
 - affichage et bascule des couches metier;
-- commandes de rendu simples et naturelles;
+- requeteur de surface pour accentuer ou masquer des cones;
+- outils de mesure surimprimes;
 - export rapide si necessaire.
 
 ### 2. `workspace`
@@ -57,24 +60,19 @@ Elle contient:
 - replays de bancs synthetiques;
 - calibration geometrique et projetee;
 - essais visuels techniques;
-- export/import de jeux d analyse.
+- export/import de jeux d analyse;
+- reglages structuraux qui peuvent forcer un recalcul complet.
 
-### 3. `advanced`
+### 3. Calibration Avancee Integree
 
-Surface de calibration avancee.
+La calibration avancee n est pas une surface autonome.
+Elle est repartie entre `workspace` et `app`:
 
-Elle regroupe les controles:
-
-- de projection;
-- de lumiere;
-- de formes geometriques fines;
-- de transparence;
-- de densite d echantillonnage;
-- de texte et labels;
-- de maillage pays.
-
-Cette surface peut etre affichee dans `workspace` et, quand cela a du sens, en
-mode avance dans `app`.
+- `workspace` porte les parametres structurels, les benchmarks et les bancs
+  d analyse;
+- `app` porte les parametres perceptibles par l utilisateur final;
+- les sous-groupes avances restent visibles comme sections repliables dans les
+  deux surfaces si cela ameliore la lisibilite.
 
 ## Contrat D Interaction
 
@@ -83,7 +81,7 @@ mode avance dans `app`.
 - `select`: choix discret parmi des options;
 - `slider`: variation continue ou semi-continue;
 - `checkbox`: bascule binaire;
-- `color`: couleur hexadécimale ou triplet;
+- `color`: couleur hexadecimale ou triplet;
 - `button`: action ponctuelle;
 - `text`: saisie / import JSON;
 - `toggle-group`: ensemble de boutons exclusifs;
@@ -99,12 +97,20 @@ mode avance dans `app`.
   - relance le chargement complet;
   - preserve les preferences d interface si elles sont encore compatibles.
 - changement d annee:
-  - relance le calcul interactionnel;
+  - relance le calcul interactionnel via un slider;
   - ne relit pas le dataset;
   - ne reconstruit pas le graphe de base.
+- changement du pourcentage de representation:
+  - relance la transformation de representation;
+  - ne relit pas le dataset;
+  - doit etre expose comme slider continu ou discret lisible.
 - changement de ville:
   - re-centre la vue;
   - ne relance pas le precalcul.
+- changement de precision:
+  - peut remettre en cause tous les calculs derives;
+  - force un recalcul complet des couches dependantes;
+  - n est pas un simple changement visuel.
 - changement de profil compute ou de strategie:
   - reexecute le pipeline de benchmark / validation;
   - conserve le snapshot dataset.
@@ -135,33 +141,35 @@ destination cible et leur comportement attendu.
 | Controle historique | Destination cible | Interaction attendue | Statut |
 | --- | --- | --- | --- |
 | dataset | `app` > `Data` | selection immediate du dataset; recharge du snapshot; reset des selections invalides | repris |
-| year | `app` > `Navigation` | changement d annee sans relecture du dataset; mise a jour du rendu et du calcul interactif | repris |
+| year | `app` > `Navigation` | slider d annee; changement fluide sans relecture du dataset; mise a jour du rendu et du calcul interactif | repris |
 | city selection | `app` > `Navigation` | selection d une ville par liste et par picking; recentrage de la camera | repris |
 | show cities name | `app` > `Display` | bascule d affichage des labels de villes; ne declenche pas de recalcul | a reprendre |
-| taille du texte | `app` > `Display` / `advanced` | ajuste l echelle des labels; met a jour uniquement les meshes texte | a reprendre |
-| text color | `app` > `Display` / `advanced` | change la couleur des labels; rendu immediat | a reprendre |
+| taille du texte | `app` > `Display` | ajuste l echelle des labels; met a jour uniquement les meshes texte | a reprendre |
+| text color | `app` > `Display` | change la couleur des labels; rendu immediat | a reprendre |
 | camera mode (`orbit`, `inspect`, `free`) | `app` > `Navigation` | selection exclusive de mode; keyboard shortcuts synchrones | repris |
 | zoom souris / `+/-` | `app` > `Navigation` | zoom immediat dans les bornes de la camera | repris |
 | picking de ville | `app` > `Navigation` | clic sur un marqueur de ville; selection et focus de la ville | repris |
 | reset scene | `app` > `Navigation` | remet la scene a l etat selectionne par le snapshot | repris |
+| center viewport on city | `app` > `Tools` | recentrage local autour d une ville avec conservation du repere de la ville | a ajouter |
+| rotate around local vertical axis | `app` > `Tools` | rotation autour de l axe vertical local, lisible et reversible | a ajouter |
 
 ### B. Lumiere Et Atmosphere
 
 | Controle historique | Destination cible | Interaction attendue | Statut |
 | --- | --- | --- | --- |
-| light color | `advanced` > `Scene` | modifie la couleur de la lumiere principale en direct | a reprendre |
-| ambient color | `advanced` > `Scene` | modifie la couleur ambiante de la scene | a reprendre |
-| light intensity | `advanced` > `Scene` | modifie l intensite de la lumiere principale; rendu immediat | a reprendre |
-| ambient intensity | `advanced` > `Scene` | modifie l intensite hemispherique | a reprendre |
-| light position x/y/z | `advanced` > `Scene` | deplace la source lumineuse; update de la scene | a reprendre |
-| shadow map size width/height | `advanced` > `Scene` | ajuste la resolution des ombres si elles sont actives | a reprendre |
-| shadow camera near/far | `advanced` > `Scene` | ajuste le frustum des ombres; pas de recalcul metier | a reprendre |
+| light color | `workspace` > `Scene` ou `app` > `Display` si utile | modifie la couleur de la lumiere principale en direct | a reprendre |
+| ambient color | `workspace` > `Scene` ou `app` > `Display` si utile | modifie la couleur ambiante de la scene | a reprendre |
+| light intensity | `workspace` > `Scene` | modifie l intensite de la lumiere principale; rendu immediat | a reprendre |
+| ambient intensity | `workspace` > `Scene` | modifie l intensite hemispherique | a reprendre |
+| light position x/y/z | `workspace` > `Scene` | deplace la source lumineuse; update de la scene | a reprendre |
+| shadow map size width/height | `workspace` > `Scene` | ajuste la resolution des ombres si elles sont actives | a reprendre |
+| shadow camera near/far | `workspace` > `Scene` | ajuste le frustum des ombres; pas de recalcul metier | a reprendre |
 
 ### C. Projection Et Repere
 
 | Controle historique | Destination cible | Interaction attendue | Statut |
 | --- | --- | --- | --- |
-| z coefficient | `workspace` > `Projection` / `advanced` | parametre de calibration; met a jour la transformation sans relire les donnees | a reprendre |
+| z coefficient | `workspace` > `Projection` | parametre de calibration; met a jour la transformation sans relire les donnees | a reprendre |
 | longitude de reference | `workspace` > `Projection` | change le meridien de reference; peut invalider les couches dependantes de projection | a reprendre |
 | latitude de reference | `workspace` > `Projection` | change le parallele / reference; recalcul des transforms projetees | a reprendre |
 | hauteur de reference | `workspace` > `Projection` | change l altitude de reference; recalcul des transforms projetees | a reprendre |
@@ -169,7 +177,7 @@ destination cible et leur comportement attendu.
 | standard parallel 2 | `workspace` > `Projection` | ajuste la projection conique; recalcul immediat des donnees projetees | a reprendre |
 | projection initiale | `workspace` > `Projection` | selection du mode de projection de depart | a reprendre |
 | projection finale | `workspace` > `Projection` | selection du mode de projection cible | a reprendre |
-| percent transition | `workspace` > `Projection` | interpolation entre deux representations; recalcule la geometrie visible | a reprendre |
+| percent transition | `app` > `Display` ou `workspace` > `Projection` | slider de pourcentage de representation; interpolation visible entre deux representations | a reprendre |
 | orthographic / perspective swap | `app` > `Display` ou `workspace` > `Projection` | bascule de camera / representation selon le contexte | a reprendre |
 
 ### D. Cotes Cones
@@ -177,14 +185,14 @@ destination cible et leur comportement attendu.
 | Controle historique | Destination cible | Interaction attendue | Statut |
 | --- | --- | --- | --- |
 | coneStep | `workspace` > `Cones` | pas angulaire de balayage; relance les calculs de cones si la resolution change | repris conceptuellement, UI a finaliser |
-| discriminant | `workspace` > `Cones` > `Advanced` | seuil ou variation de forme; impact scientifique direct | a reprendre |
+| discriminant | `workspace` > `Cones` | seuil ou variation de forme; impact scientifique direct | a reprendre |
 | with limits | `workspace` > `Cones` / `app` > `Layers` | active ou non la limitation par les frontieres; peut refaire le calcul des cones finaux | repris conceptuellement, UI a finaliser |
 | conesShape | `workspace` > `Cones` | choix de la forme de cone; impacte la generation geometrique | a reprendre |
 | cones color | `app` > `Display` / `workspace` > `Preview` | change la couleur de la couche cones; rendu immediat | a reprendre |
 | cones transparency | `app` > `Display` / `workspace` > `Preview` | change l opacite des cones; rendu immediat | a reprendre |
 | transport type | `workspace` > `Cones` | filtre ou selection de mode de transport; reconstruit la couche si necessaire | a reprendre |
 | cone opacity | `app` > `Display` | opacite de la couche cones | a reprendre |
-| cone discriminant (historique material) | `workspace` > `Cones` > `Advanced` | parametre de calibration; conserve une signification explicite | a reprendre |
+| cone discriminant (historique material) | `workspace` > `Cones` | parametre de calibration; conserve une signification explicite | a reprendre |
 
 ### E. Cotes Courbes
 
@@ -192,7 +200,7 @@ destination cible et leur comportement attendu.
 | --- | --- | --- | --- |
 | curve color | `app` > `Display` / `workspace` > `Preview` | change la couleur de la couche courbes; rendu immediat | a reprendre |
 | curve transparency | `app` > `Display` / `workspace` > `Preview` | change l opacite des courbes | a reprendre |
-| pointsPerCurve | `workspace` > `Curves` | densite d echantillonnage; relance la geometrie de courbes | repris conceptuellement, UI a finaliser |
+| pointsPerCurve | `workspace` > `Curves` | slider de densite; relance la geometrie de courbes | repris conceptuellement, UI a finaliser |
 | curvesPosition | `workspace` > `Curves` / `app` > `Display` | position relative des courbes par rapport au cone; recalcule la geometrie finale | repris conceptuellement, UI a finaliser |
 
 ### F. Cotes Pays
@@ -202,13 +210,13 @@ destination cible et leur comportement attendu.
 | countries show | `app` > `Layers` / `workspace` > `Preview` | active ou desactive la couche pays | a reprendre |
 | countries opacity | `app` > `Display` / `workspace` > `Preview` | change la transparence du maillage pays | a reprendre |
 | countries extruded | `workspace` > `Countries` | change l extrusion / relief; peut reclencher la preparation de maillage | a reprendre |
-| export country | `workspace` > `Export` / `advanced` | export de la geometrie pays ou du conteneur de rendu | a reprendre |
+| export country | `workspace` > `Export` | export de la geometrie pays ou du conteneur de rendu | a reprendre |
 
 ### G. Cotes Requete Et Donnees
 
 | Controle historique | Destination cible | Interaction attendue | Statut |
 | --- | --- | --- | --- |
-| transport mode / transport type | `workspace` > `Query` / `Analysis` | selection du mode ou du filtre de transport; alimente le requeteur AST | a reprendre |
+| transport mode / transport type | `workspace` > `Query` / `Analysis` et `app` > `Query` | selection du mode ou du filtre de transport; alimente le requeteur AST et peut colorer ou accentuer des cones dans l app | a reprendre |
 | query tree editor | `workspace` et `app` > `Query` | edition recursive de l AST; insertion, suppression, deplacement de noeuds | repris |
 | query snapshot fields | `workspace` > `Query` | liste des champs disponibles dans le snapshot; lecture seule | repris |
 | query execution result | `workspace` > `Query` | resultat de l execution; lecture seule et benchmarkable | repris |
@@ -223,6 +231,15 @@ destination cible et leur comportement attendu.
 | intersection strategy selection | `workspace` > `Benchmark` | selection de la strategie cone/cone; compare les variantes | repris |
 | synthetic dataset generator | `workspace` > `Analysis` | genere des villes libres et des listes azimut/alpha; peut etre rejoue | repris |
 
+### I. Outils De Mesure Et Second Viewport
+
+| Controle attendu | Destination cible | Interaction attendue | Statut |
+| --- | --- | --- | --- |
+| angle between 3 points | `app` > `Tools` | mesure immediate dans un overlay; trois points selectionnes dans la scene ou dans le second viewport | a ajouter |
+| city A / city B / Earth center plane | `app` > `Tools` | cree un plan de mesure pour visualiser un angle ou un grand cercle de reference | a ajouter |
+| second measurement viewport | `app` > `Tools` | affiche un viewport dedie a la mesure et a l inspection geometrique sans masquer la scene principale | a ajouter |
+| interactive cone emphasis by query | `app` > `Query` | applique un accent couleur, opacite ou visuel sur les cones correspondant a la requete courante | a ajouter |
+
 ## Distribution Recommandee Par Surface
 
 ### `app`
@@ -231,15 +248,16 @@ Regrouper:
 
 - `Data`:
   - dataset;
-  - annee;
-  - ville;
-  - import rapide si present.
+  - annee via slider;
+  - ville.
 - `Navigation`:
   - camera mode;
   - zoom;
   - picking;
   - reset;
-  - deplacement de selection.
+  - deplacement de selection;
+  - recentrage local;
+  - rotation locale.
 - `Layers`:
   - cities names;
   - boundary;
@@ -250,7 +268,16 @@ Regrouper:
   - opacite;
   - couleurs de couche;
   - taille texte;
-  - bascule orthographique si maintenue.
+  - bascule orthographique si maintenue;
+  - pourcentage de representation via slider.
+- `Query`:
+  - requeteur AST;
+  - execution et resultat;
+  - accent visuel sur les cones.
+- `Tools`:
+  - mesure d angle;
+  - plan de reference;
+  - second viewport de mesure.
 
 ### `workspace`
 
@@ -285,15 +312,14 @@ Regrouper:
   - opacity;
   - extrusion;
   - export.
-
-### `advanced`
-
-Utiliser pour:
-
-- lumiere / ombres;
-- calibration des projections;
-- stylage fin des labels;
-- reglages de rendu non essentiels au flux quotidien.
+- `Scene`:
+  - lumiere;
+  - ombres;
+  - calibration visuelle structurale.
+- `Advanced`:
+  - precision;
+  - stylage fin des labels;
+  - autres reglages de calibration qui peuvent forcer un recalcul complet.
 
 ## Interactions Attendues Par Domaine
 
@@ -306,9 +332,23 @@ Utiliser pour:
 
 ### Annee
 
-- Changer l annee met a jour le calcul interactif.
+- Changer l annee met a jour le calcul interactif via un slider.
 - Le dataset n est pas relu.
 - L annee peut etre pilotable au clavier dans `app`.
+
+### Representation
+
+- Le pourcentage de representation doit etre accessible par slider.
+- La transition entre representations doit etre lisible et progressive.
+- Le changement peut relancer les couches derivees, mais ne doit pas relire le
+  dataset.
+
+### Precision
+
+- Le changement de precision peut invalider toutes les couches calculees.
+- Il doit etre traite comme une reinitialisation structurelle des couches
+  dependantes.
+- Il ne doit pas etre confondu avec un simple controle visuel.
 
 ### Ville
 
@@ -349,15 +389,28 @@ Utiliser pour:
 - Le requeteur reste partage entre `workspace` et `app`.
 - La modification de l arbre AST ne doit pas coupler la vue au moteur de calcul.
 - L execution du requeteur doit rester visible et reproductible.
+- Dans `app`, la requete peut servir a teinter, accentuer ou masquer des cones.
+
+### Mesure
+
+- La mesure d angle entre trois points doit etre accessible sans quitter la
+  scene.
+- La mesure peut utiliser un overlay ou un second viewport.
+- Le plan A / B / centre de la Terre doit aider a lire les angles locaux.
+- Le recentrage autour d une ville doit conserver la relation au repere local.
+- La rotation autour de l axe vertical local doit etre disponible comme geste
+  direct et lisible.
 
 ## Recommandation De Mise En Oeuvre
 
 1. Garder `app` simple et orientee usage quotidien.
-2. Mettre les reglages fins dans `workspace` ou `advanced`.
-3. Extraire chaque groupe de controles dans un composant Svelte dedie.
-4. Garder un etat TypeScript partage par domaine, pas un grand store global.
-5. Utiliser des noms stables et explicites pour faciliter la portabilite Rust.
-6. Ne pas reconstruire de panneau monolithique a la `dat.gui`.
+2. Mettre les reglages fins dans `workspace`.
+3. Integrer la calibration avancee comme sous-groupes dans `workspace` et
+   `app`, pas comme surface autonome.
+4. Extraire chaque groupe de controles dans un composant Svelte dedie.
+5. Garder un etat TypeScript partage par domaine, pas un grand store global.
+6. Utiliser des noms stables et explicites pour faciliter la portabilite Rust.
+7. Ne pas reconstruire de panneau monolithique a la `dat.gui`.
 
 ## Usage Pour Le Web Et La Migration Rust
 
@@ -377,6 +430,7 @@ Le front web peut donc reconstituer:
 - les controles de rendu;
 - les couches metier;
 - les interactions clavier / souris;
+- les outils de mesure et le second viewport si necessaire;
 - les exports.
 
 Le portage Rust pourra ensuite reconstituer:
