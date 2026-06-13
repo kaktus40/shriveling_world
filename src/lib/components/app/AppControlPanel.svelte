@@ -1,11 +1,14 @@
 <script lang="ts">
 	import {
 		APP_CAMERA_MODES,
+		APP_COMPUTE_PROFILE_LABELS,
+		APP_COMPUTE_PROFILES,
 		APP_PROJECTION_LABELS,
 		type AppCameraMode,
 		type AppPageState,
 		type AppProjectionMode,
 	} from '$lib/application/app';
+	import type { ComputeProfile } from '$lib/compute';
 	import type { WorkspaceCitySummary } from '$lib/application/workspace';
 
 	export let appState: AppPageState | null = null;
@@ -13,6 +16,7 @@
 	export let selectedDataset = '';
 	export let selectedCityIndex = 0;
 	export let cameraMode: AppCameraMode = 'orbit';
+	export let selectedComputeProfile: ComputeProfile = 'cpu';
 	export let projectionStart: AppProjectionMode = 'none';
 	export let projectionEnd: AppProjectionMode = 'equirectangular';
 	export let projectionPercent = 50;
@@ -23,6 +27,7 @@
 	export let onDatasetChange: (value: string) => void = () => undefined;
 	export let onCityIndexChange: (value: number) => void = () => undefined;
 	export let onCameraModeChange: (value: AppCameraMode) => void = () => undefined;
+	export let onComputeProfileChange: (value: ComputeProfile) => void = () => undefined;
 	export let onShowCityLabelsChange: (value: boolean) => void = () => undefined;
 	export let onResetScene: () => void = () => undefined;
 
@@ -52,11 +57,16 @@
 		<span>{selectedDataset || 'No dataset selected'}</span>
 		<span>{selectedCity ? `${selectedCityIndex} · ${selectedCity.cityLabel}` : 'No city'}</span>
 		<span>{cameraModeLabels[cameraMode]}</span>
+		<span>{APP_COMPUTE_PROFILE_LABELS[selectedComputeProfile]}</span>
 		<span>
 			{APP_PROJECTION_LABELS[projectionStart]} → {APP_PROJECTION_LABELS[projectionEnd]}
 			· {projectionPercent}%
 		</span>
 	</div>
+
+	{#if !appState}
+		<div class="status-note" role="note">No dataset loaded. Choose one to open the scene.</div>
+	{/if}
 
 	<div class="controls">
 		<label>
@@ -70,6 +80,20 @@
 				<option value="" disabled>Select a dataset...</option>
 				{#each datasets as datasetName}
 					<option value={datasetName}>{datasetName}</option>
+				{/each}
+			</select>
+		</label>
+
+		<label>
+			<span>Compute profile</span>
+			<select
+				value={selectedComputeProfile}
+				disabled={loading}
+				on:change={(event) =>
+					onComputeProfileChange((event.currentTarget as HTMLSelectElement).value as ComputeProfile)}
+			>
+				{#each APP_COMPUTE_PROFILES as profile}
+					<option value={profile}>{APP_COMPUTE_PROFILE_LABELS[profile]}</option>
 				{/each}
 			</select>
 		</label>
@@ -188,6 +212,15 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.45rem;
+	}
+
+	.status-note {
+		padding: 0.55rem 0.7rem;
+		border-radius: 0.85rem;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid rgba(138, 168, 178, 0.12);
+		color: #c9dce0;
+		font-size: 0.84rem;
 	}
 
 	.display-toggle {

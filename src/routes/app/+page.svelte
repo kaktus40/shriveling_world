@@ -15,6 +15,8 @@
 		type AppCameraMode,
 		type AppProjectionMode,
 	} from '$lib/application/app';
+	import { installAppE2eApi } from '$lib/application/app/testing';
+	import { createWorkspaceComputeSession } from '$lib/application/workspace';
 	import {
 		buildAppMeasurementSummary,
 		createDefaultAppMeasurementSelection,
@@ -27,6 +29,7 @@
 	} from '$lib/application/app/measurement';
 	import { collectAppQueryMatchedCityIndexes } from '$lib/application/app/query';
 	import { loadAppSceneCompute } from '$lib/application/app/compute';
+	import type { ComputeProfile } from '$lib/compute';
 	import {
 		createDefaultQueryTree,
 		createQueryController,
@@ -49,6 +52,7 @@
 	let selectedYear = 0;
 	let selectedCityIndex = 0;
 	let cameraMode: AppCameraMode = 'orbit';
+	let selectedComputeProfile: ComputeProfile = 'cpu';
 	let projectionStart: AppProjectionMode = 'none';
 	let projectionEnd: AppProjectionMode = 'equirectangular';
 	let projectionPercent = 50;
@@ -69,7 +73,8 @@
 	let queryCityIds: readonly number[] = [];
 	let queryCityCodes: readonly number[] = [];
 	let measurementSummary: AppMeasurementSummary | null = null;
-	let activeModule: AppModuleKey | null = null;
+	let activeModule: AppModuleKey | null = 'scene';
+	let computeSession = createWorkspaceComputeSession();
 	$: queryMatchedCityIndexes = collectAppQueryMatchedCityIndexes(queryResult);
 	$: queryCityIds = appState?.cities.map((city) => city.cityId) ?? [];
 	$: queryCityCodes = appState?.cities.map((city) => city.cityCode) ?? [];
@@ -92,8 +97,29 @@
 				queryError = next;
 			},
 		});
+		const disposeAppE2e = installAppE2eApi({
+			setDataset: async (dataset: string) => {
+				handleDatasetChange(dataset);
+			},
+			setComputeProfile: async (profile: ComputeProfile) => {
+				handleComputeProfileChange(profile);
+			},
+			setYear: async (year: number) => {
+				handleYearChange(year);
+			},
+			setProjection: async (start: AppProjectionMode, end: AppProjectionMode, percent: number) => {
+				handleProjectionStartChange(start);
+				handleProjectionEndChange(end);
+				handleProjectionPercentChange(percent);
+			},
+			setCameraMode: async (mode: AppCameraMode) => {
+				handleCameraModeChange(mode);
+			},
+		});
 
 		return () => {
+			void computeSession.dispose();
+			disposeAppE2e();
 			queryController?.dispose();
 			queryController = null;
 			queryWorker?.terminate();
@@ -114,6 +140,7 @@
 			selectedYear = loaded.selection.year;
 			selectedCityIndex = loaded.selection.cityIndex;
 			cameraMode = loaded.selection.cameraMode;
+			selectedComputeProfile = loaded.selection.computeProfile;
 			projectionStart = loaded.selection.projectionStart;
 			projectionEnd = loaded.selection.projectionEnd;
 			projectionPercent = loaded.selection.projectionPercent;
@@ -142,11 +169,12 @@
 		errorMessage = '';
 		try {
 			const loadedCompute = await loadAppSceneCompute(state.workspace, {
+				profile: selectedComputeProfile,
 				year,
 				projectionStart,
 				projectionEnd,
 				projectionPercent,
-			});
+			}, computeSession);
 			if (requestId !== computeRequestId) {
 				return;
 			}
@@ -192,6 +220,16 @@
 
 	function handleCameraModeChange(next: AppCameraMode): void {
 		cameraMode = next;
+	}
+
+	function handleComputeProfileChange(next: ComputeProfile): void {
+		if (next === selectedComputeProfile) {
+			return;
+		}
+		selectedComputeProfile = next;
+		if (appState) {
+			void reloadAppCompute(appState, selectedYear);
+		}
 	}
 
 	function handleProjectionStartChange(next: AppProjectionMode): void {
@@ -286,6 +324,7 @@
 		selectedYear = appState?.selection.year ?? selectedYear;
 		selectedCityIndex = appState?.selection.cityIndex ?? selectedCityIndex;
 		cameraMode = appState?.selection.cameraMode ?? 'orbit';
+		selectedComputeProfile = appState?.selection.computeProfile ?? selectedComputeProfile;
 		projectionStart = appState?.selection.projectionStart ?? projectionStart;
 		projectionEnd = appState?.selection.projectionEnd ?? projectionEnd;
 		projectionPercent = appState?.selection.projectionPercent ?? projectionPercent;
@@ -307,13 +346,6 @@
 </svelte:head>
 
 <div class="app-shell">
-	{#if !appState && !loading && !errorMessage}
-		<div class="app-empty-state" role="note">
-			<strong>No dataset loaded</strong>
-			<span>Choose a bundled dataset from the controls to load the Babylon scene.</span>
-		</div>
-	{/if}
-
 	<AppViewport
 		{appState}
 		{workspaceCompute}
@@ -321,6 +353,7 @@
 		{selectedYearLabel}
 		{selectedCityIndex}
 		{cameraMode}
+		{selectedComputeProfile}
 		{projectionStart}
 		{projectionEnd}
 		{projectionPercent}
@@ -351,6 +384,7 @@
 			{selectedDataset}
 			{selectedCityIndex}
 			{cameraMode}
+			{selectedComputeProfile}
 			{projectionStart}
 			{projectionEnd}
 			{projectionPercent}
@@ -360,6 +394,7 @@
 			onDatasetChange={handleDatasetChange}
 			onCityIndexChange={handleCityIndexChange}
 			onCameraModeChange={handleCameraModeChange}
+			onComputeProfileChange={handleComputeProfileChange}
 			onShowCityLabelsChange={handleShowCityLabelsChange}
 			onResetScene={resetScene}
 		/>
@@ -479,31 +514,4 @@
 		line-height: 1.45;
 	}
 
-	.app-empty-state {
-		position: absolute;
-		left: 1rem;
-		top: calc(var(--app-year-rail-height) + 1rem);
-		z-index: 3;
-		display: grid;
-		gap: 0.2rem;
-		max-width: min(28rem, calc(100vw - 2rem));
-		padding: 0.75rem 0.95rem;
-		border-radius: 0.9rem;
-		background: rgba(12, 18, 24, 0.84);
-		border: 1px solid rgba(138, 168, 178, 0.22);
-		color: #dbe8e7;
-		box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.22);
-		pointer-events: none;
-	}
-
-	.app-empty-state strong {
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		font-size: 0.75rem;
-	}
-
-	.app-empty-state span {
-		line-height: 1.45;
-		color: #b6c8cb;
-	}
 </style>

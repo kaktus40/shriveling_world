@@ -1,5 +1,9 @@
 import { type ComputeProfile } from '$lib/compute';
-import { computeWorkspaceDataset, type WorkspaceComputeResult } from '$lib/application/workspace';
+import {
+	computeWorkspaceDataset,
+	type WorkspaceComputeResult,
+} from '$lib/application/workspace';
+import type { ComputeSession } from '$lib/compute';
 import type { WorkspaceDatasetSnapshot } from '$lib/application/workspace';
 import { APP_DEFAULT_PROJECTION_SETTINGS } from './projection';
 import type { ProjectionMode } from '$lib/shared/math';
@@ -25,24 +29,29 @@ export interface AppSceneComputeRequest {
 export async function loadAppSceneCompute(
 	workspace: WorkspaceDatasetSnapshot,
 	request: AppSceneComputeRequest,
+	session?: ComputeSession,
 ): Promise<WorkspaceComputeResult> {
-	return computeWorkspaceDataset(workspace, {
-		profile: request.profile ?? 'webgpu',
-		forced: request.forced,
-		allowFallback: request.allowFallback ?? true,
-		benchmark: true,
-		dynamicYear: request.year,
-		projectionStart: request.projectionStart ?? 'none',
-		projectionEnd: request.projectionEnd ?? 'none',
-		projectionPercent: request.projectionPercent ?? 0,
-		projectionSettings: APP_DEFAULT_PROJECTION_SETTINGS,
-		curve: {
-			enabled: true,
-			year: request.year,
-			pointsPerCurve: 15,
-			curvePosition: 'above',
-			coefficient: 1,
+	return computeWorkspaceDataset(
+		workspace,
+		{
+			profile: request.profile ?? 'cpu',
+			forced: request.forced,
+			allowFallback: request.allowFallback ?? true,
+			benchmark: true,
+			dynamicYear: request.year,
+			projectionStart: request.projectionStart ?? 'none',
+			projectionEnd: request.projectionEnd ?? 'none',
+			projectionPercent: request.projectionPercent ?? 0,
+			projectionSettings: APP_DEFAULT_PROJECTION_SETTINGS,
+			curve: {
+				enabled: true,
+				year: request.year,
+				pointsPerCurve: 15,
+				curvePosition: 'above',
+				coefficient: 1,
+			},
+			coneIntersectionStrategy: 'alpha-aware-block-pruned',
 		},
-		coneIntersectionStrategy: 'alpha-aware-block-pruned',
-	});
+		session,
+	);
 }

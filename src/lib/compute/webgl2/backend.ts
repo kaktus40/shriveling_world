@@ -208,7 +208,11 @@ export function createWebGl2ComputeBackendDescriptor(
 	return {
 		profile: 'webgl2',
 		isAvailable: () => probeWebGl2Availability(options.canvas ?? options.createCanvas?.() ?? createWebGl2ProbeCanvas()),
-		create: async () => new WebGl2ComputeBackend(options),
+		create: async () =>
+			new WebGl2ComputeBackend({
+				...options,
+				createCanvas: options.createCanvas ?? createWebGl2ProbeCanvas,
+			}),
 	};
 }
 

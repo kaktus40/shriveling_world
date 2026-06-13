@@ -20,6 +20,7 @@ import {
 	type WorkspaceModeSummary,
 } from './datasets';
 import type { ComputeConeIntersectionStrategy, ComputeProfile } from '$lib/compute';
+import type { ComputeSession } from '$lib/compute';
 
 export interface WorkspacePageState {
 	workspace: WorkspaceDatasetSnapshot;
@@ -56,14 +57,19 @@ export async function loadWorkspacePageState(
 export async function computeWorkspacePageState(
 	workspace: WorkspaceDatasetSnapshot,
 	request: WorkspacePageComputeRequest,
+	session?: ComputeSession,
 ): Promise<WorkspaceComputeResult> {
-	return computeWorkspaceDataset(workspace, {
-		profile: request.profile,
-		forced: request.profile,
-		allowFallback: true,
-		benchmark: true,
-		coneIntersectionStrategy: request.coneIntersectionStrategy,
-	});
+	return computeWorkspaceDataset(
+		workspace,
+		{
+			profile: request.profile,
+			forced: request.profile,
+			allowFallback: true,
+			benchmark: true,
+			coneIntersectionStrategy: request.coneIntersectionStrategy,
+		},
+		session,
+	);
 }
 
 export async function executeWorkspaceQuery(

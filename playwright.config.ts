@@ -3,16 +3,16 @@ import { defineConfig, devices } from '@playwright/test';
 
 const port = 4173;
 const baseURL = `http://127.0.0.1:${port}`;
-const systemChromiumExecutablePath = ['/usr/bin/chromium', '/usr/bin/chromium-browser'].find((path) =>
-	existsSync(path),
-);
+const braveExecutablePath = ['/usr/bin/brave', '/usr/bin/brave-browser'].find((path) => existsSync(path));
+const firefoxExecutablePath = ['/usr/bin/firefox'].find((path) => existsSync(path));
 
 export default defineConfig({
 	testDir: './tests/e2e',
 	outputDir: '/tmp/shriveling_world_playwright-results',
-	fullyParallel: true,
+	fullyParallel: false,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 0,
+	workers: process.env.CI ? 1 : 1,
 	reporter: 'list',
 	use: {
 		baseURL,
@@ -20,14 +20,33 @@ export default defineConfig({
 	},
 	projects: [
 		{
-			name: 'chromium',
+			name: 'brave',
 			use: {
 				...devices['Desktop Chrome'],
-				...(systemChromiumExecutablePath
+				...(braveExecutablePath
 					? {
 							launchOptions: {
-								executablePath: systemChromiumExecutablePath,
-								args: ['--no-sandbox']
+								executablePath: braveExecutablePath,
+								args: [
+									'--no-sandbox',
+									'--enable-webgl',
+									'--ignore-gpu-blocklist',
+									'--use-angle=swiftshader',
+									'--enable-unsafe-webgpu'
+								]
+							}
+						}
+					: {})
+			}
+		},
+		{
+			name: 'firefox',
+			use: {
+				...devices['Desktop Firefox'],
+				...(firefoxExecutablePath
+					? {
+							launchOptions: {
+								executablePath: firefoxExecutablePath
 							}
 						}
 					: {})

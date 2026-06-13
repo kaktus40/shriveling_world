@@ -6,6 +6,7 @@ import {
 	type WorkspaceDatasetSummary,
 	type WorkspaceCitySummary,
 } from '$lib/application/workspace';
+import type { ComputeProfile } from '$lib/compute';
 import { buildAppQueryState, type AppQueryState } from './query';
 
 /** Canonical camera modes exposed by the application shell. */
@@ -28,6 +29,16 @@ export const APP_PROJECTION_MODES = [
 /** Application projection modes used by the display variator. */
 export type AppProjectionMode = (typeof APP_PROJECTION_MODES)[number];
 
+/** Compute profiles exposed by the application shell. */
+export const APP_COMPUTE_PROFILES = ['cpu', 'webgl2', 'webgpu'] as const satisfies readonly ComputeProfile[];
+
+/** Labels used for the application compute profile select. */
+export const APP_COMPUTE_PROFILE_LABELS: Record<ComputeProfile, string> = {
+	cpu: 'CPU',
+	webgl2: 'WebGL2',
+	webgpu: 'WebGPU',
+};
+
 /** Labels used for the application projection selects. */
 export const APP_PROJECTION_LABELS: Record<AppProjectionMode, string> = {
 	none: 'Globe 3D',
@@ -45,6 +56,7 @@ export interface AppSelectionState {
 	readonly year: number;
 	readonly cityIndex: number;
 	readonly cameraMode: AppCameraMode;
+	readonly computeProfile: ComputeProfile;
 	readonly projectionStart: AppProjectionMode;
 	readonly projectionEnd: AppProjectionMode;
 	readonly projectionPercent: number;
@@ -96,6 +108,7 @@ export async function loadAppPageState(
 			year: yearOptions[0] ?? summary.yearBegin,
 			cityIndex: 0,
 			cameraMode: 'orbit',
+			computeProfile: 'cpu',
 			projectionStart: 'none',
 			projectionEnd: 'equirectangular',
 			projectionPercent: 50,

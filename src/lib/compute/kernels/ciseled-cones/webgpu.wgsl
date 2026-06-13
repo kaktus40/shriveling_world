@@ -181,7 +181,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 	let phi_a_radians = f32(sample_index) * sample_step_radians;
 	let candidate_count = min(overlap_candidate_counts[city_index], neighbor_limit);
 	for (var candidate_index: u32 = 0u; candidate_index < candidate_count; candidate_index = candidate_index + 1u) {
-		neighbor_index = overlap_candidates[city_index * neighbor_limit + candidate_index];
+		let neighbor_index = overlap_candidates[city_index * neighbor_limit + candidate_index];
 		if (neighbor_index == UNUSED_INDEX) {
 			continue;
 		}

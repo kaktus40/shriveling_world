@@ -23,6 +23,8 @@
 		loadWorkspacePageState,
 		computeWorkspacePageState,
 	} from '$lib/application/workspace';
+	import { installWorkspaceE2eApi } from '$lib/application/workspace/testing';
+	import { createWorkspaceComputeSession } from '$lib/application/workspace';
 	import type { DatasetDiagnostic, QueryableField } from '$lib/domain/data';
 	import type { QueryNode } from '$lib/domain/query';
 	import type { ComputeConeIntersectionStrategy, ComputeProfile } from '$lib/compute';
@@ -52,6 +54,7 @@
 	let computeError = '';
 	let queryError = '';
 	let computeDiagnostics: readonly DatasetDiagnostic[] = [];
+	let computeSession = createWorkspaceComputeSession();
 	let workspaceQueryController = createQueryController({
 		getQueryWorker: () => queryWorker,
 		getQuerySnapshot: () => querySnapshot,
@@ -67,25 +70,68 @@
 		},
 	});
 
+	function clearWorkspaceState(): void {
+		workspace = null;
+		summary = null;
+		modes = [];
+		cities = [];
+		fieldPreview = [];
+		querySnapshot = null;
+		queryTree = null;
+		queryResult = null;
+		workspaceCompute = null;
+		computeDiagnostics = [];
+		computeError = '';
+		queryError = '';
+	}
+
 	onMount(() => {
 		queryWorker = createQueryWorkerClient();
+		const disposeWorkspaceE2e = installWorkspaceE2eApi({
+			setDataset: async (dataset: string) => {
+				selectedDataset = dataset;
+				clearWorkspaceState();
+				await reloadWorkspace(dataset);
+			},
+			setComputeProfile: async (profile: ComputeProfile) => {
+				selectedComputeProfile = profile;
+				if (workspace) {
+					await reloadCompute(selectedDataset, selectedComputeProfile, selectedConeIntersectionStrategy);
+				}
+			},
+			setConeIntersectionStrategy: async (strategy: ComputeConeIntersectionStrategy) => {
+				selectedConeIntersectionStrategy = strategy;
+				if (workspace) {
+					await reloadCompute(selectedDataset, selectedComputeProfile, selectedConeIntersectionStrategy);
+				}
+			},
+			reloadWorkspace: async () => {
+				await reloadWorkspace(selectedDataset);
+			},
+			reloadCompute: async () => {
+				await reloadCompute(selectedDataset, selectedComputeProfile, selectedConeIntersectionStrategy);
+			},
+		});
 
 		return () => {
+			void computeSession.dispose();
+			disposeWorkspaceE2e();
 			workspaceQueryController.dispose();
 			queryWorker?.terminate();
 			queryWorker = null;
 		};
 	});
 
-	async function reloadWorkspace(): Promise<void> {
-		if (!selectedDataset) {
+	async function reloadWorkspace(nextDataset: string = selectedDataset): Promise<void> {
+		if (!nextDataset) {
 			return;
 		}
 
+		selectedDataset = nextDataset;
 		loading = true;
 		errorMessage = '';
 		try {
-			const loaded = await loadWorkspacePageState(fetch, selectedDataset);
+			const loaded = await loadWorkspacePageState(fetch, nextDataset);
 			workspace = loaded.workspace;
 			summary = loaded.summary;
 			modes = loaded.modes;
@@ -119,24 +165,54 @@
 
 	$: computeDiagnostics = workspaceCompute?.result.diagnostics ?? [];
 
-	async function reloadCompute(): Promise<void> {
+	async function reloadCompute(
+		nextDataset: string = selectedDataset,
+		nextComputeProfile: ComputeProfile = selectedComputeProfile,
+		nextConeIntersectionStrategy: ComputeConeIntersectionStrategy = selectedConeIntersectionStrategy,
+	): Promise<void> {
 		const currentWorkspace = workspace;
 		if (!currentWorkspace) {
 			return;
 		}
 
+		selectedDataset = nextDataset;
+		selectedComputeProfile = nextComputeProfile;
+		selectedConeIntersectionStrategy = nextConeIntersectionStrategy;
 		computeLoading = true;
 		computeError = '';
 		try {
 			workspaceCompute = await computeWorkspacePageState(currentWorkspace, {
-				profile: selectedComputeProfile,
-				coneIntersectionStrategy: selectedConeIntersectionStrategy,
-			});
+				profile: nextComputeProfile,
+				coneIntersectionStrategy: nextConeIntersectionStrategy,
+			}, computeSession);
 		} catch (error) {
 			workspaceCompute = null;
 			computeError = error instanceof Error ? error.message : String(error);
 		} finally {
 			computeLoading = false;
+		}
+	}
+
+	function handleDatasetChange(_next: string): void {
+		clearWorkspaceState();
+		void reloadWorkspace(_next);
+	}
+
+	function handleComputeProfileChange(_next: ComputeProfile): void {
+		workspaceCompute = null;
+		computeDiagnostics = [];
+		computeError = '';
+		if (workspace) {
+			void reloadCompute(selectedDataset, _next, selectedConeIntersectionStrategy);
+		}
+	}
+
+	function handleConeIntersectionStrategyChange(_next: ComputeConeIntersectionStrategy): void {
+		workspaceCompute = null;
+		computeDiagnostics = [];
+		computeError = '';
+		if (workspace) {
+			void reloadCompute(selectedDataset, selectedComputeProfile, _next);
 		}
 	}
 
@@ -190,8 +266,12 @@
 	bind:selectedComputeProfile
 	bind:selectedConeIntersectionStrategy
 	{loading}
-	onReloadWorkspace={() => void reloadWorkspace()}
-	onReloadCompute={() => void reloadCompute()}
+	onDatasetChange={handleDatasetChange}
+	onComputeProfileChange={handleComputeProfileChange}
+	onConeIntersectionStrategyChange={handleConeIntersectionStrategyChange}
+		onReloadWorkspace={(nextDataset) => void reloadWorkspace(nextDataset)}
+		onReloadCompute={(nextDataset, nextProfile, nextStrategy) =>
+			void reloadCompute(nextDataset, nextProfile, nextStrategy)}
 />
 
 {#if !workspace && !loading && !errorMessage}

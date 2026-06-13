@@ -150,9 +150,8 @@
 		height: calc(100vh - 11rem);
 		max-height: 46rem;
 		min-height: 18rem;
-		appearance: slider-vertical;
-		writing-mode: bt-lr;
-		-webkit-appearance: slider-vertical;
+		writing-mode: vertical-lr;
+		direction: rtl;
 		accent-color: #d78d48;
 	}
 

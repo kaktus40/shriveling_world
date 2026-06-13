@@ -1645,6 +1645,22 @@ Separer l interface en deux pans reutilisables et maintenables:
 Ce jalon ne change pas l inventaire shader. Il reorganise l UI et ses
 composants autour des briques deja validees.
 
+Browser GPU runtime note:
+
+- le runtime navigateur doit conserver un contexte GPU persistant entre deux
+  changements d annee ou de projection, a l image du flux historique
+  `GPUComputer.calculate()`;
+- le flux de calcul doit continuer a parcourir une table 2D de sorties
+  complete, sans recréer le backend entre deux passes successives;
+- chaque route (`workspace` et `app`) doit posseder sa session de calcul
+  persistante et la liberer uniquement lors du depart de la page;
+- les programmes WebGL2 de transformation doivent etre lies avec un fragment
+  shader no-op, meme quand la rasterisation est desactivee;
+- le backend WebGPU doit suivre la meme logique de persistance, et ses modules
+  WGSL doivent valider proprement avant d etre exposes comme stables;
+- les remarques de suivi sont detaillees dans
+  [`docs/browser-gpu-runtime-notes.md`](browser-gpu-runtime-notes.md).
+
 Travail attendu:
 
 - decouper `src/routes/workspace/+page.svelte` en sous-composants plus petits;

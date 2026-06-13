@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { Engine } from '@babylonjs/core';
 	import {
+		APP_COMPUTE_PROFILE_LABELS,
 		APP_PROJECTION_LABELS,
 		type AppCameraMode,
 		type AppPageState,
@@ -17,6 +19,7 @@
 	export let selectedYearLabel: number | string = '';
 	export let selectedCityIndex = 0;
 	export let cameraMode: AppCameraMode = 'orbit';
+	export let selectedComputeProfile: 'cpu' | 'webgl2' | 'webgpu' = 'cpu';
 	export let projectionStart: AppProjectionMode = 'none';
 	export let projectionEnd: AppProjectionMode = 'equirectangular';
 	export let projectionPercent = 50;
@@ -32,6 +35,7 @@
 
 	let canvas: HTMLCanvasElement | null = null;
 	let controller: AppSceneController | null = null;
+	let sceneError: string | null = null;
 
 	const getSceneState = (): AppSceneState => ({
 		appState,
@@ -54,19 +58,28 @@
 		}
 
 		void import('$lib/application/app/scene').then(({ createAppScene }) => {
-			controller = createAppScene(canvasElement, getSceneState(), {
-				onCityPick: (cityIndex) => onCityIndexChange(cityIndex),
-				onYearStep: (step) => {
-					if (!appState) {
-						return;
-					}
-					const yearOptions = appState.yearOptions;
-					const currentIndex = Math.max(0, yearOptions.indexOf(selectedYear));
-					const nextIndex = Math.min(yearOptions.length - 1, Math.max(0, currentIndex + step));
-					onYearChange(yearOptions[nextIndex] ?? selectedYear);
-				},
-				onCameraModeChange: (nextMode) => onCameraModeChange(nextMode),
-			});
+			if (!Engine.IsSupported) {
+				sceneError = 'Babylon scene unavailable: WebGL is not supported in this browser.';
+				return;
+			}
+			try {
+				controller = createAppScene(canvasElement, getSceneState(), {
+					onCityPick: (cityIndex) => onCityIndexChange(cityIndex),
+					onYearStep: (step) => {
+						if (!appState) {
+							return;
+						}
+						const yearOptions = appState.yearOptions;
+						const currentIndex = Math.max(0, yearOptions.indexOf(selectedYear));
+						const nextIndex = Math.min(yearOptions.length - 1, Math.max(0, currentIndex + step));
+						onYearChange(yearOptions[nextIndex] ?? selectedYear);
+					},
+					onCameraModeChange: (nextMode) => onCameraModeChange(nextMode),
+				});
+				sceneError = null;
+			} catch (error) {
+				sceneError = error instanceof Error ? error.message : String(error);
+			}
 		});
 
 		return () => {
@@ -90,6 +103,7 @@
 		<div class="scene-badge">Babylon scene</div>
 		<div class="scene-status">
 			<span>{cameraMode}</span>
+			<span>{APP_COMPUTE_PROFILE_LABELS[selectedComputeProfile]}</span>
 			<span>{selectedYearLabel || selectedYear || '—'}</span>
 			<span>{selectedCity ? `${selectedCityIndex} · ${selectedCity.cityLabel}` : 'No city'}</span>
 			<span>{APP_PROJECTION_LABELS[projectionStart]} → {APP_PROJECTION_LABELS[projectionEnd]}</span>
@@ -128,6 +142,10 @@
 
 	{#if loading}
 		<div class="scene-loading" role="status">Loading application dataset…</div>
+	{/if}
+
+	{#if sceneError}
+		<div class="scene-error" role="status">{sceneError}</div>
 	{/if}
 </section>
 
@@ -232,5 +250,18 @@
 		font-size: 0.95rem;
 		letter-spacing: 0.05em;
 		text-transform: uppercase;
+	}
+
+	.scene-error {
+		position: absolute;
+		inset: auto 1rem 1rem 1rem;
+		padding: 0.8rem 0.95rem;
+		border-radius: 0.95rem;
+		background: rgba(52, 21, 17, 0.82);
+		border: 1px solid rgba(227, 114, 91, 0.34);
+		color: #ffd9d2;
+		backdrop-filter: blur(14px);
+		box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.28);
+		font-size: 0.82rem;
 	}
 </style>

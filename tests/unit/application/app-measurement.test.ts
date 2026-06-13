@@ -20,6 +20,7 @@ function buildAppState(): AppPageState {
 			year: 2000,
 			cityIndex: 0,
 			cameraMode: 'orbit',
+			computeProfile: 'cpu',
 			projectionStart: 'none',
 			projectionEnd: 'equirectangular',
 			projectionPercent: 50,

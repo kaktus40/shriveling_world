@@ -6,14 +6,35 @@
 	export let selectedComputeProfile: ComputeProfile = 'cpu';
 	export let selectedConeIntersectionStrategy: ComputeConeIntersectionStrategy = 'oracle';
 	export let loading = false;
-	export let onReloadWorkspace: () => void = () => undefined;
-	export let onReloadCompute: () => void = () => undefined;
+	export let onDatasetChange: (value: string) => void = () => undefined;
+	export let onComputeProfileChange: (value: ComputeProfile) => void = () => undefined;
+	export let onConeIntersectionStrategyChange: (value: ComputeConeIntersectionStrategy) => void = () => undefined;
+	export let onReloadWorkspace: (dataset: string) => void = () => undefined;
+	export let onReloadCompute: (
+		dataset: string,
+		profile: ComputeProfile,
+		strategy: ComputeConeIntersectionStrategy,
+	) => void = () => undefined;
+
+	let currentDataset = selectedDataset;
+	let currentComputeProfile = selectedComputeProfile;
+	let currentConeIntersectionStrategy = selectedConeIntersectionStrategy;
+
+	$: currentDataset = selectedDataset;
+	$: currentComputeProfile = selectedComputeProfile;
+	$: currentConeIntersectionStrategy = selectedConeIntersectionStrategy;
 </script>
 
 <section class="controls panel">
 	<label>
 		<span>Bundled dataset</span>
-		<select bind:value={selectedDataset} on:change={onReloadWorkspace}>
+		<select
+			value={currentDataset}
+			on:change={(event) => {
+				currentDataset = (event.currentTarget as HTMLSelectElement).value;
+				onDatasetChange(currentDataset);
+			}}
+		>
 			<option value="" disabled>Select a dataset...</option>
 			{#each datasets as datasetName}
 				<option value={datasetName}>{datasetName}</option>
@@ -23,7 +44,13 @@
 
 	<label>
 		<span>Compute profile</span>
-		<select bind:value={selectedComputeProfile} on:change={onReloadCompute}>
+		<select
+			value={currentComputeProfile}
+			on:change={(event) => {
+				currentComputeProfile = (event.currentTarget as HTMLSelectElement).value as ComputeProfile;
+				onComputeProfileChange(currentComputeProfile);
+			}}
+		>
 			<option value="cpu">CPU</option>
 			<option value="webgl2">WebGL2</option>
 			<option value="webgpu">WebGPU</option>
@@ -32,7 +59,15 @@
 
 	<label>
 		<span>Cone strategy</span>
-		<select bind:value={selectedConeIntersectionStrategy} on:change={onReloadCompute}>
+		<select
+			value={currentConeIntersectionStrategy}
+			on:change={(event) => {
+				currentConeIntersectionStrategy = (
+					event.currentTarget as HTMLSelectElement
+				).value as ComputeConeIntersectionStrategy;
+				onConeIntersectionStrategyChange(currentConeIntersectionStrategy);
+			}}
+		>
 			<option value="oracle">Oracle</option>
 			<option value="symmetric-order">Symmetric order</option>
 			<option value="alpha-aware-order">Alpha-aware order</option>
@@ -40,8 +75,16 @@
 		</select>
 	</label>
 
-	<button on:click={onReloadWorkspace} disabled={loading || !selectedDataset}>
+	<button on:click={() => onReloadWorkspace(currentDataset)} disabled={loading || !currentDataset}>
 		{loading ? 'Loading...' : 'Reload workspace'}
+	</button>
+
+	<button
+		on:click={() =>
+			onReloadCompute(currentDataset, currentComputeProfile, currentConeIntersectionStrategy)}
+		disabled={loading || !currentDataset}
+	>
+		{loading ? 'Loading...' : 'Reload compute'}
 	</button>
 
 	<a class="nav-link" href="/test">Open validation routes</a>

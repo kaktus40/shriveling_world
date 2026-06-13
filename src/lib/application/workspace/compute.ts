@@ -2,12 +2,12 @@ import {
 	createDefaultComputeBackendRegistry,
 	createWebGl2ComputeBackendDescriptor,
 	createWebGpuComputeBackendDescriptor,
-	createComputeOrchestrator,
+	createComputeSession,
+	type ComputeSession,
 	type ComputeBenchmarkReport,
 	type ComputeConeIntersectionStrategy,
 	type ComputeProfile,
 	type ComputeProfileSelection,
-	type ComputeBackendRegistry,
 	type ComputeResult,
 } from '$lib/compute';
 import {
@@ -62,88 +62,100 @@ export interface WorkspaceComputeRequest {
 export async function computeWorkspaceDataset(
 	workspace: WorkspaceDatasetSnapshot,
 	request: WorkspaceComputeRequest = {},
+	session?: ComputeSession,
 ): Promise<WorkspaceComputeResult> {
-	const orchestrator = createComputeOrchestrator(createWorkspaceComputeBackendRegistry());
+	const runtime = session ?? createWorkspaceComputeSession();
+	const shouldDispose = session === undefined;
 	const coneOptions = createDefaultConePipelineOptions(workspace.pipeline.preparedDataset);
 	const shouldBenchmark = request.benchmark ?? true;
 	const dynamicYear = request.dynamicYear ?? workspace.pipeline.preparedDataset.speedTimeline.span.beginYear;
-	const result = await orchestrator.computeFrame(
-		{
-			sourceFiles: workspace.files,
-			geojsonSources: workspace.geojsonEntries,
-		},
-		{
-			profileRequest: {
+	try {
+		const result = await runtime.computeFrame(
+			{
+				sourceFiles: workspace.files,
+				geojsonSources: workspace.geojsonEntries,
+			},
+			{
+				profileRequest: {
+					preferred: request.profile,
+					forced: request.forced,
+					allowFallback: request.allowFallback ?? true,
+				},
+				benchmark: request.benchmark ?? true,
+				boundaryRaycast: { azimuthSampleCount: 360 },
+				staticTown: { sectorCount: 360, neighborLimit: Math.min(Math.max(workspace.pipeline.preparedDataset.cityCount - 1, 0), 16) },
+				dynamicYear,
+				projection: request.projectionStart && request.projectionEnd
+					? {
+							start: request.projectionStart,
+							end: request.projectionEnd,
+							percent: request.projectionPercent ?? 0,
+							settings: request.projectionSettings,
+						}
+					: undefined,
+				rawCone: {
+					shape: coneOptions.shape,
+					azimuthSampleCount: coneOptions.azimuthSampleCount,
+					coneLengthMeters: coneOptions.coneLengthMeters,
+					attenuationRadians: coneOptions.attenuationRadians,
+				},
+				curve: request.curve?.enabled === true
+					? {
+							enabled: true,
+							year: request.curve.year ?? dynamicYear,
+							pointsPerCurve: request.curve.pointsPerCurve ?? 15,
+							curvePosition: request.curve.curvePosition ?? 'above',
+							coefficient: request.curve.coefficient ?? 1,
+						}
+					: undefined,
+				coneIntersection: {
+					enabled: true,
+					strategy: request.coneIntersectionStrategy ?? 'oracle',
+				},
+			},
+			{
 				preferred: request.profile,
 				forced: request.forced,
 				allowFallback: request.allowFallback ?? true,
 			},
-			benchmark: request.benchmark ?? true,
-			boundaryRaycast: { azimuthSampleCount: 360 },
-			staticTown: { sectorCount: 360, neighborLimit: Math.min(Math.max(workspace.pipeline.preparedDataset.cityCount - 1, 0), 16) },
-			dynamicYear,
-			projection: request.projectionStart && request.projectionEnd
-				? {
-						start: request.projectionStart,
-						end: request.projectionEnd,
-						percent: request.projectionPercent ?? 0,
-						settings: request.projectionSettings,
-					}
-				: undefined,
-			rawCone: {
-				shape: coneOptions.shape,
-				azimuthSampleCount: coneOptions.azimuthSampleCount,
-				coneLengthMeters: coneOptions.coneLengthMeters,
-				attenuationRadians: coneOptions.attenuationRadians,
-			},
-			curve: request.curve?.enabled === true
-				? {
-						enabled: true,
-						year: request.curve.year ?? dynamicYear,
-						pointsPerCurve: request.curve.pointsPerCurve ?? 15,
-						curvePosition: request.curve.curvePosition ?? 'above',
-						coefficient: request.curve.coefficient ?? 1,
-					}
-				: undefined,
-			coneIntersection: {
-				enabled: true,
-				strategy: request.coneIntersectionStrategy ?? 'oracle',
-			},
-		},
-		{
-			preferred: request.profile,
-			forced: request.forced,
-			allowFallback: request.allowFallback ?? true,
-		},
-	);
-	const alphaAwareSweep =
-		request.coneIntersectionStrategy === 'alpha-aware-order' ||
-		request.coneIntersectionStrategy === 'alpha-aware-block-pruned'
-			? result.coneIntersections && result.rawCones && result.staticTown && result.dynamicTown
-				? benchmarkConeIntersectionAlphaAwareNeighborhoodSweepCpu(
-						result.staticTown,
-						result.rawCones,
-						{
-							roadAlphaRadians: result.dynamicTown.roadAlphaRadians,
-						},
-						buildAlphaAwareNeighborhoodFaceCounts(result.rawCones.azimuthSampleCount),
-						{ warmupIterations: 0, measurementIterations: 1 },
-					)
-			: undefined
+		);
+		const alphaAwareSweep =
+			request.coneIntersectionStrategy === 'alpha-aware-order' ||
+			request.coneIntersectionStrategy === 'alpha-aware-block-pruned'
+				? result.coneIntersections && result.rawCones && result.staticTown && result.dynamicTown
+					? benchmarkConeIntersectionAlphaAwareNeighborhoodSweepCpu(
+							result.staticTown,
+							result.rawCones,
+							{
+								roadAlphaRadians: result.dynamicTown.roadAlphaRadians,
+							},
+							buildAlphaAwareNeighborhoodFaceCounts(result.rawCones.azimuthSampleCount),
+							{ warmupIterations: 0, measurementIterations: 1 },
+						)
+				: undefined
+				: undefined;
+		const annualCache = shouldBenchmark
+			? benchmarkWorkspaceAnnualConeIntersectionCache(workspace.pipeline.preparedDataset)
 			: undefined;
-	const annualCache = shouldBenchmark
-		? benchmarkWorkspaceAnnualConeIntersectionCache(workspace.pipeline.preparedDataset)
-		: undefined;
-	return {
-		selection: result.selection,
-		benchmark: result.benchmark,
-		alphaAwareSweep,
-		annualCache,
-		result,
-	};
+		return {
+			selection: result.selection,
+			benchmark: result.benchmark,
+			alphaAwareSweep,
+			annualCache,
+			result,
+		};
+	} finally {
+		if (shouldDispose) {
+			await runtime.dispose();
+		}
+	}
 }
 
-function createWorkspaceComputeBackendRegistry(): ComputeBackendRegistry {
+export function createWorkspaceComputeSession(): ComputeSession {
+	return createComputeSession(createWorkspaceComputeBackendRegistry());
+}
+
+function createWorkspaceComputeBackendRegistry() {
 	return {
 		...createDefaultComputeBackendRegistry(),
 		webgl2: createWebGl2ComputeBackendDescriptor(),
