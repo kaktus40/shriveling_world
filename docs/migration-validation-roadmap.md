@@ -1415,6 +1415,8 @@ Travail deja realise:
   verite;
 - les contrats de buffers WebGL2 et un readback de comparaison representatif
   sont testes explicitement sur une passe portee;
+- une comparaison readback WebGPU representative est aussi testee sur la
+  passe city NED-to-ECEF;
 - la prochaine phase de M7 consiste surtout a durcir les comparaisons,
   harmoniser les derniers helpers math/shader encore locaux et consolider les
   readbacks de validation.
