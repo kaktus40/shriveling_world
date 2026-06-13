@@ -101,7 +101,7 @@ Utiliser les statuts suivants:
 | M4.1 | validated | Socle de tests CPU et contrats de buffers |
 | M5 | deferred | Prototype comparatif de rendu Babylon.js / luma.gl |
 | M6 | validated | Framework compute multi-profil et fallback WebGPU -> WebGL2 -> CPU |
-| M7 | in_progress | Portage WGSL / backend WebGPU des passes existantes |
+| M7 | validated | Portage WGSL / backend WebGPU des passes existantes |
 | M8 | in_progress | Nouveau pipeline d'intersections |
 | M9.0 | in_progress | Modularisation UI en deux pans (workspace / app) |
 | M9 | todo | Integration interactive complete |
@@ -1219,7 +1219,7 @@ Validation:
 
 ## M6: Framework Compute Multi-Profil Et Fallback
 
-Statut: `in_progress`
+Statut: `validated`
 
 Objectif:
 
@@ -1340,7 +1340,16 @@ Critere d'acceptation:
 
 Validation:
 
-- A renseigner apres implementation.
+- `npm test` OK, `125/125`
+- `npm run validate` OK
+- `npm run build` OK
+- `git diff --check` OK
+- les contrats de buffers WebGL2 et WebGPU sont testes explicitement;
+- les readbacks de comparaison sont testes sur des passes representatives;
+- les benchmarks CPU, WebGL2 et WebGPU sont compares sur un jeu de donnees
+  minimal commun;
+- les helpers math shader partages sont centralises et proteges contre les
+  redefinitions locales dans les passes.
 
 Etat reel observe ulterieurement:
 
@@ -1421,6 +1430,9 @@ Travail deja realise:
   entre WGSL et GLSL;
 - les passes shader ne redéfinissent pas localement les helpers angulaires
   partages;
+- les benchmarks CPU, WebGL2 et WebGPU sont compares sur un jeu de donnees
+  minimal commun pour verifier la stabilite des profils et des tranches de
+  calcul;
 - la prochaine phase de M7 consiste surtout a durcir les comparaisons,
   harmoniser les derniers helpers math/shader encore locaux et consolider les
   readbacks de validation.
