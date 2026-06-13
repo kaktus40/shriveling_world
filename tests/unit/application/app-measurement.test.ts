@@ -20,9 +20,9 @@ function buildAppState(): AppPageState {
 			year: 2000,
 			cityIndex: 0,
 			cameraMode: 'orbit',
-			representationStart: 'globe',
-			representationEnd: 'network',
-			representationPercent: 50,
+			projectionStart: 'none',
+			projectionEnd: 'equirectangular',
+			projectionPercent: 50,
 			showCityLabels: false,
 		},
 	};

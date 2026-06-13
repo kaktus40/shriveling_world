@@ -12,12 +12,13 @@ import {
 	Vector3,
 } from '@babylonjs/core';
 import type { WorkspaceComputeResult } from '$lib/application/workspace';
-import { APP_GLOBE_RADIUS, projectCityToAppPoint } from './geometry';
+import { APP_GLOBE_RADIUS } from './geometry';
 import { createAppBusinessLayerController } from './business-layers';
 import { createAppCityMarkerController } from './city-markers';
 import { buildAppBusinessLayers } from './render';
+import { projectAppGeographicPoint } from './projection';
 import type { AppMeasurementSelection } from './measurement';
-import type { AppCameraMode, AppPageState, AppRepresentationMode } from './page';
+import type { AppCameraMode, AppPageState, AppProjectionMode } from './page';
 
 export interface AppSceneState {
 	readonly appState: AppPageState | null;
@@ -26,9 +27,9 @@ export interface AppSceneState {
 	readonly selectedCityIndex: number;
 	readonly queryMatchedCityIndexes: readonly number[];
 	readonly cameraMode: AppCameraMode;
-	readonly representationStart: AppRepresentationMode;
-	readonly representationEnd: AppRepresentationMode;
-	readonly representationPercent: number;
+	readonly projectionStart: AppProjectionMode;
+	readonly projectionEnd: AppProjectionMode;
+	readonly projectionPercent: number;
 	readonly showCityLabels: boolean;
 	readonly measurementSelection: AppMeasurementSelection;
 }
@@ -192,14 +193,21 @@ export function createAppScene(
 				camera.upperRadiusLimit = 40;
 				camera.lowerRadiusLimit = 8;
 				if (selectedCity) {
-					camera.setTarget(
-						new Vector3(
-							...projectCityToAppPoint(selectedCity.longitudeRadians, selectedCity.latitudeRadians, globeRadius),
+				camera.setTarget(
+					new Vector3(
+						...projectAppGeographicPoint(
+							selectedCity.longitudeRadians,
+							selectedCity.latitudeRadians,
+							0,
+							state.projectionStart,
+							state.projectionEnd,
+							state.projectionPercent,
 						),
-					);
-					camera.alpha = (state.measurementSelection.localRotationDegrees * Math.PI) / 180;
-				}
-				break;
+					),
+				);
+				camera.alpha = (state.measurementSelection.localRotationDegrees * Math.PI) / 180;
+			}
+			break;
 			case 'free':
 				camera.radius = freeRadius;
 				camera.upperRadiusLimit = 120;
@@ -237,7 +245,14 @@ export function createAppScene(
 		}
 		camera.setTarget(
 			new Vector3(
-				...projectCityToAppPoint(selectedCity.longitudeRadians, selectedCity.latitudeRadians, globeRadius),
+				...projectAppGeographicPoint(
+					selectedCity.longitudeRadians,
+					selectedCity.latitudeRadians,
+					0,
+					currentState.projectionStart,
+					currentState.projectionEnd,
+					currentState.projectionPercent,
+				),
 			),
 		);
 	}
@@ -255,24 +270,30 @@ export function createAppScene(
 		activeCityIndex = nextState.selectedCityIndex;
 		applyCameraMode(nextState);
 		applyYearTone(nextState);
+		cityMarkers.updateProjection(nextState.projectionStart, nextState.projectionEnd, nextState.projectionPercent);
 		cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex, nextState.queryMatchedCityIndexes);
 		cityMarkers.setLabelVisibility(nextState.showCityLabels);
 		businessLayers.update(
 			buildAppBusinessLayers(
 				nextState.workspaceCompute?.result ?? null,
-				nextState.representationPercent,
+				nextState.projectionStart,
+				nextState.projectionEnd,
+				nextState.projectionPercent,
 				nextState.selectedCityIndex,
 			),
 		);
 	}
 
 	cityMarkers.setCities(initialState.appState?.cities ?? []);
+	cityMarkers.updateProjection(initialState.projectionStart, initialState.projectionEnd, initialState.projectionPercent);
 	cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex, initialState.queryMatchedCityIndexes);
 	cityMarkers.setLabelVisibility(initialState.showCityLabels);
 	businessLayers.update(
 		buildAppBusinessLayers(
 			initialState.workspaceCompute?.result ?? null,
-			initialState.representationPercent,
+			initialState.projectionStart,
+			initialState.projectionEnd,
+			initialState.projectionPercent,
 			initialState.selectedCityIndex,
 		),
 	);

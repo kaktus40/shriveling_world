@@ -13,6 +13,11 @@ import {
 } from '../../buffers';
 import { createFinalConesDispatchResources } from './buffers';
 import type { WebGl2ComputeResources } from '../../types';
+import {
+	DEFAULT_PROJECTION_SETTINGS,
+	type ProjectionMode,
+	type ProjectionSettings,
+} from '$lib/shared/math';
 
 export interface WebGl2FinalConesPassInput {
 	readonly gl: WebGL2RenderingContext;
@@ -22,6 +27,10 @@ export interface WebGl2FinalConesPassInput {
 	readonly townBoundaryAngularBuffer: WebGLBuffer;
 	readonly townBoundaryEcefBuffer: WebGLBuffer;
 	readonly resources: WebGl2ComputeResources;
+	readonly projectionStart?: ProjectionMode;
+	readonly projectionEnd?: ProjectionMode;
+	readonly projectionPercent?: number;
+	readonly projectionSettings?: ProjectionSettings;
 }
 
 export interface WebGl2FinalConesPassResult {
@@ -86,6 +95,21 @@ export async function runWebGl2FinalConePass(
 		cityCount,
 		azimuthSampleCount,
 		earthRadiusMeters: EARTH_RADIUS_METERS,
+		globeRadius: input.projectionSettings?.globeRadius ?? 1,
+		projectionInit: projectionModeIndex(input.projectionStart ?? 'none'),
+		projectionEnd: projectionModeIndex(input.projectionEnd ?? 'none'),
+		projectionPercent: input.projectionPercent ?? 0,
+		projectionReferenceLongitudeRadians:
+			input.projectionSettings?.referenceLongitudeRadians ?? DEFAULT_PROJECTION_SETTINGS.referenceLongitudeRadians,
+		projectionReferenceLatitudeRadians:
+			input.projectionSettings?.referenceLatitudeRadians ?? DEFAULT_PROJECTION_SETTINGS.referenceLatitudeRadians,
+		projectionReferenceHeightMeters:
+			input.projectionSettings?.referenceHeightMeters ?? DEFAULT_PROJECTION_SETTINGS.referenceHeightMeters,
+		projectionStandardParallel1Radians:
+			input.projectionSettings?.standardParallel1Radians ?? DEFAULT_PROJECTION_SETTINGS.standardParallel1Radians,
+		projectionStandardParallel2Radians:
+			input.projectionSettings?.standardParallel2Radians ?? DEFAULT_PROJECTION_SETTINGS.standardParallel2Radians,
+		projectionZCoefficient: input.projectionSettings?.zCoefficient ?? DEFAULT_PROJECTION_SETTINGS.zCoefficient,
 	});
 	const transformFeedback = input.gl.createTransformFeedback();
 	if (!transformFeedback) {
@@ -103,6 +127,27 @@ export async function runWebGl2FinalConePass(
 				EARTH_RADIUS_METERS,
 				cityCount,
 				azimuthSampleCount,
+				input.projectionSettings?.globeRadius ?? 1,
+			);
+			input.gl.uniform4f(
+				dispatchResources.projectionUniformLocation,
+				projectionModeIndex(input.projectionStart ?? 'none'),
+				projectionModeIndex(input.projectionEnd ?? 'none'),
+				input.projectionPercent ?? 0,
+				0,
+			);
+			input.gl.uniform4f(
+				dispatchResources.projectionSettingsALocation,
+				input.projectionSettings?.referenceLongitudeRadians ?? DEFAULT_PROJECTION_SETTINGS.referenceLongitudeRadians,
+				input.projectionSettings?.referenceLatitudeRadians ?? DEFAULT_PROJECTION_SETTINGS.referenceLatitudeRadians,
+				input.projectionSettings?.referenceHeightMeters ?? DEFAULT_PROJECTION_SETTINGS.referenceHeightMeters,
+				input.projectionSettings?.standardParallel1Radians ?? DEFAULT_PROJECTION_SETTINGS.standardParallel1Radians,
+			);
+			input.gl.uniform4f(
+				dispatchResources.projectionSettingsBLocation,
+				input.projectionSettings?.standardParallel2Radians ?? DEFAULT_PROJECTION_SETTINGS.standardParallel2Radians,
+				input.projectionSettings?.zCoefficient ?? DEFAULT_PROJECTION_SETTINGS.zCoefficient,
+				0,
 				0,
 			);
 			bindFinalConesInputs(input.gl, dispatchResources);
@@ -139,6 +184,27 @@ export async function runWebGl2FinalConePass(
 		);
 	}
 	return { timing, diagnostics };
+}
+
+function projectionModeIndex(mode: ProjectionMode): number {
+	switch (mode) {
+		case 'none':
+			return 0;
+		case 'equirectangular':
+			return 1;
+		case 'Mercator':
+			return 2;
+		case 'Winkel':
+			return 3;
+		case 'Eckert':
+			return 4;
+		case 'vanDerGrinten':
+			return 5;
+		case 'conicEquidistant':
+			return 6;
+		default:
+			return 0;
+	}
 }
 
 function bindFinalConesInputs(

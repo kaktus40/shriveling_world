@@ -13,9 +13,9 @@
 		<p class="eyebrow">Migration branch</p>
 		<h1>Shriveling world</h1>
 		<p>
-			Application shell backed by the new domain and application layers. The first non-test screen
-			is now the dataset workspace, while the validation routes remain available for the CPU
-			reference pipeline.
+			Application shell backed by the new domain and application layers. The main application
+			viewport is now visible from this index, while the dataset workspace remains available for
+			on-demand analysis and the validation routes stay available for the CPU reference pipeline.
 		</p>
 	</section>
 
@@ -31,6 +31,17 @@
 	</section>
 
 	<section class="nav-grid">
+		<article class="panel">
+			<p class="eyebrow">Operational route</p>
+			<h2>Application viewport</h2>
+			<p>
+				Babylon-powered scene for day-to-day use: dataset selection, year slider, representation rail,
+				queries, measurement tools, city labels, and business layers in a single visual surface.
+			</p>
+			<p><strong>App</strong> is the main interaction surface for the product workflow.</p>
+			<a class="cta" href="/app">Open application viewport</a>
+		</article>
+
 		<article class="panel">
 			<p class="eyebrow">Application route</p>
 			<h2>Dataset workspace</h2>

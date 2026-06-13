@@ -14,6 +14,7 @@
 	<label>
 		<span>Bundled dataset</span>
 		<select bind:value={selectedDataset} on:change={onReloadWorkspace}>
+			<option value="" disabled>Select a dataset...</option>
 			{#each datasets as datasetName}
 				<option value={datasetName}>{datasetName}</option>
 			{/each}
@@ -39,7 +40,7 @@
 		</select>
 	</label>
 
-	<button on:click={onReloadWorkspace} disabled={loading}>
+	<button on:click={onReloadWorkspace} disabled={loading || !selectedDataset}>
 		{loading ? 'Loading...' : 'Reload workspace'}
 	</button>
 

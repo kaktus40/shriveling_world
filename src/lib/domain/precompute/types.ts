@@ -354,7 +354,7 @@ export interface FinalConePrecompute {
 	azimuthSampleCount: number;
 	/**
 	 * Final 3D cone geometry ready for rendering, as aligned `vec4<f32>` values
-	 * in meters.
+	 * in the display projection space selected at the compute boundary.
 	 *
 	 * The buffer remains independent of the renderer. It is already in the
 	 * 3D frame expected by the next visual stage.

@@ -19,17 +19,14 @@
 	export let onInsert: (path: number[], child: QueryNode) => void = () => undefined;
 	export let onMove: (path: number[], direction: -1 | 1) => void = () => undefined;
 	export let onSelectCityIndex: (cityIndex: number) => void = () => undefined;
-
-	let hovered = false;
+	export let open = false;
 </script>
 
+{#if open}
 <section
-	class:expanded={hovered}
 	class="panel query-panel"
 	role="group"
 	aria-label="Query controls"
-	on:mouseenter={() => (hovered = true)}
-	on:mouseleave={() => (hovered = false)}
 >
 	<header class="panel-head">
 		<div>
@@ -52,45 +49,44 @@
 		<span>{selectedCityIndex >= 0 ? `Focus #${selectedCityIndex}` : 'No focus'}</span>
 	</div>
 
-	{#if hovered}
-		{#if queryError}
-			<div class="error inline-error">
-				<pre>{queryError}</pre>
-			</div>
-		{/if}
+	{#if queryError}
+		<div class="error inline-error">
+			<pre>{queryError}</pre>
+		</div>
+	{/if}
 
-		{#if querySnapshot && queryTree}
-			<div class="query-tree">
-				<QueryNodeEditor
-					node={queryTree}
-					fields={querySnapshot.fields}
-					onChange={onChange}
-					onDelete={onDelete}
-					onInsert={onInsert}
-					onMove={onMove}
-				/>
-			</div>
-
-			<QueryExecutionResultPanel
-				{querySnapshot}
-				{queryResult}
-				{cityIds}
-				{cityCodes}
-				{selectedCityIndex}
-				selectable={true}
-				onSelectCityIndex={onSelectCityIndex}
+	{#if querySnapshot && queryTree}
+		<div class="query-tree">
+			<QueryNodeEditor
+				node={queryTree}
+				fields={querySnapshot.fields}
+				onChange={onChange}
+				onDelete={onDelete}
+				onInsert={onInsert}
+				onMove={onMove}
 			/>
-		{:else}
-			<p class="empty">Waiting for query snapshot.</p>
-		{/if}
+		</div>
+
+		<QueryExecutionResultPanel
+			{querySnapshot}
+			{queryResult}
+			{cityIds}
+			{cityCodes}
+			{selectedCityIndex}
+			selectable={true}
+			onSelectCityIndex={onSelectCityIndex}
+		/>
+	{:else}
+		<p class="empty">Waiting for query snapshot.</p>
 	{/if}
 </section>
+{/if}
 
 <style>
 	.panel {
 		pointer-events: auto;
 		width: min(34rem, calc(100vw - 2rem));
-		margin: 0 1rem 1rem;
+		margin: 0 1rem 1rem var(--app-left-dock-offset, 4.75rem);
 		padding: 0.9rem 1rem;
 		border-radius: 1rem;
 		border: 1px solid rgba(138, 168, 178, 0.2);
@@ -100,17 +96,6 @@
 		display: grid;
 		gap: 0.65rem;
 		color: #e5efef;
-		transition:
-			transform 160ms ease,
-			background 160ms ease,
-			border-color 160ms ease;
-	}
-
-	.panel:hover,
-	.expanded {
-		background: rgba(8, 12, 16, 0.84);
-		border-color: rgba(138, 168, 178, 0.35);
-		transform: translateY(-1px);
 	}
 
 	.panel-head {

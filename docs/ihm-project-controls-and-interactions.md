@@ -25,6 +25,8 @@ Objectifs:
   des couches vivent dans `app`.
 - La calibration avancee n est pas une surface autonome. Elle est repartie
   entre `workspace` et `app` selon l effet du controle.
+- Les modules visibles dans `app` s ouvrent par icone de bord d ecran; le nom du
+  module apparait au survol de l icone, puis le panneau s ouvre au clic.
 - Les changements structurels declenchent une invalidation explicite.
 - Les changements purement visuels re-renderisent seulement la scene.
 - Les actions export/import restent des boutons explicites.
@@ -39,6 +41,7 @@ Surface operationnelle quotidienne.
 
 Elle doit rester simple:
 
+- visible depuis l index principal comme point d entree produit;
 - choix du dataset;
 - choix de l annee via un slider horizontal pleine largeur en haut de l ecran;
 - selection de la ville;
@@ -54,6 +57,7 @@ Surface d analyse, de benchmark et de validation.
 
 Elle contient:
 
+- reste inactive au demarrage tant qu aucun dataset n est selectionne;
 - inspection des datasets;
 - comparaison des profils compute;
 - comparaison des strategies d intersection;
@@ -100,8 +104,8 @@ Elle est repartie entre `workspace` et `app`:
   - relance le calcul interactionnel via un slider;
   - ne relit pas le dataset;
   - ne reconstruit pas le graphe de base.
-- changement du pourcentage de representation:
-  - relance la transformation de representation;
+- changement du pourcentage de projection:
+  - relance la transformation de projection;
   - ne relit pas le dataset;
   - doit etre expose comme slider continu ou discret lisible.
 - changement de ville:
@@ -120,7 +124,8 @@ Elle est repartie entre `workspace` et `app`:
 
 ### Regles D Ergonomie
 
-- Les panneaux `app` doivent apparaitre au survol ou via un geste explicite.
+- Les panneaux `app` doivent etre exposes par un dock d icones de bord d ecran.
+- Le survol affiche le nom du module; le clic ouvre le panneau correspondant.
 - Les panneaux `workspace` peuvent rester visibles plus longtemps car ils
   servent a l analyse.
 - Les sous-groupes doivent porter un titre court et stable.
@@ -177,8 +182,8 @@ destination cible et leur comportement attendu.
 | standard parallel 2 | `workspace` > `Projection` | ajuste la projection conique; recalcul immediat des donnees projetees | a reprendre |
 | projection initiale | `workspace` > `Projection` | selection du mode de projection de depart | a reprendre |
 | projection finale | `workspace` > `Projection` | selection du mode de projection cible | a reprendre |
-| percent transition | `app` > `Display` ou `workspace` > `Projection` | variateur vertical sur le bord droit de l ecran; prend toute la hauteur; select de representation a chaque extremite; interpolation visible entre deux representations | a reprendre |
-| orthographic / perspective swap | `app` > `Display` ou `workspace` > `Projection` | bascule de camera / representation selon le contexte | a reprendre |
+| percent transition | `app` > `Display` ou `workspace` > `Projection` | variateur vertical sur le bord droit de l ecran; prend toute la hauteur; select de projection a chaque extremite; interpolation visible entre deux projections, dont la projection 3D du globe | a reprendre |
+| orthographic / perspective swap | `app` > `Display` ou `workspace` > `Projection` | bascule de projection selon le contexte; le globe 3D compte aussi comme une projection | a reprendre |
 
 ### D. Cotes Cones
 
@@ -269,7 +274,7 @@ Regrouper:
   - couleurs de couche;
   - taille texte;
   - bascule orthographique si maintenue;
-  - pourcentage de representation via variateur vertical avec select aux deux
+  - pourcentage de projection via variateur vertical avec select aux deux
     extremites.
 - `Query`:
   - requeteur AST;
@@ -297,7 +302,8 @@ Regrouper:
   - reference longitude / latitude / hauteur;
   - projection initiale / finale;
   - transition;
-  - z coefficient.
+  - z coefficient;
+  - projection 3D du globe.
 - `Cones`:
   - coneStep;
   - discriminant;
@@ -341,12 +347,12 @@ Le groupe `Advanced` n est plus une surface autonome:
 - Le dataset n est pas relu.
 - L annee peut etre pilotable au clavier dans `app`.
 
-### Representation
+### Projection
 
-- Le pourcentage de representation doit etre accessible par un variateur
-  vertical place sur le bord droit de l ecran.
-- Un select de representation doit etre present a chaque extremite du variateur.
-- La transition entre representations doit etre lisible et progressive.
+- Le pourcentage de projection doit etre accessible par un variateur vertical
+  place sur le bord droit de l ecran.
+- Un select de projection doit etre present a chaque extremite du variateur.
+- La transition entre projections doit etre lisible et progressive.
 - Le changement peut relancer les couches derivees, mais ne doit pas relire le
   dataset.
 
@@ -388,7 +394,7 @@ Le groupe `Advanced` n est plus une surface autonome:
 ### Pays
 
 - L affichage des pays doit pouvoir etre coupe sans affecter le calcul cones.
-- L extrusion reste un choix de representation.
+- L extrusion reste un choix de projection / affichage.
 - L export pays est un acte explicite.
 
 ### Requetes

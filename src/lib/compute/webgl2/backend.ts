@@ -89,6 +89,7 @@ export class WebGl2ComputeBackend implements ComputeBackend {
 				geojsonRun,
 				await this.ensureResources(),
 				this.#ciseledConeRimEcefBuffer,
+				options.projection,
 			);
 			extraTimings.push(boundaryPass.timing);
 			if (boundaryPass.extraTimings) {

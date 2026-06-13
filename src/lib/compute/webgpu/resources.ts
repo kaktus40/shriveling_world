@@ -3,6 +3,7 @@ import boundaryAlgebreShaderSource from '../kernels/boundary-algebre/webgpu.wgsl
 import cityNed2EcefShaderSource from '../kernels/city-ned2ecef/webgpu.wgsl?raw';
 import curveGeometryShaderSource from '../kernels/curve-geometry/webgpu.wgsl?raw';
 import finalConesShaderSource from '../kernels/final-cones/webgpu.wgsl?raw';
+import projectionShaderSource from '../kernels/shared/projection/webgpu.wgsl?raw';
 import sharedMathShaderSource from '../kernels/shared/math/webgpu.wgsl?raw';
 import rayIntersectTriangleShaderSource from '../kernels/shared/ray-intersect-triangle/webgpu.wgsl?raw';
 import ciseledConesShaderSource from '../kernels/ciseled-cones/webgpu.wgsl?raw';
@@ -32,7 +33,9 @@ export function createWebGpuComputeResources(device: GPUDevice): WebGpuComputeRe
 	const ciseledConeModule = device.createShaderModule({
 		code: `${sharedMathShaderSource}\n${rayIntersectTriangleShaderSource}\n${ciseledConesShaderSource}`,
 	});
-	const finalConeModule = device.createShaderModule({ code: finalConesShaderSource });
+	const finalConeModule = device.createShaderModule({
+		code: `${projectionShaderSource}\n${finalConesShaderSource}`,
+	});
 	const boundaryModule = device.createShaderModule({ code: boundaryAlgebreShaderSource });
 	const curveGeometryModule = device.createShaderModule({ code: curveGeometryShaderSource });
 
@@ -54,7 +57,7 @@ export function createWebGpuComputeResources(device: GPUDevice): WebGpuComputeRe
 					'First real WGSL cone-cone kernel: exhaustively ciseled raw cones against retained neighbors and compared them against the CPU oracle.',
 				]),
 				buildPassContract('final-cones', 'final-cones-precompute', [
-					'Final real WGSL geometry-emission kernel: merge boundary clipping into the final render-ready cone geometry.',
+					'Final real WGSL geometry-emission kernel: merge boundary clipping and display projection into the final render-ready cone geometry.',
 				]),
 				buildPassContract('curve-geometry', 'curve-geometry-precompute', [
 					'Curve geometry WGSL kernel: sample render-ready curve vertices from prepared curve controls and yearly speed ratios.',

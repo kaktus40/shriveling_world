@@ -14,11 +14,30 @@ export const APP_CAMERA_MODES = ['orbit', 'inspect', 'free'] as const;
 /** Application camera modes supported by the first interaction layer. */
 export type AppCameraMode = (typeof APP_CAMERA_MODES)[number];
 
-/** Application representation modes exposed at the ends of the display variator. */
-export const APP_REPRESENTATION_MODES = ['globe', 'network'] as const;
+/** Application projection modes exposed at the ends of the display variator. */
+export const APP_PROJECTION_MODES = [
+	'none',
+	'equirectangular',
+	'Mercator',
+	'Winkel',
+	'Eckert',
+	'vanDerGrinten',
+	'conicEquidistant',
+] as const;
 
-/** Application representation modes used by the display variator. */
-export type AppRepresentationMode = (typeof APP_REPRESENTATION_MODES)[number];
+/** Application projection modes used by the display variator. */
+export type AppProjectionMode = (typeof APP_PROJECTION_MODES)[number];
+
+/** Labels used for the application projection selects. */
+export const APP_PROJECTION_LABELS: Record<AppProjectionMode, string> = {
+	none: 'Globe 3D',
+	equirectangular: 'Equirectangular',
+	Mercator: 'Mercator',
+	Winkel: 'Winkel Tripel',
+	Eckert: 'Eckert VI',
+	vanDerGrinten: 'van der Grinten I',
+	conicEquidistant: 'Conic Equidistant',
+};
 
 /** Selection state for the operational app shell. */
 export interface AppSelectionState {
@@ -26,9 +45,9 @@ export interface AppSelectionState {
 	readonly year: number;
 	readonly cityIndex: number;
 	readonly cameraMode: AppCameraMode;
-	readonly representationStart: AppRepresentationMode;
-	readonly representationEnd: AppRepresentationMode;
-	readonly representationPercent: number;
+	readonly projectionStart: AppProjectionMode;
+	readonly projectionEnd: AppProjectionMode;
+	readonly projectionPercent: number;
 	readonly showCityLabels: boolean;
 }
 
@@ -77,9 +96,9 @@ export async function loadAppPageState(
 			year: yearOptions[0] ?? summary.yearBegin,
 			cityIndex: 0,
 			cameraMode: 'orbit',
-			representationStart: 'globe',
-			representationEnd: 'network',
-			representationPercent: 50,
+			projectionStart: 'none',
+			projectionEnd: 'equirectangular',
+			projectionPercent: 50,
 			showCityLabels: false,
 		},
 	};

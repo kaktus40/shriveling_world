@@ -136,6 +136,16 @@ export interface WebGl2FinalConesDispatchInput {
 	readonly cityCount: number;
 	readonly azimuthSampleCount: number;
 	readonly earthRadiusMeters: number;
+	readonly globeRadius: number;
+	readonly projectionInit: number;
+	readonly projectionEnd: number;
+	readonly projectionPercent: number;
+	readonly projectionReferenceLongitudeRadians: number;
+	readonly projectionReferenceLatitudeRadians: number;
+	readonly projectionReferenceHeightMeters: number;
+	readonly projectionStandardParallel1Radians: number;
+	readonly projectionStandardParallel2Radians: number;
+	readonly projectionZCoefficient: number;
 }
 
 /** WebGL2 resources required by the final-cones WebGL2 pass. */
@@ -147,6 +157,9 @@ export interface WebGl2FinalConesDispatchResources {
 	readonly townBoundaryEcefBuffer: WebGLBuffer;
 	readonly finalConeGeometryEcefBuffer: WebGLBuffer;
 	readonly uniformLocation: WebGLUniformLocation;
+	readonly projectionUniformLocation: WebGLUniformLocation;
+	readonly projectionSettingsALocation: WebGLUniformLocation;
+	readonly projectionSettingsBLocation: WebGLUniformLocation;
 	readonly ciseledConeRimEcefContract: ComputeGpuBufferContract;
 	readonly townBoundaryAngularContract: ComputeGpuBufferContract;
 	readonly townBoundaryEcefContract: ComputeGpuBufferContract;

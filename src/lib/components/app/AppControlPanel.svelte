@@ -1,5 +1,11 @@
 <script lang="ts">
-	import { APP_CAMERA_MODES, type AppCameraMode, type AppPageState, type AppRepresentationMode } from '$lib/application/app';
+	import {
+		APP_CAMERA_MODES,
+		APP_PROJECTION_LABELS,
+		type AppCameraMode,
+		type AppPageState,
+		type AppProjectionMode,
+	} from '$lib/application/app';
 	import type { WorkspaceCitySummary } from '$lib/application/workspace';
 
 	export let appState: AppPageState | null = null;
@@ -7,19 +13,18 @@
 	export let selectedDataset = '';
 	export let selectedCityIndex = 0;
 	export let cameraMode: AppCameraMode = 'orbit';
-	export let representationStart: AppRepresentationMode = 'globe';
-	export let representationEnd: AppRepresentationMode = 'network';
-	export let representationPercent = 50;
+	export let projectionStart: AppProjectionMode = 'none';
+	export let projectionEnd: AppProjectionMode = 'equirectangular';
+	export let projectionPercent = 50;
 	export let showCityLabels = false;
 	export let loading = false;
 	export let selectedCity: WorkspaceCitySummary | null = null;
+	export let open = false;
 	export let onDatasetChange: (value: string) => void = () => undefined;
 	export let onCityIndexChange: (value: number) => void = () => undefined;
 	export let onCameraModeChange: (value: AppCameraMode) => void = () => undefined;
 	export let onShowCityLabelsChange: (value: boolean) => void = () => undefined;
 	export let onResetScene: () => void = () => undefined;
-
-	let expanded = false;
 
 	const cameraModeLabels: Record<AppCameraMode, string> = {
 		orbit: 'Orbit',
@@ -27,27 +32,13 @@
 		free: 'Free',
 	};
 
-	const representationModeLabels: Record<AppRepresentationMode, string> = {
-		globe: 'Globe',
-		network: 'Network',
-	};
-
-	function openPanel(): void {
-		expanded = true;
-	}
-
-	function closePanel(): void {
-		expanded = false;
-	}
 </script>
 
+{#if open}
 	<section
-		class:expanded={expanded}
 		class="panel"
 		role="group"
 		aria-label="Application controls"
-		on:mouseenter={openPanel}
-		on:mouseleave={closePanel}
 	>
 	<header class="panel-head">
 		<div>
@@ -62,90 +53,90 @@
 		<span>{selectedCity ? `${selectedCityIndex} · ${selectedCity.cityLabel}` : 'No city'}</span>
 		<span>{cameraModeLabels[cameraMode]}</span>
 		<span>
-			{representationModeLabels[representationStart]} → {representationModeLabels[representationEnd]}
-			· {representationPercent}%
+			{APP_PROJECTION_LABELS[projectionStart]} → {APP_PROJECTION_LABELS[projectionEnd]}
+			· {projectionPercent}%
 		</span>
 	</div>
 
-	{#if expanded}
-		<div class="controls">
-			<label>
-				<span>Dataset</span>
-				<select
-					value={selectedDataset}
-					disabled={loading}
-					on:change={(event) =>
-						onDatasetChange((event.currentTarget as HTMLSelectElement).value)}
-				>
-					{#each datasets as datasetName}
-						<option value={datasetName}>{datasetName}</option>
-					{/each}
-				</select>
-			</label>
+	<div class="controls">
+		<label>
+			<span>Dataset</span>
+			<select
+				value={selectedDataset}
+				disabled={loading}
+				on:change={(event) =>
+					onDatasetChange((event.currentTarget as HTMLSelectElement).value)}
+			>
+				<option value="" disabled>Select a dataset...</option>
+				{#each datasets as datasetName}
+					<option value={datasetName}>{datasetName}</option>
+				{/each}
+			</select>
+		</label>
 
-			<label>
-				<span>City</span>
-				<select
-					value={selectedCityIndex}
-					disabled={!appState || loading}
-					on:change={(event) =>
-						onCityIndexChange(Number((event.currentTarget as HTMLSelectElement).value))}
-				>
-					{#each appState?.cities ?? [] as city}
-						<option value={city.cityIndex}>
-							{city.cityIndex} - {city.cityLabel}
-						</option>
-					{/each}
-				</select>
-			</label>
-		</div>
+		<label>
+			<span>City</span>
+			<select
+				value={selectedCityIndex}
+				disabled={!appState || loading}
+				on:change={(event) =>
+					onCityIndexChange(Number((event.currentTarget as HTMLSelectElement).value))}
+			>
+				{#each appState?.cities ?? [] as city}
+					<option value={city.cityIndex}>
+						{city.cityIndex} - {city.cityLabel}
+					</option>
+				{/each}
+			</select>
+		</label>
+	</div>
 
-		<div class="mode-strip" aria-label="Camera mode">
-			{#each APP_CAMERA_MODES as mode}
-				<button
-					type="button"
-					class:active={cameraMode === mode}
-					on:click={() => onCameraModeChange(mode)}
-				>
-					{cameraModeLabels[mode]}
-				</button>
-			{/each}
-		</div>
+	<div class="mode-strip" aria-label="Camera mode">
+		{#each APP_CAMERA_MODES as mode}
+			<button
+				type="button"
+				class:active={cameraMode === mode}
+				on:click={() => onCameraModeChange(mode)}
+			>
+				{cameraModeLabels[mode]}
+			</button>
+		{/each}
+	</div>
 
-		<div class="summary">
-			{#if appState}
-				<span>{appState.summary.cityCount} cities</span>
-				<span>{appState.summary.edgeCount} edges</span>
-				<span>{appState.summary.yearBegin} to {appState.summary.yearEnd}</span>
-			{:else}
-				<span>Waiting for dataset</span>
-			{/if}
-		</div>
+	<div class="summary">
+		{#if appState}
+			<span>{appState.summary.cityCount} cities</span>
+			<span>{appState.summary.edgeCount} edges</span>
+			<span>{appState.summary.yearBegin} to {appState.summary.yearEnd}</span>
+		{:else}
+			<span>Waiting for dataset</span>
+		{/if}
+	</div>
 
-		<div class="display-toggle">
-			<label class="toggle">
-				<input
-					type="checkbox"
-					checked={showCityLabels}
-					disabled={loading}
-					on:change={(event) => onShowCityLabelsChange((event.currentTarget as HTMLInputElement).checked)}
-				/>
-				<span>City labels on cones</span>
-			</label>
-		</div>
+	<div class="display-toggle">
+		<label class="toggle">
+			<input
+				type="checkbox"
+				checked={showCityLabels}
+				disabled={loading}
+				on:change={(event) => onShowCityLabelsChange((event.currentTarget as HTMLInputElement).checked)}
+			/>
+			<span>City labels on cones</span>
+		</label>
+	</div>
 
-		<div class="hints">
-			<p>Hover the menu to keep it open.</p>
-			<p>Orbit camera, wheel zoom, city picking, and display blending are the first interaction level.</p>
-		</div>
-	{/if}
-</section>
+	<div class="hints">
+		<p>Use the edge dock to open this module.</p>
+		<p>Orbit camera, wheel zoom, city picking, and display blending are the first interaction level.</p>
+	</div>
+	</section>
+{/if}
 
 <style>
 	.panel {
 		pointer-events: auto;
 		width: min(25rem, calc(100vw - 2rem));
-		margin: 1rem;
+		margin: 1rem 1rem 1rem var(--app-left-dock-offset, 4.75rem);
 		padding: 0.9rem 1rem;
 		border-radius: 1rem;
 		border: 1px solid rgba(138, 168, 178, 0.2);
@@ -155,17 +146,6 @@
 		display: grid;
 		gap: 0.65rem;
 		color: #e5efef;
-		transition:
-			transform 160ms ease,
-			background 160ms ease,
-			border-color 160ms ease;
-	}
-
-	.panel:hover,
-	.expanded {
-		background: rgba(8, 12, 16, 0.84);
-		border-color: rgba(138, 168, 178, 0.35);
-		transform: translateY(-1px);
 	}
 
 	.panel-head {

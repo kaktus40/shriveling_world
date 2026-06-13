@@ -119,6 +119,16 @@ export interface FinalConesDispatchInput {
 	readonly cityCount: number;
 	readonly azimuthSampleCount: number;
 	readonly earthRadiusMeters: number;
+	readonly globeRadius: number;
+	readonly projectionInit: number;
+	readonly projectionEnd: number;
+	readonly projectionPercent: number;
+	readonly projectionReferenceLongitudeRadians: number;
+	readonly projectionReferenceLatitudeRadians: number;
+	readonly projectionReferenceHeightMeters: number;
+	readonly projectionStandardParallel1Radians: number;
+	readonly projectionStandardParallel2Radians: number;
+	readonly projectionZCoefficient: number;
 }
 
 /** WebGPU resources required by the final-cones WGSL pass. */
@@ -127,6 +137,8 @@ export interface FinalConesDispatchResources {
 	readonly townBoundaryAngular: GpuBufferAllocation;
 	readonly townBoundaryEcef: GpuBufferAllocation;
 	readonly uniform: GpuBufferAllocation;
+	readonly projection: GpuBufferAllocation;
+	readonly projectionSettings: GpuBufferAllocation;
 	readonly finalConeGeometryEcef: GpuBufferAllocation;
 }
 

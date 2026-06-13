@@ -5,6 +5,8 @@ Conventions:
 - one folder for shared primitives when a shader is reused by multiple passes;
 - profile-specific entry points live under `webgpu.wgsl` and `webgl2.vert` (or `webgl2.glsl` for shared primitives when needed);
 - keep kernel names stable across docs, tests, and backends.
+- `final-cones/` is the canonical emission step for display-space projection
+  blending.
 
 Current layout:
 
@@ -13,6 +15,9 @@ shared/ray-intersect-triangle/
   webgpu.wgsl
   webgl2.glsl
 shared/math/
+  webgpu.wgsl
+  webgl2.glsl
+shared/projection/
   webgpu.wgsl
   webgl2.glsl
 city-ned2ecef/

@@ -1,5 +1,8 @@
 struct FinalConeUniforms {
 	values: vec4<f32>,
+	projection: vec4<f32>,
+	projection_settings_a: vec4<f32>,
+	projection_settings_b: vec4<f32>,
 }
 
 @group(0) @binding(0) var<storage, read> ciseled_cone_rim_ecef: array<vec4<f32>>;
@@ -29,5 +32,17 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 	if (boundary_angular.w > 0.0 && boundary_distance > 0.0 && boundary_distance < ciseled_distance) {
 		final_rim = vec4<f32>(boundary.xyz, 1.0);
 	}
-	final_cone_geometry_ecef[ray_index] = final_rim;
+	let projected = project_display_from_ecef(
+		final_rim.xyz,
+		uniforms.values.w,
+		uniforms.values.x,
+		uniforms.projection_settings_a.xyz,
+		uniforms.projection_settings_a.w,
+		uniforms.projection_settings_b.x,
+		i32(uniforms.projection.x),
+		i32(uniforms.projection.y),
+		uniforms.projection.z,
+		uniforms.projection_settings_b.y,
+	);
+	final_cone_geometry_ecef[ray_index] = vec4<f32>(projected, 1.0);
 }

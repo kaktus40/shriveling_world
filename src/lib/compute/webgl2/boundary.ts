@@ -1,5 +1,6 @@
 import type { DatasetDiagnostic } from '../../domain/data';
 import type { ComputeResult, StageTiming } from '../core';
+import type { ComputeProjectionOptions } from '../core/types';
 import type { WebGl2ComputeResources } from './types';
 import { runWebGl2BoundaryRaycastPass } from './passes/boundary-algebre';
 import { runWebGl2FinalConePass } from './passes/final-cones';
@@ -11,6 +12,7 @@ export async function runWebGl2BoundaryStages(
 	geojsonRun: ComputeResult['geojsonRuns'][number],
 	resources: WebGl2ComputeResources,
 	ciseledConeRimEcefBuffer: WebGLBuffer | null,
+	projection?: ComputeProjectionOptions,
 ): Promise<{
 	timing: StageTiming;
 	extraTimings?: StageTiming[];
@@ -36,6 +38,10 @@ export async function runWebGl2BoundaryStages(
 				throw new Error('WebGL2 boundary ecef buffer unavailable');
 			})(),
 			resources,
+			projectionStart: projection?.start,
+			projectionEnd: projection?.end,
+			projectionPercent: projection?.percent,
+			projectionSettings: projection?.settings,
 		});
 		return {
 			timing: boundaryPass.timing,

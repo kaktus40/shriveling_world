@@ -3,7 +3,14 @@ import { describe, test } from 'vitest';
 import type { ComputeResult } from '$lib/compute';
 import { EARTH_RADIUS_METERS } from '$lib/shared';
 import { APP_GLOBE_RADIUS } from '$lib/application/app/geometry';
-import { buildAppBusinessLayers, ecefToAppPoint } from '$lib/application/app/render';
+import {
+	buildAppBusinessLayers,
+	ecefToAppPoint,
+} from '$lib/application/app/render';
+import {
+	mixAppProjectionPoints,
+	projectAppEcefPoint,
+} from '$lib/application/app/projection';
 
 function buildMinimalComputeResult(): ComputeResult {
 	return {
@@ -76,7 +83,7 @@ describe('app render helpers', () => {
 	});
 
 	test('extract real business layers from compute results', () => {
-		const layers = buildAppBusinessLayers(buildMinimalComputeResult(), 100);
+		const layers = buildAppBusinessLayers(buildMinimalComputeResult(), 'none', 'none', 100);
 		assert.equal(layers.length, 3);
 		assert.equal(layers[0]?.name, 'boundary-0-synthetic.geojson');
 		assert.equal(layers[1]?.name, 'final-cones-0-synthetic.geojson');
@@ -84,20 +91,30 @@ describe('app render helpers', () => {
 		assert.equal(layers[0]?.polylines[0]?.points.length, 3);
 		assert.equal(layers[1]?.polylines[0]?.points.length, 3);
 		assert.equal(layers[2]?.polylines[0]?.points.length, 2);
-		assert.equal(layers[0]?.opacity, 0.8);
-		assert.equal(layers[1]?.opacity, 0.8);
-		assert.equal(layers[2]?.opacity, 0.8);
+		assert.equal(layers[0]?.opacity, 0.66);
+		assert.equal(layers[1]?.opacity, 0.6);
+		assert.equal(layers[2]?.opacity, 0.72);
 	});
 
-	test('blend business layer opacity with representation percent', () => {
-		const layersLow = buildAppBusinessLayers(buildMinimalComputeResult(), 0);
-		const layersHigh = buildAppBusinessLayers(buildMinimalComputeResult(), 100);
-		assert.ok((layersLow[0]?.opacity ?? 0) < (layersHigh[0]?.opacity ?? 0));
+	test('project business layer geometry with the selected projection', () => {
+		const globeLayers = buildAppBusinessLayers(buildMinimalComputeResult(), 'none', 'none', 0);
+		const cartoLayers = buildAppBusinessLayers(buildMinimalComputeResult(), 'equirectangular', 'equirectangular', 0);
+		assert.notDeepEqual(globeLayers[0]?.polylines[0]?.points[1], cartoLayers[0]?.polylines[0]?.points[1]);
 	});
 
 	test('focus the selected business layer when a city is selected', () => {
-		const unfocusedLayers = buildAppBusinessLayers(buildMinimalComputeResult(), 100, null);
-		const focusedLayers = buildAppBusinessLayers(buildMinimalComputeResult(), 100, 0);
+		const unfocusedLayers = buildAppBusinessLayers(buildMinimalComputeResult(), 'none', 'none', 100, null);
+		const focusedLayers = buildAppBusinessLayers(buildMinimalComputeResult(), 'none', 'none', 100, 0);
 		assert.ok((focusedLayers[0]?.opacity ?? 0) > (unfocusedLayers[0]?.opacity ?? 0));
+	});
+
+	test('blend business layer geometry between projections', () => {
+		const globePoint = projectAppEcefPoint(0, EARTH_RADIUS_METERS, 0, 'none', 'none', 0);
+		const cartoPoint = projectAppEcefPoint(0, EARTH_RADIUS_METERS, 0, 'equirectangular', 'equirectangular', 0);
+		assert.deepEqual(mixAppProjectionPoints(globePoint, cartoPoint, 50), [
+			(globePoint[0] + cartoPoint[0]) / 2,
+			(globePoint[1] + cartoPoint[1]) / 2,
+			(globePoint[2] + cartoPoint[2]) / 2,
+		]);
 	});
 });

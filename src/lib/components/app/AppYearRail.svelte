@@ -4,8 +4,6 @@
 	export let loading = false;
 	export let onYearChange: (value: number) => void = () => undefined;
 
-	let hovered = false;
-
 	$: selectedIndex = Math.max(0, yearOptions.indexOf(selectedYear));
 	$: selectedLabel = yearOptions[selectedIndex] ?? selectedYear ?? '—';
 	$: rangeMax = Math.max(0, yearOptions.length - 1);
@@ -16,14 +14,7 @@
 	}
 </script>
 
-<section
-	class:expanded={hovered}
-	class="year-rail"
-	role="group"
-	aria-label="Year control"
-	on:mouseenter={() => (hovered = true)}
-	on:mouseleave={() => (hovered = false)}
->
+<section class="year-rail" role="group" aria-label="Year control">
 	<div class="header">
 		<div>
 			<p class="eyebrow">Time</p>
@@ -57,23 +48,11 @@
 		top: 0;
 		right: 0;
 		z-index: 4;
-		padding: 0.55rem 1rem 0.45rem;
+		padding: 0.55rem calc(var(--app-projection-rail-width, 12.25rem) + 0.75rem) 0.45rem 1rem;
 		background: linear-gradient(180deg, rgba(8, 12, 16, 0.75), rgba(8, 12, 16, 0.34));
 		border-bottom: 1px solid rgba(138, 168, 178, 0.18);
 		backdrop-filter: blur(14px);
 		pointer-events: auto;
-		opacity: 0.88;
-		transition:
-			opacity 160ms ease,
-			background 160ms ease,
-			border-color 160ms ease;
-	}
-
-	.year-rail:hover,
-	.expanded {
-		opacity: 1;
-		background: linear-gradient(180deg, rgba(8, 12, 16, 0.88), rgba(8, 12, 16, 0.5));
-		border-color: rgba(138, 168, 178, 0.34);
 	}
 
 	.header {

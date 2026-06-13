@@ -1,11 +1,17 @@
 import type { BoundaryRaycastResult } from '../../geojson';
 import type { ConeIntersectionOraclePrecompute, FinalConePrecompute } from '../types';
+import { projectEcefPoint, type ProjectionTransition } from '$lib/shared/math';
 
 /** Finalizes cone geometry after cone/cone clipping and optional boundary clipping. */
 export function computeFinalConePrecomputeCpu(
 	coneIntersections: ConeIntersectionOraclePrecompute,
 	boundaryRaycast: BoundaryRaycastResult,
 	earthRadiusMeters: number,
+	projection: ProjectionTransition = {
+		start: 'none',
+		end: 'none',
+		percent: 0,
+	},
 ): FinalConePrecompute {
 	const cityCount = coneIntersections.cityCount;
 	const azimuthSampleCount = coneIntersections.azimuthSampleCount;
@@ -30,6 +36,17 @@ export function computeFinalConePrecomputeCpu(
 			finalConeGeometryEcef[angularOffset + 2] = boundaryRaycast.townBoundaryEcef[angularOffset + 2];
 			finalConeGeometryEcef[angularOffset + 3] = 1;
 		}
+
+		const projected = projectEcefPoint(
+			finalConeGeometryEcef[angularOffset],
+			finalConeGeometryEcef[angularOffset + 1],
+			finalConeGeometryEcef[angularOffset + 2],
+			projection,
+		);
+		finalConeGeometryEcef[angularOffset] = projected[0];
+		finalConeGeometryEcef[angularOffset + 1] = projected[1];
+		finalConeGeometryEcef[angularOffset + 2] = projected[2];
+		finalConeGeometryEcef[angularOffset + 3] = 1;
 	}
 
 	return {

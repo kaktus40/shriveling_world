@@ -34,4 +34,9 @@
 		border-color: rgba(227, 114, 91, 0.34);
 		background: rgba(52, 21, 17, 0.84);
 	}
+
+	.info {
+		border-color: rgba(122, 166, 193, 0.28);
+		background: rgba(12, 28, 40, 0.82);
+	}
 </style>

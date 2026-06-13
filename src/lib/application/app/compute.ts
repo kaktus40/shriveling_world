@@ -1,6 +1,8 @@
 import { type ComputeProfile } from '$lib/compute';
 import { computeWorkspaceDataset, type WorkspaceComputeResult } from '$lib/application/workspace';
 import type { WorkspaceDatasetSnapshot } from '$lib/application/workspace';
+import { APP_DEFAULT_PROJECTION_SETTINGS } from './projection';
+import type { ProjectionMode } from '$lib/shared/math';
 
 /** Input used by the operational app to refresh real computed geometry. */
 export interface AppSceneComputeRequest {
@@ -8,6 +10,9 @@ export interface AppSceneComputeRequest {
 	readonly profile?: ComputeProfile;
 	readonly forced?: ComputeProfile;
 	readonly allowFallback?: boolean;
+	readonly projectionStart?: ProjectionMode;
+	readonly projectionEnd?: ProjectionMode;
+	readonly projectionPercent?: number;
 }
 
 /**
@@ -27,6 +32,10 @@ export async function loadAppSceneCompute(
 		allowFallback: request.allowFallback ?? true,
 		benchmark: true,
 		dynamicYear: request.year,
+		projectionStart: request.projectionStart ?? 'none',
+		projectionEnd: request.projectionEnd ?? 'none',
+		projectionPercent: request.projectionPercent ?? 0,
+		projectionSettings: APP_DEFAULT_PROJECTION_SETTINGS,
 		curve: {
 			enabled: true,
 			year: request.year,

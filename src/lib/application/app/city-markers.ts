@@ -10,11 +10,18 @@ import {
 	type Nullable,
 } from '@babylonjs/core';
 import type { WorkspaceCitySummary } from '$lib/application/workspace';
-import { APP_GLOBE_RADIUS, projectCityToAppPoint } from './geometry';
+import { APP_GLOBE_RADIUS } from './geometry';
+import { projectAppGeographicPoint } from './projection';
+import type { AppProjectionMode } from './page';
 
 /** Babylon adapter responsible for city markers and first-level picking. */
 export interface AppCityMarkerController {
 	setCities(cities: readonly WorkspaceCitySummary[]): void;
+	updateProjection(
+		projectionStart: AppProjectionMode,
+		projectionEnd: AppProjectionMode,
+		projectionPercent: number,
+	): void;
 	updateSelection(
 		activeCityIndex: number,
 		hoveredCityIndex: number | null,
@@ -26,12 +33,18 @@ export interface AppCityMarkerController {
 }
 
 interface CityMarker {
-	readonly cityIndex: number;
+	readonly city: WorkspaceCitySummary;
 	readonly mesh: Mesh;
 	readonly material: StandardMaterial;
 	readonly labelMesh: Mesh;
 	readonly labelMaterial: StandardMaterial;
 	readonly labelTexture: DynamicTexture;
+}
+
+interface ProjectionState {
+	readonly start: AppProjectionMode;
+	readonly end: AppProjectionMode;
+	readonly percent: number;
 }
 
 const globeRadius = APP_GLOBE_RADIUS;
@@ -50,6 +63,11 @@ export function createAppCityMarkerController(scene: Scene): AppCityMarkerContro
 	let hoveredCityIndex: number | null = null;
 	let activeCityIndex: number | null = null;
 	let queryMatchedCityIndexes: readonly number[] = [];
+	let projectionState: ProjectionState = {
+		start: 'none',
+		end: 'equirectangular',
+		percent: 50,
+	};
 
 	function disposeMarkers(): void {
 		for (const marker of markers) {
@@ -65,17 +83,17 @@ export function createAppCityMarkerController(scene: Scene): AppCityMarkerContro
 	function refreshMarkerMaterials(): void {
 		const queryMatchedSet = new Set(queryMatchedCityIndexes);
 		for (const marker of markers) {
-			if (marker.cityIndex === hoveredCityIndex) {
+			if (marker.city.cityIndex === hoveredCityIndex) {
 				marker.material.diffuseColor.copyFrom(markerHoverColor);
 				marker.material.emissiveColor.copyFrom(markerHoverEmissive);
 				marker.mesh.scaling.setAll(1.18);
 				marker.labelMaterial.alpha = 1;
-			} else if (marker.cityIndex === activeCityIndex) {
+			} else if (marker.city.cityIndex === activeCityIndex) {
 				marker.material.diffuseColor.copyFrom(markerFocusColor);
 				marker.material.emissiveColor.copyFrom(markerFocusEmissive);
 				marker.mesh.scaling.setAll(1.35);
 				marker.labelMaterial.alpha = 1;
-			} else if (queryMatchedSet.has(marker.cityIndex)) {
+			} else if (queryMatchedSet.has(marker.city.cityIndex)) {
 				marker.material.diffuseColor.copyFrom(markerQueryColor);
 				marker.material.emissiveColor.copyFrom(markerQueryEmissive);
 				marker.mesh.scaling.setAll(1.18);
@@ -89,12 +107,39 @@ export function createAppCityMarkerController(scene: Scene): AppCityMarkerContro
 		}
 	}
 
+	function refreshMarkerPositions(): void {
+		for (const marker of markers) {
+			const projectedPoint = projectAppGeographicPoint(
+				marker.city.longitudeRadians,
+				marker.city.latitudeRadians,
+				0,
+				projectionState.start,
+				projectionState.end,
+				projectionState.percent,
+			);
+			marker.mesh.position.copyFrom(new Vector3(...projectedPoint));
+			const labelPoint = projectAppGeographicPoint(
+				marker.city.longitudeRadians,
+				marker.city.latitudeRadians,
+				0.35,
+				projectionState.start,
+				projectionState.end,
+				projectionState.percent,
+			);
+			marker.labelMesh.position.copyFrom(new Vector3(...labelPoint));
+		}
+	}
+
+	function refreshMarkers(): void {
+		refreshMarkerPositions();
+		refreshMarkerMaterials();
+	}
+
 	return {
 		setCities(cities: readonly WorkspaceCitySummary[]): void {
 			disposeMarkers();
 			for (const city of cities) {
 				const mesh = MeshBuilder.CreateSphere(`CityMarker-${city.cityIndex}`, { diameter: 0.46 }, scene);
-				mesh.position = new Vector3(...projectCityToAppPoint(city.longitudeRadians, city.latitudeRadians, globeRadius + 0.1));
 				mesh.isPickable = true;
 				mesh.metadata = { cityIndex: city.cityIndex, cityCode: city.cityCode };
 				const material = new StandardMaterial(`AppMarkerMaterial-${city.cityIndex}`, scene);
@@ -106,7 +151,6 @@ export function createAppCityMarkerController(scene: Scene): AppCityMarkerContro
 				const labelMesh = MeshBuilder.CreatePlane(`CityLabel-${city.cityIndex}`, { width: 2.2, height: 0.45 }, scene);
 				labelMesh.billboardMode = Mesh.BILLBOARDMODE_ALL;
 				labelMesh.isPickable = false;
-				labelMesh.position = Vector3.Normalize(mesh.position).scaleInPlace(globeRadius + 1.25);
 				const labelMaterial = new StandardMaterial(`AppMarkerLabelMaterial-${city.cityIndex}`, scene);
 				labelMaterial.disableLighting = true;
 				labelMaterial.backFaceCulling = false;
@@ -132,9 +176,21 @@ export function createAppCityMarkerController(scene: Scene): AppCityMarkerContro
 				);
 				labelMaterial.diffuseTexture = labelTexture;
 				labelMesh.material = labelMaterial;
-				markers.push({ cityIndex: city.cityIndex, mesh, material, labelMesh, labelMaterial, labelTexture });
+				markers.push({ city, mesh, material, labelMesh, labelMaterial, labelTexture });
 			}
-			refreshMarkerMaterials();
+			refreshMarkers();
+		},
+		updateProjection(
+			projectionStart: AppProjectionMode,
+			projectionEnd: AppProjectionMode,
+			projectionPercent: number,
+		): void {
+			projectionState = {
+				start: projectionStart,
+				end: projectionEnd,
+				percent: projectionPercent,
+			};
+			refreshMarkerPositions();
 		},
 		updateSelection(
 			nextActiveCityIndex: number,

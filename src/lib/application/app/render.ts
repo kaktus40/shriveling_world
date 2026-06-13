@@ -1,6 +1,8 @@
 import type { ComputeResult } from '$lib/compute';
 import { EARTH_RADIUS_METERS } from '$lib/shared';
 import { APP_GLOBE_RADIUS } from './geometry';
+import { projectAppEcefPoint } from './projection';
+import type { AppProjectionMode } from './page';
 
 /** Immutable 3D point used by the Babylon scene adapters. */
 export type AppPoint3 = readonly [number, number, number];
@@ -32,14 +34,15 @@ export function ecefToAppPoint(xMeters: number, yMeters: number, zMeters: number
 /** Builds the real business layers consumed by the Babylon scene. */
 export function buildAppBusinessLayers(
 	result: ComputeResult | null,
-	representationPercent = 50,
+	projectionStart: AppProjectionMode = 'none',
+	projectionEnd: AppProjectionMode = 'equirectangular',
+	projectionPercent = 50,
 	focusCityIndex: number | null = null,
 ): readonly AppBusinessLayerDescriptor[] {
 	if (!result) {
 		return [];
 	}
 
-	const representationBlend = Math.min(1, Math.max(0, representationPercent / 100));
 	const layers: AppBusinessLayerDescriptor[] = [];
 
 	for (const [runIndex, geojsonRun] of result.geojsonRuns.entries()) {
@@ -49,17 +52,20 @@ export function buildAppBusinessLayers(
 		const isFocused = focusCityIndex === runIndex;
 		const boundaryColor: AppColor3 = isFocused ? [0.7, 0.9, 1] : [0.58, 0.8, 0.96];
 		const finalConeColor: AppColor3 = isFocused ? [1, 0.83, 0.36] : [0.96, 0.73, 0.35];
-		const boundaryOpacity = isFocused ? 0.52 + representationBlend * 0.34 : 0.35 + representationBlend * 0.45;
-		const finalConeOpacity = isFocused ? 0.48 + representationBlend * 0.38 : 0.28 + representationBlend * 0.52;
+		const boundaryOpacity = isFocused ? 0.86 : 0.66;
+		const finalConeOpacity = isFocused ? 0.82 : 0.6;
 		if (geojsonRun.boundaryRaycast) {
 			layers.push({
 				name: `boundary-${runIndex}-${geojsonRun.fileName}`,
 				color: boundaryColor,
 				opacity: boundaryOpacity,
-				polylines: buildCityPolylinesFromVec4Buffer(
+				polylines: buildProjectedPolylinesFromVec4Buffer(
 					geojsonRun.boundaryRaycast.townBoundaryEcef,
 					geojsonRun.boundaryRaycast.azimuthIntervalCount,
 					true,
+					projectionStart,
+					projectionEnd,
+					projectionPercent,
 				),
 			});
 		}
@@ -69,7 +75,8 @@ export function buildAppBusinessLayers(
 				name: `final-cones-${runIndex}-${geojsonRun.fileName}`,
 				color: finalConeColor,
 				opacity: finalConeOpacity,
-				polylines: buildCityPolylinesFromVec4Buffer(
+				// Final cones are already emitted in display space by the compute stage.
+				polylines: buildPolylinesFromVec4Buffer(
 					geojsonRun.finalCones.finalConeGeometryEcef,
 					geojsonRun.finalCones.azimuthSampleCount,
 					true,
@@ -82,15 +89,62 @@ export function buildAppBusinessLayers(
 		layers.push({
 			name: 'curve-geometry',
 			color: [0.37, 0.89, 0.65],
-			opacity: 0.42 + representationBlend * 0.38,
-			polylines: buildCurvePolylines(result.curveGeometry.positions, result.curveGeometry.curveCount, result.curveGeometry.pointsPerCurve),
+			opacity: 0.72,
+			polylines: buildProjectedCurvePolylines(
+				result.curveGeometry.positions,
+				result.curveGeometry.curveCount,
+				result.curveGeometry.pointsPerCurve,
+				projectionStart,
+				projectionEnd,
+				projectionPercent,
+			),
 		});
 	}
 
 	return layers;
 }
 
-function buildCityPolylinesFromVec4Buffer(
+function buildProjectedPolylinesFromVec4Buffer(
+	buffer: Float32Array,
+	sampleCount: number,
+	closed: boolean,
+	projectionStart: AppProjectionMode,
+	projectionEnd: AppProjectionMode,
+	projectionPercent: number,
+): AppPolylineDescriptor[] {
+	if (sampleCount <= 0 || buffer.length === 0) {
+		return [];
+	}
+
+	const stride = 4;
+	const groupCount = Math.floor(buffer.length / (sampleCount * stride));
+	const polylines: AppPolylineDescriptor[] = [];
+
+	for (let groupIndex = 0; groupIndex < groupCount; groupIndex += 1) {
+		const points: AppPoint3[] = [];
+		for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
+			const offset = (groupIndex * sampleCount + sampleIndex) * stride;
+			points.push(
+				projectAppEcefPoint(
+					buffer[offset],
+					buffer[offset + 1],
+					buffer[offset + 2],
+					projectionStart,
+					projectionEnd,
+					projectionPercent,
+				),
+			);
+		}
+		if (closed && points.length > 0) {
+			points.push(points[0]);
+		}
+		polylines.push({ points, closed });
+	}
+
+	return polylines;
+}
+
+function buildPolylinesFromVec4Buffer(
 	buffer: Float32Array,
 	sampleCount: number,
 	closed: boolean,
@@ -107,7 +161,7 @@ function buildCityPolylinesFromVec4Buffer(
 		const points: AppPoint3[] = [];
 		for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
 			const offset = (groupIndex * sampleCount + sampleIndex) * stride;
-			points.push(ecefToAppPoint(buffer[offset], buffer[offset + 1], buffer[offset + 2]));
+			points.push([buffer[offset], buffer[offset + 1], buffer[offset + 2]]);
 		}
 		if (closed && points.length > 0) {
 			points.push(points[0]);
@@ -118,10 +172,13 @@ function buildCityPolylinesFromVec4Buffer(
 	return polylines;
 }
 
-function buildCurvePolylines(
+function buildProjectedCurvePolylines(
 	buffer: Float32Array,
 	curveCount: number,
 	pointsPerCurve: number,
+	projectionStart: AppProjectionMode,
+	projectionEnd: AppProjectionMode,
+	projectionPercent: number,
 ): AppPolylineDescriptor[] {
 	if (curveCount <= 0 || pointsPerCurve < 0 || buffer.length === 0) {
 		return [];
@@ -135,7 +192,16 @@ function buildCurvePolylines(
 		const points: AppPoint3[] = [];
 		for (let sampleIndex = 0; sampleIndex < pointsPerPolyline; sampleIndex += 1) {
 			const offset = (curveIndex * pointsPerPolyline + sampleIndex) * stride;
-			points.push(ecefToAppPoint(buffer[offset], buffer[offset + 1], buffer[offset + 2]));
+			points.push(
+				projectAppEcefPoint(
+					buffer[offset],
+					buffer[offset + 1],
+					buffer[offset + 2],
+					projectionStart,
+					projectionEnd,
+					projectionPercent,
+				),
+			);
 		}
 		polylines.push({ points });
 	}

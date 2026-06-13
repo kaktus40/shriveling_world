@@ -12,8 +12,7 @@
 	export let onCenterOnSelectedCity: () => void = () => undefined;
 	export let onRotationChange: (degrees: number) => void = () => undefined;
 	export let onReset: () => void = () => undefined;
-
-	let hovered = false;
+	export let open = false;
 
 	const slotLabels: Record<AppMeasurementSlot, string> = {
 		a: 'Point A',
@@ -30,14 +29,8 @@
 	}
 </script>
 
-<section
-	class:expanded={hovered}
-	class="panel measurement-panel"
-	role="group"
-	aria-label="Measurement tools"
-	on:mouseenter={() => (hovered = true)}
-	on:mouseleave={() => (hovered = false)}
->
+{#if open}
+<section class="panel measurement-panel" role="group" aria-label="Measurement tools">
 	<header class="panel-head">
 		<div>
 			<p class="eyebrow">Tools</p>
@@ -52,7 +45,7 @@
 	</header>
 
 	<div class="teaser">
-	<span>{selectedCity ? `${selectedCityIndex} · ${selectedCity.cityLabel}` : 'No city selected'}</span>
+		<span>{selectedCity ? `${selectedCityIndex} · ${selectedCity.cityLabel}` : 'No city selected'}</span>
 		<span>
 			{measurementSummary?.centralAngleDegrees == null
 				? 'Central angle pending'
@@ -65,63 +58,62 @@
 		</span>
 	</div>
 
-	{#if hovered}
-		<div class="slots">
-			{#each (['a', 'b', 'c'] as AppMeasurementSlot[]) as slot}
-				<div class="slot-row">
-					<div class="slot-meta">
-						<div class="slot-name">{slotLabels[slot]}</div>
-						<div class="slot-value">{describeSlot(slot)}</div>
-					</div>
-					<div class="slot-actions">
-						<button type="button" class="action subtle" disabled={loading} on:click={() => onSetPoint(slot)}>
-							Use current
-						</button>
-						<button type="button" class="action subtle" disabled={loading} on:click={() => onClearPoint(slot)}>
-							Clear
-						</button>
-					</div>
+	<div class="slots">
+		{#each (['a', 'b', 'c'] as AppMeasurementSlot[]) as slot}
+			<div class="slot-row">
+				<div class="slot-meta">
+					<div class="slot-name">{slotLabels[slot]}</div>
+					<div class="slot-value">{describeSlot(slot)}</div>
 				</div>
-			{/each}
-		</div>
+				<div class="slot-actions">
+					<button type="button" class="action subtle" disabled={loading} on:click={() => onSetPoint(slot)}>
+						Use current
+					</button>
+					<button type="button" class="action subtle" disabled={loading} on:click={() => onClearPoint(slot)}>
+						Clear
+					</button>
+				</div>
+			</div>
+		{/each}
+	</div>
 
-		<label class="rotation">
-			<span>Local rotation</span>
-			<input
-				type="range"
-				min="0"
-				max="360"
-				step="1"
-				value={measurementSelection.localRotationDegrees}
-				disabled={loading}
-				on:input={(event) => onRotationChange(Number((event.currentTarget as HTMLInputElement).value))}
-			/>
-			<strong>{measurementSelection.localRotationDegrees.toFixed(0)}°</strong>
-		</label>
+	<label class="rotation">
+		<span>Local rotation</span>
+		<input
+			type="range"
+			min="0"
+			max="360"
+			step="1"
+			value={measurementSelection.localRotationDegrees}
+			disabled={loading}
+			on:input={(event) => onRotationChange(Number((event.currentTarget as HTMLInputElement).value))}
+		/>
+		<strong>{measurementSelection.localRotationDegrees.toFixed(0)}°</strong>
+	</label>
 
-		<div class="summary">
-			{#if measurementSummary?.planeFrame}
-				<span>{measurementSummary.planeFrame.points.length} plane markers</span>
-				<span>Plane A/B/O ready</span>
-			{:else}
-				<span>Set at least A and B to show the plane</span>
-			{/if}
-			<span>
-				Focus: {
-					measurementSelection.focusCityIndex == null
-						? 'none'
-						: `${measurementSelection.focusCityIndex}`
-				}
-			</span>
-		</div>
-	{/if}
+	<div class="summary">
+		{#if measurementSummary?.planeFrame}
+			<span>{measurementSummary.planeFrame.points.length} plane markers</span>
+			<span>Plane A/B/O ready</span>
+		{:else}
+			<span>Set at least A and B to show the plane</span>
+		{/if}
+		<span>
+			Focus: {
+				measurementSelection.focusCityIndex == null
+					? 'none'
+					: `${measurementSelection.focusCityIndex}`
+			}
+		</span>
+	</div>
 </section>
+{/if}
 
 <style>
 	.panel {
 		pointer-events: auto;
 		width: min(30rem, calc(100vw - 2rem));
-		margin: 0 1rem 1rem;
+		margin: 0 1rem 1rem var(--app-left-dock-offset, 4.75rem);
 		padding: 0.9rem 1rem;
 		border-radius: 1rem;
 		border: 1px solid rgba(138, 168, 178, 0.2);
@@ -131,17 +123,6 @@
 		display: grid;
 		gap: 0.65rem;
 		color: #e5efef;
-		transition:
-			transform 160ms ease,
-			background 160ms ease,
-			border-color 160ms ease;
-	}
-
-	.panel:hover,
-	.expanded {
-		background: rgba(8, 12, 16, 0.84);
-		border-color: rgba(138, 168, 178, 0.35);
-		transform: translateY(-1px);
 	}
 
 	.panel-head {

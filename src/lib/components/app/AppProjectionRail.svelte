@@ -1,50 +1,40 @@
 <script lang="ts">
-	import { APP_REPRESENTATION_MODES, type AppRepresentationMode } from '$lib/application/app';
+	import {
+		APP_PROJECTION_LABELS,
+		APP_PROJECTION_MODES,
+		type AppProjectionMode,
+	} from '$lib/application/app';
 
-	export let representationStart: AppRepresentationMode = 'globe';
-	export let representationEnd: AppRepresentationMode = 'network';
-	export let representationPercent = 50;
+	export let projectionStart: AppProjectionMode = 'none';
+	export let projectionEnd: AppProjectionMode = 'equirectangular';
+	export let projectionPercent = 50;
 	export let loading = false;
-	export let onRepresentationStartChange: (value: AppRepresentationMode) => void = () => undefined;
-	export let onRepresentationEndChange: (value: AppRepresentationMode) => void = () => undefined;
-	export let onRepresentationPercentChange: (value: number) => void = () => undefined;
-
-	const representationModeLabels: Record<AppRepresentationMode, string> = {
-		globe: 'Globe',
-		network: 'Network',
-	};
-
-	let hovered = false;
+	export let onProjectionStartChange: (value: AppProjectionMode) => void = () => undefined;
+	export let onProjectionEndChange: (value: AppProjectionMode) => void = () => undefined;
+	export let onProjectionPercentChange: (value: number) => void = () => undefined;
 
 	function updatePercent(value: number): void {
-		onRepresentationPercentChange(Math.max(0, Math.min(100, value)));
+		onProjectionPercentChange(Math.max(0, Math.min(100, value)));
 	}
 </script>
 
-<section
-	class:expanded={hovered}
-	class="representation-rail"
-	role="group"
-	aria-label="Representation control"
-	on:mouseenter={() => (hovered = true)}
-	on:mouseleave={() => (hovered = false)}
->
+<section class="projection-rail" role="group" aria-label="Projection control">
 	<div class="head">
 		<p class="eyebrow">Display</p>
-		<h2>Representation</h2>
+		<h2>Projection</h2>
 	</div>
 
 	<div class="mode mode-start">
 		<label>
 			<span>Start</span>
 			<select
-				value={representationStart}
+				value={projectionStart}
 				disabled={loading}
 				on:change={(event) =>
-					onRepresentationStartChange((event.currentTarget as HTMLSelectElement).value as AppRepresentationMode)}
+					onProjectionStartChange((event.currentTarget as HTMLSelectElement).value as AppProjectionMode)}
 			>
-				{#each APP_REPRESENTATION_MODES as mode}
-					<option value={mode}>{representationModeLabels[mode]}</option>
+				{#each APP_PROJECTION_MODES as mode}
+					<option value={mode}>{APP_PROJECTION_LABELS[mode]}</option>
 				{/each}
 			</select>
 		</label>
@@ -56,24 +46,24 @@
 			min="0"
 			max="100"
 			step="1"
-			value={representationPercent}
+			value={projectionPercent}
 			disabled={loading}
 			on:input={(event) => updatePercent(Number((event.currentTarget as HTMLInputElement).value))}
 		/>
-		<div class="percent">{representationPercent}%</div>
+		<div class="percent">{projectionPercent}%</div>
 	</div>
 
 	<div class="mode mode-end">
 		<label>
 			<span>End</span>
 			<select
-				value={representationEnd}
+				value={projectionEnd}
 				disabled={loading}
 				on:change={(event) =>
-					onRepresentationEndChange((event.currentTarget as HTMLSelectElement).value as AppRepresentationMode)}
+					onProjectionEndChange((event.currentTarget as HTMLSelectElement).value as AppProjectionMode)}
 			>
-				{#each APP_REPRESENTATION_MODES as mode}
-					<option value={mode}>{representationModeLabels[mode]}</option>
+				{#each APP_PROJECTION_MODES as mode}
+					<option value={mode}>{APP_PROJECTION_LABELS[mode]}</option>
 				{/each}
 			</select>
 		</label>
@@ -81,33 +71,22 @@
 </section>
 
 <style>
-	.representation-rail {
+	.projection-rail {
 		position: fixed;
 		right: 0;
 		top: 0;
 		z-index: 4;
 		height: 100vh;
-		width: 4.5rem;
-		padding: 1rem 0.55rem;
+		width: var(--app-projection-rail-width, 12.25rem);
+		padding: 1rem 0.8rem 1rem 0.9rem;
 		display: grid;
 		grid-template-rows: auto auto 1fr auto;
+		align-items: start;
 		gap: 0.75rem;
 		background: linear-gradient(270deg, rgba(8, 12, 16, 0.76), rgba(8, 12, 16, 0.26));
 		border-left: 1px solid rgba(138, 168, 178, 0.18);
 		backdrop-filter: blur(14px);
 		pointer-events: auto;
-		opacity: 0.82;
-		transition:
-			opacity 160ms ease,
-			background 160ms ease,
-			border-color 160ms ease;
-	}
-
-	.representation-rail:hover,
-	.expanded {
-		opacity: 1;
-		background: linear-gradient(270deg, rgba(8, 12, 16, 0.9), rgba(8, 12, 16, 0.42));
-		border-color: rgba(138, 168, 178, 0.34);
 	}
 
 	.head {
@@ -150,12 +129,13 @@
 
 	select {
 		width: 100%;
-		padding: 0.35rem 0.4rem;
+		padding: 0.42rem 0.48rem;
 		border-radius: 0.65rem;
 		border: 1px solid rgba(138, 168, 178, 0.2);
 		background: rgba(10, 16, 21, 0.92);
 		color: #eef6f6;
 		font: inherit;
+		font-size: 0.76rem;
 	}
 
 	.slider {
@@ -166,7 +146,7 @@
 	}
 
 	input[type='range'] {
-		width: 1.25rem;
+		width: 1.4rem;
 		height: calc(100vh - 11rem);
 		max-height: 46rem;
 		min-height: 18rem;

@@ -159,11 +159,24 @@ export class CpuComputeBackend implements ComputeBackend {
 		if (coneIntersections) {
 			geojsonRuns = geojsonRuns.map((geojsonRun) => {
 				const finalConesTiming = measureStage(
-					'final-cones-precompute',
-					'precompute',
-					this.profile,
-					() => computeFinalConePrecomputeCpu(coneIntersections, geojsonRun.boundaryRaycast, EARTH_RADIUS_METERS),
-				);
+				'final-cones-precompute',
+				'precompute',
+				this.profile,
+				() =>
+					computeFinalConePrecomputeCpu(
+						coneIntersections,
+						geojsonRun.boundaryRaycast,
+						EARTH_RADIUS_METERS,
+						options.projection
+							? {
+									start: options.projection.start,
+									end: options.projection.end,
+									percent: options.projection.percent,
+									settings: options.projection.settings,
+								}
+							: undefined,
+					),
+			);
 				timings.push(finalConesTiming.timing);
 				return {
 					...geojsonRun,

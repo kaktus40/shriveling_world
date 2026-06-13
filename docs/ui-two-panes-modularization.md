@@ -23,6 +23,8 @@ But:
 
 Responsabilites:
 - chargement et selection de dataset;
+- demarrage inerte jusqu a selection explicite, pour eviter un chargement CPU
+  bloqueur au lancement;
 - inspection de manifests et de tranches de preparation;
 - benchmarks par etape et par profil;
 - comparaison des sorties et ecarts;
@@ -44,6 +46,7 @@ But:
   orbite, zoom, picking de ville, inspection.
 
 Responsabilites:
+- point d entree visible depuis la page index;
 - rendu 3D principal;
 - navigation temporelle fluide;
 - requeteur humain sur arbre AST;
@@ -98,6 +101,8 @@ Principes:
 - les composants de domaine applicatif restent petits et reutilisables.
 - la scene Babylon occupe tout le viewport;
 - les menus de controle apparaissent au passage de la souris;
+- la page racine expose l entree `app` visiblement, tandis que `workspace`
+  reste un panneau d analyse lance a la demande;
 - les interactions clavier/souris restent concentrees dans la couche app,
   jamais dans le compute.
 - les labels de villes restent controlables depuis une petite surface de

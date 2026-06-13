@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { AppCameraMode, AppPageState, AppRepresentationMode } from '$lib/application/app';
+	import {
+		APP_PROJECTION_LABELS,
+		type AppCameraMode,
+		type AppPageState,
+		type AppProjectionMode,
+	} from '$lib/application/app';
 	import type { AppMeasurementSelection, AppMeasurementSummary } from '$lib/application/app/measurement';
 	import type { AppSceneController, AppSceneState } from '$lib/application/app/scene';
 	import type { WorkspaceComputeResult } from '$lib/application/workspace';
@@ -12,9 +17,9 @@
 	export let selectedYearLabel: number | string = '';
 	export let selectedCityIndex = 0;
 	export let cameraMode: AppCameraMode = 'orbit';
-	export let representationStart: AppRepresentationMode = 'globe';
-	export let representationEnd: AppRepresentationMode = 'network';
-	export let representationPercent = 50;
+	export let projectionStart: AppProjectionMode = 'none';
+	export let projectionEnd: AppProjectionMode = 'equirectangular';
+	export let projectionPercent = 50;
 	export let measurementSelection: AppMeasurementSelection;
 	export let queryMatchedCityIndexes: readonly number[] = [];
 	export let loading = false;
@@ -34,9 +39,9 @@
 		selectedYear,
 		selectedCityIndex,
 		cameraMode,
-		representationStart,
-		representationEnd,
-		representationPercent,
+		projectionStart,
+		projectionEnd,
+		projectionPercent,
 		measurementSelection,
 		showCityLabels,
 		queryMatchedCityIndexes,
@@ -87,8 +92,8 @@
 			<span>{cameraMode}</span>
 			<span>{selectedYearLabel || selectedYear || '—'}</span>
 			<span>{selectedCity ? `${selectedCityIndex} · ${selectedCity.cityLabel}` : 'No city'}</span>
-			<span>{representationStart} → {representationEnd}</span>
-			<span>{representationPercent}%</span>
+			<span>{APP_PROJECTION_LABELS[projectionStart]} → {APP_PROJECTION_LABELS[projectionEnd]}</span>
+			<span>{projectionPercent}%</span>
 			<span>{showCityLabels ? 'city labels on' : 'city labels off'}</span>
 			<span>{queryMatchedCityIndexes.length} query match(es)</span>
 		</div>
@@ -97,8 +102,8 @@
 	<div class="scene-info">
 		<h1>Application</h1>
 		<p>
-			The renderer consumes ready-to-display geometry. Hover the controls to adjust the dataset,
-			camera and first interaction level without collapsing the scene.
+			The renderer consumes ready-to-display geometry. Use the edge dock and the projection rails
+			to adjust the dataset, camera and first interaction level without collapsing the scene.
 		</p>
 		<ul>
 			<li>{appState ? `${appState.summary.cityCount} cities loaded` : 'No dataset loaded yet'}</li>
@@ -108,7 +113,7 @@
 				final cone layer(s)
 			</li>
 			<li>{workspaceCompute?.result.curveGeometry ? 'Curve layer ready' : 'Curve layer pending'}</li>
-			<li>{representationStart} to {representationEnd} at {representationPercent}%</li>
+			<li>{APP_PROJECTION_LABELS[projectionStart]} to {APP_PROJECTION_LABELS[projectionEnd]} at {projectionPercent}%</li>
 			<li>{showCityLabels ? 'City labels visible' : 'City labels hidden'}</li>
 			<li>{queryMatchedCityIndexes.length} query match(es)</li>
 			<li>
@@ -145,8 +150,8 @@
 
 	.scene-hud {
 		position: absolute;
-		right: 1rem;
-		top: 1rem;
+		right: calc(var(--app-projection-rail-width, 12.25rem) + 1rem);
+		top: calc(var(--app-year-rail-height, 4.75rem) + 1rem);
 		display: grid;
 		gap: 0.45rem;
 		justify-items: end;

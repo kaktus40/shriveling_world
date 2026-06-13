@@ -1717,6 +1717,9 @@ Travail deja realise:
     reference pour les mesures geometriques;
   - `src/lib/components/app/AppQueryPanel.svelte` comme panneau de requete
     compact et orienté focus de resultat;
+  - index racine expose `app` comme entree visible du produit;
+  - `workspace` demarre inerte tant qu aucun dataset n est charge
+    explicitement;
   - scene plein ecran;
   - panneaux de controle en surimpression;
   - menus visibles au survol;
@@ -1749,6 +1752,8 @@ Critere d acceptance:
   a une ville selectionnee depuis le resultat.
 - les labels de villes et les outils de mesure sont des composants dedies et
   maintenables.
+- le workspace n auto-charge plus un dataset au lancement afin de rester
+  utilisable avant toute interaction lourde.
 
 Validation:
 

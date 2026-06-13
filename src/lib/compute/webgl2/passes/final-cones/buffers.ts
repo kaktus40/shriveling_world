@@ -12,7 +12,17 @@ export function createFinalConesDispatchResources(
 	const vertexArray = gl.createVertexArray();
 	const finalConeGeometryEcefBuffer = gl.createBuffer();
 	const uniformLocation = gl.getUniformLocation(program, 'u_uniforms');
-	if (!vertexArray || !finalConeGeometryEcefBuffer || !uniformLocation) {
+	const projectionUniformLocation = gl.getUniformLocation(program, 'u_projection');
+	const projectionSettingsALocation = gl.getUniformLocation(program, 'u_projection_settings_a');
+	const projectionSettingsBLocation = gl.getUniformLocation(program, 'u_projection_settings_b');
+	if (
+		!vertexArray ||
+		!finalConeGeometryEcefBuffer ||
+		!uniformLocation ||
+		!projectionUniformLocation ||
+		!projectionSettingsALocation ||
+		!projectionSettingsBLocation
+	) {
 		throw new Error('WebGL2 final cones resource allocation failed');
 	}
 
@@ -53,6 +63,9 @@ export function createFinalConesDispatchResources(
 		townBoundaryEcefBuffer: input.townBoundaryEcef,
 		finalConeGeometryEcefBuffer,
 		uniformLocation,
+		projectionUniformLocation,
+		projectionSettingsALocation,
+		projectionSettingsBLocation,
 		ciseledConeRimEcefContract: {
 			name: 'ciseledConeRimEcef',
 			elementType: 'float32',
@@ -86,7 +99,7 @@ export function createFinalConesDispatchResources(
 			count: input.cityCount * input.azimuthSampleCount,
 			linearUnit: 'meters',
 			coordinateOrder: 'ecef',
-			notes: ['Final cone geometry in ECEF meters, ready to display'],
+			notes: ['Final cone geometry in display projection space, ready to display'],
 		},
 	};
 }

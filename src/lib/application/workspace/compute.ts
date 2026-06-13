@@ -14,6 +14,7 @@ import {
 	benchmarkConeIntersectionAlphaAwareNeighborhoodSweepCpu,
 	type AlphaAwareNeighborhoodBenchmarkReport,
 } from '$lib/domain/precompute';
+import type { ProjectionMode, ProjectionSettings } from '$lib/shared/math';
 import { createDefaultConePipelineOptions } from '$lib/application/validation';
 import {
 	benchmarkWorkspaceAnnualConeIntersectionCache,
@@ -37,6 +38,10 @@ export interface WorkspaceComputeRequest {
 	allowFallback?: boolean;
 	benchmark?: boolean;
 	dynamicYear?: number;
+	projectionStart?: ProjectionMode;
+	projectionEnd?: ProjectionMode;
+	projectionPercent?: number;
+	projectionSettings?: ProjectionSettings;
 	curve?: {
 		enabled?: boolean;
 		year?: number;
@@ -77,6 +82,14 @@ export async function computeWorkspaceDataset(
 			boundaryRaycast: { azimuthSampleCount: 360 },
 			staticTown: { sectorCount: 360, neighborLimit: Math.min(Math.max(workspace.pipeline.preparedDataset.cityCount - 1, 0), 16) },
 			dynamicYear,
+			projection: request.projectionStart && request.projectionEnd
+				? {
+						start: request.projectionStart,
+						end: request.projectionEnd,
+						percent: request.projectionPercent ?? 0,
+						settings: request.projectionSettings,
+					}
+				: undefined,
 			rawCone: {
 				shape: coneOptions.shape,
 				azimuthSampleCount: coneOptions.azimuthSampleCount,

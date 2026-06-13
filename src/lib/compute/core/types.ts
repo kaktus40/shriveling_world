@@ -38,6 +38,7 @@ import type {
 	StaticTownPrecompute,
 	StaticTownPrecomputeOptions,
 } from '../../domain/precompute';
+import type { ProjectionMode, ProjectionSettings } from '$lib/shared/math';
 
 /** Compute backends supported by the migration framework. */
 export type ComputeProfile = 'webgpu' | 'webgl2' | 'cpu';
@@ -148,6 +149,14 @@ export interface ComputePrecomputeOptions {
 	};
 }
 
+/** Shared projection controls used by the final geometry emission stage. */
+export interface ComputeProjectionOptions {
+	readonly start: ProjectionMode;
+	readonly end: ProjectionMode;
+	readonly percent: number;
+	readonly settings?: ProjectionSettings;
+}
+
 /** Options shared by the current compute stack compatibility surface. */
 export interface ComputeOptions extends ComputeBoundaryOptions, ComputePrecomputeOptions {
 	readonly profileRequest?: ComputeProfileRequest;
@@ -155,6 +164,7 @@ export interface ComputeOptions extends ComputeBoundaryOptions, ComputePrecomput
 	readonly curve?: {
 		readonly enabled?: boolean;
 	} & Partial<CurveGeometryOptions>;
+	readonly projection?: ComputeProjectionOptions;
 }
 
 /** Result of one boundary-oriented compute frame while the current compatibility vocabulary remains in place. */

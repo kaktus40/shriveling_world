@@ -31,7 +31,7 @@
 		datasets: string[];
 	};
 
-	let selectedDataset = data.datasets[0] ?? '';
+	let selectedDataset = '';
 	let workspace: WorkspaceDatasetSnapshot | null = null;
 	let summary: WorkspaceDatasetSummary | null = null;
 	let modes: WorkspaceModeSummary[] = [];
@@ -69,9 +69,6 @@
 
 	onMount(() => {
 		queryWorker = createQueryWorkerClient();
-		if (selectedDataset) {
-			void reloadWorkspace();
-		}
 
 		return () => {
 			workspaceQueryController.dispose();
@@ -187,15 +184,23 @@
 	</p>
 </section>
 
-	<WorkspaceControls
-		datasets={data.datasets}
-		bind:selectedDataset
-		bind:selectedComputeProfile
-		bind:selectedConeIntersectionStrategy
-		{loading}
-		onReloadWorkspace={() => void reloadWorkspace()}
-		onReloadCompute={() => void reloadCompute()}
+<WorkspaceControls
+	datasets={data.datasets}
+	bind:selectedDataset
+	bind:selectedComputeProfile
+	bind:selectedConeIntersectionStrategy
+	{loading}
+	onReloadWorkspace={() => void reloadWorkspace()}
+	onReloadCompute={() => void reloadCompute()}
+/>
+
+{#if !workspace && !loading && !errorMessage}
+	<WorkspaceNoticePanel
+		title="No dataset loaded"
+		message="Choose a bundled dataset, then click Reload workspace to start the CPU or GPU pipeline on demand."
+		kind="info"
 	/>
+{/if}
 
 {#if errorMessage}
 	<WorkspaceNoticePanel title="Workspace error" message={errorMessage} kind="error" />
