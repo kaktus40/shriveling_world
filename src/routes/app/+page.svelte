@@ -1,8 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import AppControlPanel from '$lib/components/app/AppControlPanel.svelte';
+	import AppRepresentationRail from '$lib/components/app/AppRepresentationRail.svelte';
+	import AppYearRail from '$lib/components/app/AppYearRail.svelte';
 	import AppViewport from '$lib/components/app/AppViewport.svelte';
-	import { loadAppPageState, type AppPageState, type AppCameraMode } from '$lib/application/app';
+	import {
+		loadAppPageState,
+		type AppPageState,
+		type AppCameraMode,
+		type AppRepresentationMode,
+	} from '$lib/application/app';
 	import { loadAppSceneCompute } from '$lib/application/app/compute';
 	import type { WorkspaceComputeResult } from '$lib/application/workspace';
 	import type { WorkspaceCitySummary } from '$lib/application/workspace';
@@ -17,6 +24,9 @@
 	let selectedYear = 0;
 	let selectedCityIndex = 0;
 	let cameraMode: AppCameraMode = 'orbit';
+	let representationStart: AppRepresentationMode = 'globe';
+	let representationEnd: AppRepresentationMode = 'network';
+	let representationPercent = 50;
 	let loading = false;
 	let errorMessage = '';
 	let selectedCity: WorkspaceCitySummary | null = null;
@@ -42,6 +52,9 @@
 			selectedYear = loaded.selection.year;
 			selectedCityIndex = loaded.selection.cityIndex;
 			cameraMode = loaded.selection.cameraMode;
+			representationStart = loaded.selection.representationStart;
+			representationEnd = loaded.selection.representationEnd;
+			representationPercent = loaded.selection.representationPercent;
 			await reloadAppCompute(loaded, selectedYear);
 		} catch (error) {
 			appState = null;
@@ -101,10 +114,25 @@
 		cameraMode = next;
 	}
 
+	function handleRepresentationStartChange(next: AppRepresentationMode): void {
+		representationStart = next;
+	}
+
+	function handleRepresentationEndChange(next: AppRepresentationMode): void {
+		representationEnd = next;
+	}
+
+	function handleRepresentationPercentChange(next: number): void {
+		representationPercent = next;
+	}
+
 	function resetScene(): void {
 		selectedYear = appState?.selection.year ?? selectedYear;
 		selectedCityIndex = appState?.selection.cityIndex ?? selectedCityIndex;
 		cameraMode = appState?.selection.cameraMode ?? 'orbit';
+		representationStart = appState?.selection.representationStart ?? representationStart;
+		representationEnd = appState?.selection.representationEnd ?? representationEnd;
+		representationPercent = appState?.selection.representationPercent ?? representationPercent;
 		if (appState) {
 			void reloadAppCompute(appState, selectedYear);
 		}
@@ -128,6 +156,9 @@
 		{selectedYearLabel}
 		{selectedCityIndex}
 		{cameraMode}
+		{representationStart}
+		{representationEnd}
+		{representationPercent}
 		{loading}
 		{selectedCity}
 		onCityIndexChange={handleCityIndexChange}
@@ -136,20 +167,38 @@
 	/>
 
 	<div class="chrome">
+		<AppYearRail
+			yearOptions={appState?.yearOptions ?? []}
+			{selectedYear}
+			{loading}
+			onYearChange={handleYearChange}
+		/>
+
 		<AppControlPanel
 			{appState}
 			datasets={data.datasets}
 			{selectedDataset}
-			{selectedYear}
 			{selectedCityIndex}
 			{cameraMode}
+			{representationStart}
+			{representationEnd}
+			{representationPercent}
 			{loading}
 			{selectedCity}
 			onDatasetChange={handleDatasetChange}
-			onYearChange={handleYearChange}
 			onCityIndexChange={handleCityIndexChange}
 			onCameraModeChange={handleCameraModeChange}
 			onResetScene={resetScene}
+		/>
+
+		<AppRepresentationRail
+			{representationStart}
+			{representationEnd}
+			{representationPercent}
+			{loading}
+			onRepresentationStartChange={handleRepresentationStartChange}
+			onRepresentationEndChange={handleRepresentationEndChange}
+			onRepresentationPercentChange={handleRepresentationPercentChange}
 		/>
 	</div>
 
@@ -181,6 +230,8 @@
 		inset: 0;
 		z-index: 2;
 		pointer-events: none;
+		padding-top: 4.75rem;
+		box-sizing: border-box;
 	}
 
 	.error-banner {

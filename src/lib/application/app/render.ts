@@ -18,6 +18,7 @@ export interface AppPolylineDescriptor {
 export interface AppBusinessLayerDescriptor {
 	readonly name: string;
 	readonly color: AppColor3;
+	readonly opacity?: number;
 	readonly polylines: readonly AppPolylineDescriptor[];
 }
 
@@ -29,11 +30,15 @@ export function ecefToAppPoint(xMeters: number, yMeters: number, zMeters: number
 }
 
 /** Builds the real business layers consumed by the Babylon scene. */
-export function buildAppBusinessLayers(result: ComputeResult | null): readonly AppBusinessLayerDescriptor[] {
+export function buildAppBusinessLayers(
+	result: ComputeResult | null,
+	representationPercent = 50,
+): readonly AppBusinessLayerDescriptor[] {
 	if (!result) {
 		return [];
 	}
 
+	const representationBlend = Math.min(1, Math.max(0, representationPercent / 100));
 	const layers: AppBusinessLayerDescriptor[] = [];
 
 	for (const [runIndex, geojsonRun] of result.geojsonRuns.entries()) {
@@ -41,6 +46,7 @@ export function buildAppBusinessLayers(result: ComputeResult | null): readonly A
 			layers.push({
 				name: `boundary-${runIndex}-${geojsonRun.fileName}`,
 				color: [0.58, 0.8, 0.96],
+				opacity: 0.35 + representationBlend * 0.45,
 				polylines: buildCityPolylinesFromVec4Buffer(
 					geojsonRun.boundaryRaycast.townBoundaryEcef,
 					geojsonRun.boundaryRaycast.azimuthIntervalCount,
@@ -53,6 +59,7 @@ export function buildAppBusinessLayers(result: ComputeResult | null): readonly A
 			layers.push({
 				name: `final-cones-${runIndex}-${geojsonRun.fileName}`,
 				color: [0.96, 0.73, 0.35],
+				opacity: 0.28 + representationBlend * 0.52,
 				polylines: buildCityPolylinesFromVec4Buffer(
 					geojsonRun.finalCones.finalConeGeometryEcef,
 					geojsonRun.finalCones.azimuthSampleCount,
@@ -66,6 +73,7 @@ export function buildAppBusinessLayers(result: ComputeResult | null): readonly A
 		layers.push({
 			name: 'curve-geometry',
 			color: [0.37, 0.89, 0.65],
+			opacity: 0.42 + representationBlend * 0.38,
 			polylines: buildCurvePolylines(result.curveGeometry.positions, result.curveGeometry.curveCount, result.curveGeometry.pointsPerCurve),
 		});
 	}

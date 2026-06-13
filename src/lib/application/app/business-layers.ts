@@ -46,6 +46,7 @@ export function createAppBusinessLayerController(scene: Scene): AppBusinessLayer
 								scene,
 							);
 							mesh.color = new Color3(layer.color[0], layer.color[1], layer.color[2]);
+							mesh.visibility = layer.opacity ?? 1;
 							mesh.isPickable = false;
 							mesh.metadata = { layerName: layer.name, polylineIndex };
 							return mesh;

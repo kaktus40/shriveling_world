@@ -1,17 +1,18 @@
 <script lang="ts">
-	import { APP_CAMERA_MODES, type AppCameraMode, type AppPageState } from '$lib/application/app';
+	import { APP_CAMERA_MODES, type AppCameraMode, type AppPageState, type AppRepresentationMode } from '$lib/application/app';
 	import type { WorkspaceCitySummary } from '$lib/application/workspace';
 
 	export let appState: AppPageState | null = null;
 	export let datasets: readonly string[] = [];
 	export let selectedDataset = '';
-	export let selectedYear = 0;
 	export let selectedCityIndex = 0;
 	export let cameraMode: AppCameraMode = 'orbit';
+	export let representationStart: AppRepresentationMode = 'globe';
+	export let representationEnd: AppRepresentationMode = 'network';
+	export let representationPercent = 50;
 	export let loading = false;
 	export let selectedCity: WorkspaceCitySummary | null = null;
 	export let onDatasetChange: (value: string) => void = () => undefined;
-	export let onYearChange: (value: number) => void = () => undefined;
 	export let onCityIndexChange: (value: number) => void = () => undefined;
 	export let onCameraModeChange: (value: AppCameraMode) => void = () => undefined;
 	export let onResetScene: () => void = () => undefined;
@@ -22,6 +23,11 @@
 		orbit: 'Orbit',
 		inspect: 'Inspect',
 		free: 'Free',
+	};
+
+	const representationModeLabels: Record<AppRepresentationMode, string> = {
+		globe: 'Globe',
+		network: 'Network',
 	};
 
 	function openPanel(): void {
@@ -51,9 +57,12 @@
 
 	<div class="teaser">
 		<span>{selectedDataset || 'No dataset selected'}</span>
-		<span>{selectedYear || appState?.selection.year || '—'}</span>
 		<span>{selectedCity ? `${selectedCityIndex} · ${selectedCity.cityCode}` : 'No city'}</span>
 		<span>{cameraModeLabels[cameraMode]}</span>
+		<span>
+			{representationModeLabels[representationStart]} → {representationModeLabels[representationEnd]}
+			· {representationPercent}%
+		</span>
 	</div>
 
 	{#if expanded}
@@ -68,20 +77,6 @@
 				>
 					{#each datasets as datasetName}
 						<option value={datasetName}>{datasetName}</option>
-					{/each}
-				</select>
-			</label>
-
-			<label>
-				<span>Year</span>
-				<select
-					value={selectedYear}
-					disabled={!appState || loading}
-					on:change={(event) =>
-						onYearChange(Number((event.currentTarget as HTMLSelectElement).value))}
-				>
-					{#each appState?.yearOptions ?? [] as year}
-						<option value={year}>{year}</option>
 					{/each}
 				</select>
 			</label>
@@ -127,7 +122,7 @@
 
 		<div class="hints">
 			<p>Hover the menu to keep it open.</p>
-			<p>Orbit camera, wheel zoom, and city picking are the first interaction level.</p>
+			<p>Orbit camera, wheel zoom, city picking, and display blending are the first interaction level.</p>
 		</div>
 	{/if}
 </section>
@@ -212,7 +207,7 @@
 
 	.controls {
 		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 0.65rem;
 	}
 

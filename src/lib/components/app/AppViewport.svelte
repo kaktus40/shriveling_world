@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { AppCameraMode, AppPageState } from '$lib/application/app';
+	import type { AppCameraMode, AppPageState, AppRepresentationMode } from '$lib/application/app';
 	import type { AppSceneController, AppSceneState } from '$lib/application/app/scene';
 	import type { WorkspaceComputeResult } from '$lib/application/workspace';
 	import type { WorkspaceCitySummary } from '$lib/application/workspace';
@@ -11,6 +11,9 @@
 	export let selectedYearLabel: number | string = '';
 	export let selectedCityIndex = 0;
 	export let cameraMode: AppCameraMode = 'orbit';
+	export let representationStart: AppRepresentationMode = 'globe';
+	export let representationEnd: AppRepresentationMode = 'network';
+	export let representationPercent = 50;
 	export let loading = false;
 	export let selectedCity: WorkspaceCitySummary | null = null;
 	export let onCityIndexChange: (value: number) => void = () => undefined;
@@ -26,6 +29,9 @@
 		selectedYear,
 		selectedCityIndex,
 		cameraMode,
+		representationStart,
+		representationEnd,
+		representationPercent,
 	});
 
 	onMount(() => {
@@ -46,9 +52,9 @@
 					const nextIndex = Math.min(yearOptions.length - 1, Math.max(0, currentIndex + step));
 					onYearChange(yearOptions[nextIndex] ?? selectedYear);
 				},
-				onCameraModeChange: (nextMode) => onCameraModeChange(nextMode),
+					onCameraModeChange: (nextMode) => onCameraModeChange(nextMode),
+				});
 			});
-		});
 
 		return () => {
 			controller?.dispose();
@@ -69,11 +75,13 @@
 
 	<div class="scene-hud">
 		<div class="scene-badge">Babylon scene</div>
-		<div class="scene-status">
-			<span>{cameraMode}</span>
-			<span>{selectedYearLabel || selectedYear || '—'}</span>
-			<span>{selectedCity ? `${selectedCityIndex} · ${selectedCity.cityCode}` : 'No city'}</span>
-		</div>
+			<div class="scene-status">
+				<span>{cameraMode}</span>
+				<span>{selectedYearLabel || selectedYear || '—'}</span>
+				<span>{selectedCity ? `${selectedCityIndex} · ${selectedCity.cityCode}` : 'No city'}</span>
+				<span>{representationStart} → {representationEnd}</span>
+				<span>{representationPercent}%</span>
+			</div>
 	</div>
 
 	<div class="scene-info">
@@ -90,6 +98,7 @@
 				final cone layer(s)
 			</li>
 			<li>{workspaceCompute?.result.curveGeometry ? 'Curve layer ready' : 'Curve layer pending'}</li>
+			<li>{representationStart} to {representationEnd} at {representationPercent}%</li>
 			<li>Selection index {selectedCityIndex}</li>
 			<li>Keyboard: `+/-` zoom, `[`/`]` year, `1/2/3` camera mode</li>
 		</ul>

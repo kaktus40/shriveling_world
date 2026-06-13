@@ -76,7 +76,7 @@ describe('app render helpers', () => {
 	});
 
 	test('extract real business layers from compute results', () => {
-		const layers = buildAppBusinessLayers(buildMinimalComputeResult());
+		const layers = buildAppBusinessLayers(buildMinimalComputeResult(), 100);
 		assert.equal(layers.length, 3);
 		assert.equal(layers[0]?.name, 'boundary-0-synthetic.geojson');
 		assert.equal(layers[1]?.name, 'final-cones-0-synthetic.geojson');
@@ -84,5 +84,14 @@ describe('app render helpers', () => {
 		assert.equal(layers[0]?.polylines[0]?.points.length, 3);
 		assert.equal(layers[1]?.polylines[0]?.points.length, 3);
 		assert.equal(layers[2]?.polylines[0]?.points.length, 2);
+		assert.equal(layers[0]?.opacity, 0.8);
+		assert.equal(layers[1]?.opacity, 0.8);
+		assert.equal(layers[2]?.opacity, 0.8);
+	});
+
+	test('blend business layer opacity with representation percent', () => {
+		const layersLow = buildAppBusinessLayers(buildMinimalComputeResult(), 0);
+		const layersHigh = buildAppBusinessLayers(buildMinimalComputeResult(), 100);
+		assert.ok((layersLow[0]?.opacity ?? 0) < (layersHigh[0]?.opacity ?? 0));
 	});
 });

@@ -16,7 +16,7 @@ import { APP_GLOBE_RADIUS, projectCityToAppPoint } from './geometry';
 import { createAppBusinessLayerController } from './business-layers';
 import { createAppCityMarkerController } from './city-markers';
 import { buildAppBusinessLayers } from './render';
-import type { AppCameraMode, AppPageState } from './page';
+import type { AppCameraMode, AppPageState, AppRepresentationMode } from './page';
 
 export interface AppSceneState {
 	readonly appState: AppPageState | null;
@@ -24,6 +24,9 @@ export interface AppSceneState {
 	readonly selectedYear: number;
 	readonly selectedCityIndex: number;
 	readonly cameraMode: AppCameraMode;
+	readonly representationStart: AppRepresentationMode;
+	readonly representationEnd: AppRepresentationMode;
+	readonly representationPercent: number;
 }
 
 export interface AppSceneHooks {
@@ -244,12 +247,16 @@ export function createAppScene(
 		applyCameraMode(nextState);
 		applyYearTone(nextState);
 		cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex);
-		businessLayers.update(buildAppBusinessLayers(nextState.workspaceCompute?.result ?? null));
+		businessLayers.update(
+			buildAppBusinessLayers(nextState.workspaceCompute?.result ?? null, nextState.representationPercent),
+		);
 	}
 
 	cityMarkers.setCities(initialState.appState?.cities ?? []);
 	cityMarkers.updateSelection(activeCityIndex, hoveredCityIndex);
-	businessLayers.update(buildAppBusinessLayers(initialState.workspaceCompute?.result ?? null));
+	businessLayers.update(
+		buildAppBusinessLayers(initialState.workspaceCompute?.result ?? null, initialState.representationPercent),
+	);
 	applyCameraMode(initialState);
 	applyYearTone(initialState);
 	hooks.onCityPick?.(activeCityIndex);

@@ -13,12 +13,21 @@ export const APP_CAMERA_MODES = ['orbit', 'inspect', 'free'] as const;
 /** Application camera modes supported by the first interaction layer. */
 export type AppCameraMode = (typeof APP_CAMERA_MODES)[number];
 
+/** Application representation modes exposed at the ends of the display variator. */
+export const APP_REPRESENTATION_MODES = ['globe', 'network'] as const;
+
+/** Application representation modes used by the display variator. */
+export type AppRepresentationMode = (typeof APP_REPRESENTATION_MODES)[number];
+
 /** Selection state for the operational app shell. */
 export interface AppSelectionState {
 	readonly datasetName: string;
 	readonly year: number;
 	readonly cityIndex: number;
 	readonly cameraMode: AppCameraMode;
+	readonly representationStart: AppRepresentationMode;
+	readonly representationEnd: AppRepresentationMode;
+	readonly representationPercent: number;
 }
 
 /**
@@ -63,6 +72,9 @@ export async function loadAppPageState(
 			year: yearOptions[0] ?? summary.yearBegin,
 			cityIndex: 0,
 			cameraMode: 'orbit',
+			representationStart: 'globe',
+			representationEnd: 'network',
+			representationPercent: 50,
 		},
 	};
 }
