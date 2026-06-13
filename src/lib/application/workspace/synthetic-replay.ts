@@ -18,6 +18,23 @@ export function serializeWorkspaceSyntheticHeuristicReplay(
 	);
 }
 
+export function downloadWorkspaceSyntheticHeuristicReplay(input: WorkspaceSyntheticHeuristicInput): void {
+	if (typeof window === 'undefined') {
+		return;
+	}
+	const blob = new Blob([serializeWorkspaceSyntheticHeuristicReplay(input)], { type: 'application/json' });
+	const url = window.URL.createObjectURL(blob);
+	const anchor = document.createElement('a');
+	anchor.href = url;
+	anchor.download = 'workspace-synthetic-replay.json';
+	anchor.click();
+	window.URL.revokeObjectURL(url);
+}
+
+export async function readWorkspaceSyntheticHeuristicReplayFile(file: File): Promise<string> {
+	return file.text();
+}
+
 export function parseWorkspaceSyntheticHeuristicReplay(text: string): WorkspaceSyntheticHeuristicInput {
 	const parsed = JSON.parse(text) as Partial<WorkspaceSyntheticHeuristicReplay> | null;
 	if (!parsed || parsed.version !== 1 || !isRecord(parsed.input)) {

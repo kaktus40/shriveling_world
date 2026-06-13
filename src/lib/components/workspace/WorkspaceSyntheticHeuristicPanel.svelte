@@ -6,7 +6,9 @@
 		buildRandomSyntheticPreset,
 	} from '$lib/application/workspace/synthetic-presets';
 	import {
+		downloadWorkspaceSyntheticHeuristicReplay,
 		parseWorkspaceSyntheticHeuristicReplay,
+		readWorkspaceSyntheticHeuristicReplayFile,
 		serializeWorkspaceSyntheticHeuristicReplay,
 	} from '$lib/application/workspace/synthetic-replay';
 	import type {
@@ -36,6 +38,7 @@
 	let errorMessage = '';
 	let running = false;
 	let bestCase: ReturnType<typeof bestSyntheticCase> = null;
+	let replayFileInput: HTMLInputElement | null = null;
 
 	function parseSweepWidths(text: string): number[] {
 		return text
@@ -87,6 +90,21 @@
 		replayMessage = 'Replay exported.';
 	}
 
+	function exportReplayFile(): void {
+		downloadWorkspaceSyntheticHeuristicReplay({
+			cityCoordinatesText,
+			cityLinksText,
+			roadAlphaRadians,
+			azimuthSampleCount,
+			coneLengthMeters,
+			attenuationRadians,
+			sectorCount,
+			neighborLimit,
+			sweepWidths: parseSweepWidths(sweepWidthsText),
+		});
+		replayMessage = 'Replay file exported.';
+	}
+
 	function importReplay(runAfterImport: boolean): void {
 		try {
 			const replay = parseWorkspaceSyntheticHeuristicReplay(replayText);
@@ -109,6 +127,16 @@
 		} catch (error) {
 			replayMessage = error instanceof Error ? error.message : String(error);
 		}
+	}
+
+	async function importReplayFile(runAfterImport: boolean): Promise<void> {
+		const file = replayFileInput?.files?.[0];
+		if (!file) {
+			replayMessage = 'Choose a replay JSON file first.';
+			return;
+		}
+		replayText = await readWorkspaceSyntheticHeuristicReplayFile(file);
+		importReplay(runAfterImport);
 	}
 
 	function generateRandomSyntheticSet(): void {
@@ -208,6 +236,15 @@
 		<button type="button" on:click={generateCorridorSyntheticSet}>Generate corridor set</button>
 		<button type="button" on:click={generateClusterSyntheticSet}>Generate cluster set</button>
 		<button type="button" on:click={exportReplay}>Export replay</button>
+		<button type="button" on:click={exportReplayFile}>Export file</button>
+		<button type="button" on:click={() => replayFileInput?.click()}>Choose file</button>
+		<input
+			bind:this={replayFileInput}
+			type="file"
+			accept="application/json,.json"
+			class="hidden-file"
+			on:change={() => void importReplayFile(false)}
+		/>
 		<button type="button" on:click={() => importReplay(false)}>Import replay</button>
 		<button type="button" on:click={() => importReplay(true)}>Import and run</button>
 		<button on:click={runSyntheticHeuristic} disabled={running}>{running ? 'Running...' : 'Run synthetic sweep'}</button>
@@ -238,6 +275,9 @@
 			<span>Cities {report.staticTown.cityCount}</span>
 			<span>Links {report.dynamicTown.cityLinkCounts.reduce((sum, count) => sum + count, 0)}</span>
 			<span>Widths {report.cases.length}</span>
+			<span>Avg gain {report.summary.averageGain.toFixed(1)}</span>
+			<span>Best gain {report.summary.bestGain}</span>
+			<span>Pruned wins {report.summary.blockPrunedWins}/{report.summary.caseCount}</span>
 			<span>Road alpha {report.roadAlphaRadians.toFixed(3)}</span>
 			{#if bestCase}
 				<span>Best width {bestCase.width}</span>
@@ -331,6 +371,10 @@
 	.error {
 		margin: 0;
 		color: #ff9d8f;
+	}
+
+	.hidden-file {
+		display: none;
 	}
 
 	.replay {

@@ -31,6 +31,7 @@ export interface WorkspaceSyntheticHeuristicReport {
 	readonly dynamicTown: DynamicTownPrecompute;
 	readonly rawCones: RawConePrecompute;
 	readonly cases: readonly WorkspaceSyntheticHeuristicCase[];
+	readonly summary: WorkspaceSyntheticHeuristicSummary;
 	readonly roadAlphaRadians: number;
 	readonly alphaEpsilonRadians: number;
 }
@@ -39,6 +40,16 @@ export interface WorkspaceSyntheticHeuristicCase {
 	readonly bilateralNeighborhoodFaceCount: number;
 	readonly order: ConeIntersectionBenchmarkReport;
 	readonly blockPruned: ConeIntersectionBenchmarkReport;
+}
+
+export interface WorkspaceSyntheticHeuristicSummary {
+	readonly caseCount: number;
+	readonly averageOrderTestedFaceCount: number;
+	readonly averageBlockPrunedTestedFaceCount: number;
+	readonly averageGain: number;
+	readonly bestGain: number;
+	readonly bestWidth: number | null;
+	readonly blockPrunedWins: number;
 }
 
 export function benchmarkSyntheticAlphaAwareHeuristic(
@@ -61,12 +72,14 @@ export function benchmarkSyntheticAlphaAwareHeuristic(
 	const cases = input.sweepWidths.map((bilateralNeighborhoodFaceCount) =>
 		measureSyntheticCase(staticTown, rawCones, input.roadAlphaRadians, input.attenuationRadians, bilateralNeighborhoodFaceCount),
 	);
+	const summary = summarizeSyntheticCases(cases);
 
 	return {
 		staticTown,
 		dynamicTown,
 		rawCones,
 		cases,
+		summary,
 		roadAlphaRadians: input.roadAlphaRadians,
 		alphaEpsilonRadians: input.attenuationRadians,
 	};
@@ -100,6 +113,52 @@ function measureSyntheticCase(
 	);
 
 	return { bilateralNeighborhoodFaceCount, order, blockPruned };
+}
+
+function summarizeSyntheticCases(cases: readonly WorkspaceSyntheticHeuristicCase[]): WorkspaceSyntheticHeuristicSummary {
+	if (cases.length === 0) {
+		return {
+			caseCount: 0,
+			averageOrderTestedFaceCount: 0,
+			averageBlockPrunedTestedFaceCount: 0,
+			averageGain: 0,
+			bestGain: 0,
+			bestWidth: null,
+			blockPrunedWins: 0,
+		};
+	}
+
+	let totalOrder = 0;
+	let totalBlockPruned = 0;
+	let totalGain = 0;
+	let bestGain = Number.NEGATIVE_INFINITY;
+	let bestWidth: number | null = null;
+	let blockPrunedWins = 0;
+	for (const entry of cases) {
+		const order = entry.order.testedFaceCount;
+		const blockPruned = entry.blockPruned.testedFaceCount;
+		const gain = order - blockPruned;
+		totalOrder += order;
+		totalBlockPruned += blockPruned;
+		totalGain += gain;
+		if (gain > bestGain) {
+			bestGain = gain;
+			bestWidth = entry.bilateralNeighborhoodFaceCount;
+		}
+		if (blockPruned <= order) {
+			blockPrunedWins += 1;
+		}
+	}
+
+	return {
+		caseCount: cases.length,
+		averageOrderTestedFaceCount: totalOrder / cases.length,
+		averageBlockPrunedTestedFaceCount: totalBlockPruned / cases.length,
+		averageGain: totalGain / cases.length,
+		bestGain,
+		bestWidth,
+		blockPrunedWins,
+	};
 }
 
 function parseCityCoordinates(text: string): Float32Array {

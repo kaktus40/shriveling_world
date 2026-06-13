@@ -22,6 +22,10 @@ describe('workspace synthetic heuristic', () => {
 		expect(report.staticTown.cityCount).toBe(3);
 		expect(report.dynamicTown.cityLinkCounts.reduce((sum, count) => sum + count, 0)).toBe(6);
 		expect(report.cases).toHaveLength(2);
+		expect(report.summary.caseCount).toBe(2);
+		expect(report.summary.blockPrunedWins).toBe(2);
+		expect(report.summary.bestWidth).not.toBeNull();
+		expect(report.summary.averageGain).toBeGreaterThanOrEqual(0);
 		for (const sweepCase of report.cases) {
 			expect(sweepCase.blockPruned.testedFaceCount).toBeLessThanOrEqual(sweepCase.order.testedFaceCount);
 		}
