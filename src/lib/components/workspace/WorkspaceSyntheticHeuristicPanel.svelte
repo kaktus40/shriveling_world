@@ -1,6 +1,14 @@
 <script lang="ts">
 	import { benchmarkSyntheticAlphaAwareHeuristic } from '$lib/application/workspace';
-	import type { WorkspaceSyntheticHeuristicReport } from '$lib/application/workspace/synthetic';
+	import {
+		buildClusterSyntheticPreset,
+		buildCorridorSyntheticPreset,
+		buildRandomSyntheticPreset,
+	} from '$lib/application/workspace/synthetic-presets';
+	import type {
+		WorkspaceSyntheticHeuristicReport,
+	} from '$lib/application/workspace/synthetic';
+	import type { WorkspaceSyntheticPreset } from '$lib/application/workspace/synthetic-presets';
 	import WorkspaceSyntheticPreview from './WorkspaceSyntheticPreview.svelte';
 
 	let cityCoordinatesText = `0 0
@@ -58,46 +66,20 @@
 	}
 
 	function generateRandomSyntheticSet(): void {
-		const cityLines: string[] = [];
-		const linkLines: string[] = [];
-		for (let cityIndex = 0; cityIndex < randomCityCount; cityIndex += 1) {
-			const lon = -Math.PI + Math.random() * Math.PI * 2;
-			const lat = -Math.PI / 2 + Math.random() * Math.PI;
-			cityLines.push(`${lon.toFixed(4)} ${lat.toFixed(4)}`);
-			const linkTokens: string[] = [];
-			for (let linkIndex = 0; linkIndex < randomLinksPerCity; linkIndex += 1) {
-				const azimuth = Math.random() * Math.PI * 2;
-				const alpha = 0.15 + Math.random() * 0.6;
-				linkTokens.push(`${linkIndex}@${azimuth.toFixed(4)}:${alpha.toFixed(4)}`);
-			}
-			linkLines.push(linkTokens.join('; '));
-		}
-		setSyntheticSet(cityLines, linkLines);
+		setSyntheticSet(buildRandomSyntheticPreset(randomCityCount, randomLinksPerCity));
 	}
 
 	function generateCorridorSyntheticSet(): void {
-		const cityLines: string[] = [];
-		const linkLines: string[] = [];
-		const span = Math.max(1, randomCityCount - 1);
-		for (let cityIndex = 0; cityIndex < randomCityCount; cityIndex += 1) {
-			const progress = cityIndex / span;
-			const lon = -0.9 + progress * 1.8;
-			const lat = 0.35 * Math.sin(progress * Math.PI * 2);
-			cityLines.push(`${lon.toFixed(4)} ${lat.toFixed(4)}`);
-			const linkTokens: string[] = [];
-			for (let linkIndex = 0; linkIndex < randomLinksPerCity; linkIndex += 1) {
-				const azimuth = (progress * Math.PI * 1.3 + linkIndex * 0.4) % (Math.PI * 2);
-				const alpha = 0.18 + progress * 0.2 + linkIndex * 0.03;
-				linkTokens.push(`${linkIndex}@${azimuth.toFixed(4)}:${alpha.toFixed(4)}`);
-			}
-			linkLines.push(linkTokens.join('; '));
-		}
-		setSyntheticSet(cityLines, linkLines);
+		setSyntheticSet(buildCorridorSyntheticPreset(randomCityCount, randomLinksPerCity));
 	}
 
-	function setSyntheticSet(cityLines: string[], linkLines: string[]): void {
-		cityCoordinatesText = cityLines.join('\n');
-		cityLinksText = linkLines.join('\n');
+	function generateClusterSyntheticSet(): void {
+		setSyntheticSet(buildClusterSyntheticPreset(randomCityCount, randomLinksPerCity));
+	}
+
+	function setSyntheticSet(preset: WorkspaceSyntheticPreset): void {
+		cityCoordinatesText = preset.cityCoordinatesText;
+		cityLinksText = preset.cityLinksText;
 		report = null;
 		bestCase = null;
 		errorMessage = '';
@@ -139,7 +121,7 @@
 		if (!selectedCase) {
 			return null;
 		}
-		const ratio = selectedCase.order.testedFaceCount === 0 ? 'n/a' : `${(((selectedGain ?? 0) / selectedCase.order.testedFaceCount) * 100).toFixed(1)}%`;
+		const ratio = selectedCase.order.testedFaceCount === 0 ? 'n/a' : `${((selectedGain / selectedCase.order.testedFaceCount) * 100).toFixed(1)}%`;
 		return {
 			width: selectedCase.bilateralNeighborhoodFaceCount,
 			gain: selectedGain,
@@ -177,6 +159,7 @@
 		<label><span>Links/city</span><input bind:value={randomLinksPerCity} type="number" step="1" min="1" /></label>
 		<button type="button" on:click={generateRandomSyntheticSet}>Generate random set</button>
 		<button type="button" on:click={generateCorridorSyntheticSet}>Generate corridor set</button>
+		<button type="button" on:click={generateClusterSyntheticSet}>Generate cluster set</button>
 		<button on:click={runSyntheticHeuristic} disabled={running}>{running ? 'Running...' : 'Run synthetic sweep'}</button>
 	</div>
 
@@ -197,6 +180,7 @@
 			<span>Widths {report.cases.length}</span>
 			<span>Road alpha {report.roadAlphaRadians.toFixed(3)}</span>
 			{#if bestCase}
+				<span>Best width {bestCase.width}</span>
 				<span>Best gain {bestCase.gain} faces</span>
 				<span>Best ratio {bestCase.ratio}</span>
 			{/if}
