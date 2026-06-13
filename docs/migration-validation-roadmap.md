@@ -76,6 +76,9 @@ Utiliser les statuts suivants:
 - Le contrat du requeteur applicatif est fixe dans
   `docs/query-controller-contract.md` et doit rester partage entre `workspace`
   et le futur `app`.
+- Le contrat IHM exhaustif du projet est fixe dans
+  `docs/ihm-project-controls-and-interactions.md` et doit guider la
+  distribution des controles entre `workspace`, `app` et les panneaux avances.
 - Les routes `src/routes/test/test1`, `test2` et `test3` sont les pages de
   validation interactives officielles de la migration.
 - Toute nouvelle page de validation doit etre justifiee par jalon et ne doit

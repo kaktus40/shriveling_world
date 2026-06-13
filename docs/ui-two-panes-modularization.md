@@ -110,6 +110,8 @@ Principes:
 - garder les composants de requete recursifs decoupes par responsabilite;
 - preferer plusieurs petits fichiers a un unique `+page.svelte` massif;
 - documenter chaque extraction qui change le contrat d usage.
+- la repartition exhaustive des controles IHM est decrite dans
+  `docs/ihm-project-controls-and-interactions.md`.
 
 ## Ordre Recommande
 
@@ -126,6 +128,8 @@ Ce plan est rattache au sous-jalon `M9.0` de la roadmap de migration.
 Il prepare l integration interactive complete sans confondre:
 - validation et benchmark d un cote;
 - usage operationnel de l autre.
+- il s appuie sur le contrat IHM exhaustif de
+  `docs/ihm-project-controls-and-interactions.md`.
 
 ## Resultat Attendu
 
