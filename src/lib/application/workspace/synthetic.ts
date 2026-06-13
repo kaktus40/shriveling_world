@@ -1,8 +1,9 @@
 import {
+	benchmarkConeIntersectionAlphaAwareBlockPrunedCpu,
 	benchmarkConeIntersectionAlphaAwareNeighborhoodSweepCpu,
 	computeRawConePrecomputeCpu,
 	computeStaticTownPrecomputeCpu,
-	type AlphaAwareNeighborhoodBenchmarkReport,
+	type ConeIntersectionBenchmarkReport,
 } from '$lib/domain/precompute';
 import type {
 	DynamicTownPrecompute,
@@ -29,7 +30,15 @@ export interface WorkspaceSyntheticHeuristicReport {
 	readonly staticTown: StaticTownPrecompute;
 	readonly dynamicTown: DynamicTownPrecompute;
 	readonly rawCones: RawConePrecompute;
-	readonly benchmark: AlphaAwareNeighborhoodBenchmarkReport;
+	readonly cases: readonly WorkspaceSyntheticHeuristicCase[];
+	readonly roadAlphaRadians: number;
+	readonly alphaEpsilonRadians: number;
+}
+
+export interface WorkspaceSyntheticHeuristicCase {
+	readonly bilateralNeighborhoodFaceCount: number;
+	readonly order: ConeIntersectionBenchmarkReport;
+	readonly blockPruned: ConeIntersectionBenchmarkReport;
 }
 
 export function benchmarkSyntheticAlphaAwareHeuristic(
@@ -49,15 +58,48 @@ export function benchmarkSyntheticAlphaAwareHeuristic(
 		coneLengthMeters: input.coneLengthMeters,
 		attenuationRadians: input.attenuationRadians,
 	});
-	const benchmark = benchmarkConeIntersectionAlphaAwareNeighborhoodSweepCpu(
+	const cases = input.sweepWidths.map((bilateralNeighborhoodFaceCount) =>
+		measureSyntheticCase(staticTown, rawCones, input.roadAlphaRadians, input.attenuationRadians, bilateralNeighborhoodFaceCount),
+	);
+
+	return {
+		staticTown,
+		dynamicTown,
+		rawCones,
+		cases,
+		roadAlphaRadians: input.roadAlphaRadians,
+		alphaEpsilonRadians: input.attenuationRadians,
+	};
+}
+
+function measureSyntheticCase(
+	staticTown: StaticTownPrecompute,
+	rawCones: RawConePrecompute,
+	roadAlphaRadians: number,
+	alphaEpsilonRadians: number,
+	bilateralNeighborhoodFaceCount: number,
+): WorkspaceSyntheticHeuristicCase {
+	const order = benchmarkConeIntersectionAlphaAwareNeighborhoodSweepCpu(
 		staticTown as SymmetricConeIntersectionStaticInput,
 		rawCones,
-		{ roadAlphaRadians: input.roadAlphaRadians, alphaEpsilonRadians: input.attenuationRadians },
-		input.sweepWidths,
+		{ roadAlphaRadians, alphaEpsilonRadians },
+		[bilateralNeighborhoodFaceCount],
+		{ warmupIterations: 0, measurementIterations: 1 },
+	).cases[0].report;
+	const blockPruned = benchmarkConeIntersectionAlphaAwareBlockPrunedCpu(
+		staticTown as SymmetricConeIntersectionStaticInput,
+		rawCones,
+		{
+			roadAlphaRadians,
+			bilateralNeighborhoodFaceCount,
+			alphaEpsilonRadians,
+			blockFaceCount: Math.max(1, Math.min(bilateralNeighborhoodFaceCount, rawCones.azimuthSampleCount)),
+			pruningEnabled: true,
+		},
 		{ warmupIterations: 0, measurementIterations: 1 },
 	);
 
-	return { staticTown, dynamicTown, rawCones, benchmark };
+	return { bilateralNeighborhoodFaceCount, order, blockPruned };
 }
 
 function parseCityCoordinates(text: string): Float32Array {

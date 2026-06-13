@@ -75,8 +75,21 @@
 		errorMessage = '';
 	}
 
-	function sweepMedianMilliseconds(report: WorkspaceSyntheticHeuristicReport['benchmark']['cases'][number]['report']): string {
+	function sweepMedianMilliseconds(report: WorkspaceSyntheticHeuristicReport['cases'][number]['order']): string {
 		return report.phases[0]?.wallClock.medianMilliseconds.toFixed(3) ?? 'n/a';
+	}
+
+	function caseFaceDelta(caseReport: WorkspaceSyntheticHeuristicReport['cases'][number]): string {
+		return String(caseReport.order.testedFaceCount - caseReport.blockPruned.testedFaceCount);
+	}
+
+	function caseFaceDeltaRatio(caseReport: WorkspaceSyntheticHeuristicReport['cases'][number]): string {
+		const order = caseReport.order.testedFaceCount;
+		const blockPruned = caseReport.blockPruned.testedFaceCount;
+		if (order === 0) {
+			return 'n/a';
+		}
+		return `${(((order - blockPruned) / order) * 100).toFixed(1)}%`;
 	}
 </script>
 
@@ -123,27 +136,31 @@
 		<div class="summary">
 			<span>Cities {report.staticTown.cityCount}</span>
 			<span>Links {report.dynamicTown.cityLinkCounts.reduce((sum, count) => sum + count, 0)}</span>
-			<span>Widths {report.benchmark.cases.length}</span>
-			<span>Road alpha {report.benchmark.roadAlphaRadians.toFixed(3)}</span>
+			<span>Widths {report.cases.length}</span>
+			<span>Road alpha {report.roadAlphaRadians.toFixed(3)}</span>
 		</div>
 		<table>
 			<thead>
 				<tr>
 					<th>Width</th>
-					<th>Tested faces</th>
-					<th>Priority faces</th>
-					<th>Fast priority</th>
-					<th>Median ms</th>
+					<th>Order faces</th>
+					<th>Pruned faces</th>
+					<th>Delta</th>
+					<th>Delta %</th>
+					<th>Order ms</th>
+					<th>Pruned ms</th>
 				</tr>
 			</thead>
 			<tbody>
-				{#each report.benchmark.cases as sweepCase}
+				{#each report.cases as sweepCase}
 					<tr>
 						<td>{sweepCase.bilateralNeighborhoodFaceCount}</td>
-						<td>{sweepCase.report.testedFaceCount}</td>
-						<td>{sweepCase.report.priorityFaceCount ?? 0}</td>
-						<td>{sweepCase.report.priorityFastFaceCount ?? 0}</td>
-						<td>{sweepMedianMilliseconds(sweepCase.report)}</td>
+						<td>{sweepCase.order.testedFaceCount}</td>
+						<td>{sweepCase.blockPruned.testedFaceCount}</td>
+						<td>{caseFaceDelta(sweepCase)}</td>
+						<td>{caseFaceDeltaRatio(sweepCase)}</td>
+						<td>{sweepMedianMilliseconds(sweepCase.order)}</td>
+						<td>{sweepMedianMilliseconds(sweepCase.blockPruned)}</td>
 					</tr>
 				{/each}
 			</tbody>
