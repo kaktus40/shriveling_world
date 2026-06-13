@@ -276,6 +276,8 @@
 			<span>Links {report.dynamicTown.cityLinkCounts.reduce((sum, count) => sum + count, 0)}</span>
 			<span>Widths {report.cases.length}</span>
 			<span>Avg gain {report.summary.averageGain.toFixed(1)}</span>
+			<span>p95 order {report.summary.p95OrderTestedFaceCount.toFixed(0)}</span>
+			<span>p95 pruned {report.summary.p95BlockPrunedTestedFaceCount.toFixed(0)}</span>
 			<span>Best gain {report.summary.bestGain}</span>
 			<span>Pruned wins {report.summary.blockPrunedWins}/{report.summary.caseCount}</span>
 			<span>Road alpha {report.roadAlphaRadians.toFixed(3)}</span>

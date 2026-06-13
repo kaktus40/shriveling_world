@@ -1593,7 +1593,7 @@ Critere de cloture:
 - le banc synthétique compare explicitement `order` et `blockPruned` sur au
   moins deux formes de graphe;
 - le résumé synthétique affiche le meilleur gain, la largeur gagnante et le
-  nombre de victoires du pruning;
+  nombre de victoires du pruning, ainsi que les p95 de faces testées;
 - les benchmarks du workspace affichent des mesures comparables pour
   `cone-intersection-alpha-aware-order` et
   `cone-intersection-alpha-aware-block-pruned`;

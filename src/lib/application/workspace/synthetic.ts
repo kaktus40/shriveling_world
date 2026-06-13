@@ -46,6 +46,8 @@ export interface WorkspaceSyntheticHeuristicSummary {
 	readonly caseCount: number;
 	readonly averageOrderTestedFaceCount: number;
 	readonly averageBlockPrunedTestedFaceCount: number;
+	readonly p95OrderTestedFaceCount: number;
+	readonly p95BlockPrunedTestedFaceCount: number;
 	readonly averageGain: number;
 	readonly bestGain: number;
 	readonly bestWidth: number | null;
@@ -121,6 +123,8 @@ function summarizeSyntheticCases(cases: readonly WorkspaceSyntheticHeuristicCase
 			caseCount: 0,
 			averageOrderTestedFaceCount: 0,
 			averageBlockPrunedTestedFaceCount: 0,
+			p95OrderTestedFaceCount: 0,
+			p95BlockPrunedTestedFaceCount: 0,
 			averageGain: 0,
 			bestGain: 0,
 			bestWidth: null,
@@ -131,6 +135,8 @@ function summarizeSyntheticCases(cases: readonly WorkspaceSyntheticHeuristicCase
 	let totalOrder = 0;
 	let totalBlockPruned = 0;
 	let totalGain = 0;
+	const orderCounts: number[] = [];
+	const blockPrunedCounts: number[] = [];
 	let bestGain = Number.NEGATIVE_INFINITY;
 	let bestWidth: number | null = null;
 	let blockPrunedWins = 0;
@@ -138,6 +144,8 @@ function summarizeSyntheticCases(cases: readonly WorkspaceSyntheticHeuristicCase
 		const order = entry.order.testedFaceCount;
 		const blockPruned = entry.blockPruned.testedFaceCount;
 		const gain = order - blockPruned;
+		orderCounts.push(order);
+		blockPrunedCounts.push(blockPruned);
 		totalOrder += order;
 		totalBlockPruned += blockPruned;
 		totalGain += gain;
@@ -154,11 +162,22 @@ function summarizeSyntheticCases(cases: readonly WorkspaceSyntheticHeuristicCase
 		caseCount: cases.length,
 		averageOrderTestedFaceCount: totalOrder / cases.length,
 		averageBlockPrunedTestedFaceCount: totalBlockPruned / cases.length,
+		p95OrderTestedFaceCount: percentile(orderCounts, 0.95),
+		p95BlockPrunedTestedFaceCount: percentile(blockPrunedCounts, 0.95),
 		averageGain: totalGain / cases.length,
 		bestGain,
 		bestWidth,
 		blockPrunedWins,
 	};
+}
+
+function percentile(values: readonly number[], fraction: number): number {
+	if (values.length === 0) {
+		return 0;
+	}
+	const sorted = [...values].sort((left, right) => left - right);
+	const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * fraction) - 1));
+	return sorted[index];
 }
 
 function parseCityCoordinates(text: string): Float32Array {

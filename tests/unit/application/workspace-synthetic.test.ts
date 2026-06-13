@@ -26,6 +26,9 @@ describe('workspace synthetic heuristic', () => {
 		expect(report.summary.blockPrunedWins).toBe(2);
 		expect(report.summary.bestWidth).not.toBeNull();
 		expect(report.summary.averageGain).toBeGreaterThanOrEqual(0);
+		expect(report.summary.p95OrderTestedFaceCount).toBeGreaterThanOrEqual(
+			report.summary.p95BlockPrunedTestedFaceCount,
+		);
 		for (const sweepCase of report.cases) {
 			expect(sweepCase.blockPruned.testedFaceCount).toBeLessThanOrEqual(sweepCase.order.testedFaceCount);
 		}
