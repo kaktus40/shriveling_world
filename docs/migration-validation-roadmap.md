@@ -1413,6 +1413,8 @@ Travail deja realise:
 - les contrats de buffers et d'uniforms des principaux builders WebGPU sont
   testes de maniere explicite pour conserver les structs WGSL comme source de
   verite;
+- les contrats de buffers WebGL2 et un readback de comparaison representatif
+  sont testes explicitement sur une passe portee;
 - la prochaine phase de M7 consiste surtout a durcir les comparaisons,
   harmoniser les derniers helpers math/shader encore locaux et consolider les
   readbacks de validation.

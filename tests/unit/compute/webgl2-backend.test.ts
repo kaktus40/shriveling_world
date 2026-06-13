@@ -112,8 +112,8 @@ function createFakeCanvas(): NonNullable<WebGl2ComputeBackendOptions['canvas']> 
 	} as unknown as NonNullable<WebGl2ComputeBackendOptions['canvas']>;
 }
 
-function createFakeGl(): WebGL2RenderingContext & { calls: { drawCalls: number; instancedDrawCalls: number } } {
-	const calls = { drawCalls: 0, instancedDrawCalls: 0 };
+function createFakeGl(): WebGL2RenderingContext & { calls: { drawCalls: number; instancedDrawCalls: number; readbackCalls: number } } {
+	const calls = { drawCalls: 0, instancedDrawCalls: 0, readbackCalls: 0 };
 	const shader = {} as WebGLShader;
 	const program = {} as WebGLProgram;
 	const buffer = {} as WebGLBuffer;
@@ -190,6 +190,12 @@ function createFakeGl(): WebGL2RenderingContext & { calls: { drawCalls: number; 
 		uniform4f: () => {},
 		useProgram: () => {},
 		uniform1f: () => {},
+		getBufferSubData: (_target: number, _offset: number, output: ArrayBufferView) => {
+			calls.readbackCalls += 1;
+			if (output instanceof Float32Array) {
+				output.fill(1234.5);
+			}
+		},
 		enable: () => {},
 		disable: () => {},
 		beginTransformFeedback: () => {},
@@ -201,7 +207,7 @@ function createFakeGl(): WebGL2RenderingContext & { calls: { drawCalls: number; 
 		},
 		endTransformFeedback: () => {},
 		finish: () => {},
-	} as unknown as WebGL2RenderingContext & { calls: { drawCalls: number; instancedDrawCalls: number } };
+	} as unknown as WebGL2RenderingContext & { calls: { drawCalls: number; instancedDrawCalls: number; readbackCalls: number } };
 }
 
 test('webgl2 probe stays false without a canvas', () => {
@@ -253,4 +259,5 @@ test('webgl2 probe becomes available with a webgl2-capable canvas and the backen
 	const gl = fakeCanvas.getContext('webgl2') as ReturnType<typeof createFakeGl>;
 	expect(gl.calls.drawCalls).toBeGreaterThanOrEqual(1);
 	expect(gl.calls.instancedDrawCalls).toBeGreaterThanOrEqual(4);
+	expect(gl.calls.readbackCalls).toBeGreaterThanOrEqual(1);
 });
