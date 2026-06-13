@@ -1584,6 +1584,23 @@ Critere d'acceptation:
 - les benchmarks mesurent le nombre moyen et p95 de faces testees;
 - le cout de la sortie intermediaire et de la fusion pays est documente.
 
+Critere de cloture:
+
+- les jeux de conformite restent exacts face a l'oracle CPU;
+- le sweep alpha-aware est rejouable via import/export texte et fichier JSON;
+- les presets synthétiques `random`, `corridor` et `cluster` restent
+  reproductibles;
+- le banc synthétique compare explicitement `order` et `blockPruned` sur au
+  moins deux formes de graphe;
+- le résumé synthétique affiche le meilleur gain, la largeur gagnante et le
+  nombre de victoires du pruning;
+- les benchmarks du workspace affichent des mesures comparables pour
+  `cone-intersection-alpha-aware-order` et
+  `cone-intersection-alpha-aware-block-pruned`;
+- le cache annuel reste séparé et ne change pas le contrat des intersections;
+- la documentation de validation contient les commandes et le résultat des
+  tests de régression.
+
 Validation:
 
 - Implementation intermediaire alpha-aware CPU validee:
