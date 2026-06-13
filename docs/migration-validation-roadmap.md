@@ -1512,6 +1512,8 @@ Travail realise:
 - parcours alpha-aware encore exhaustif et strictement conforme a l'oracle;
 - reference CPU conservatrice qui groupe les faces en blocs et rejette un
   bloc uniquement lorsque `blockEntryT > bestT + epsilon`;
+- sweep CPU compare plusieurs largeurs bilaterales autour de `phiB0` sans
+  changer le contrat de sortie;
 - diagnostics de taille de fourchette et d'appartenance de la face gagnante;
 - benchmark stable `cone-intersection-alpha-aware-order`;
 - benchmark stable `cone-intersection-alpha-aware-block-pruned`;

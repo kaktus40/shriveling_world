@@ -7,6 +7,7 @@ import {
 	benchmarkConeIntersectionAlphaAwareOrderCpu,
 	benchmarkConeIntersectionAlphaAwareBlockPrunedCpu,
 	benchmarkConeIntersectionOracleCpu,
+	benchmarkConeIntersectionAlphaAwareNeighborhoodSweepCpu,
 	benchmarkConeIntersectionSymmetricOrderCpu,
 	buildAlphaAwareFaceTraversal,
 	buildSymmetricFaceTraversal,
@@ -214,6 +215,29 @@ test('alpha-aware benchmark reports priority-window usefulness', () => {
 	assert.equal(report.priorityWinningFaceCount, 0);
 	assert.equal(report.phases[0].phase, 'cone-intersection-alpha-aware-order');
 	assert.equal(report.phases[0].wallClock.medianMilliseconds, 1);
+});
+
+test('alpha-aware neighborhood sweep compares several bilateral widths', () => {
+	let clockValue = 0;
+	const rawCones = createRawCones();
+	rawCones.coneAlphaRadians.fill(0.5);
+	rawCones.coneAlphaRadians[4] = 0.2;
+	const sweep = benchmarkConeIntersectionAlphaAwareNeighborhoodSweepCpu(
+		createStaticInput(),
+		rawCones,
+		{ roadAlphaRadians: 0.5 },
+		[1, 3],
+		{ warmupIterations: 0, measurementIterations: 1, clock: () => clockValue++ },
+	);
+
+	assert.equal(sweep.profile, 'cpu');
+	assert.equal(sweep.cases.length, 2);
+	assert.deepEqual(
+		sweep.cases.map((entry) => entry.bilateralNeighborhoodFaceCount),
+		[1, 3],
+	);
+	assert.equal(sweep.cases[0].report.phases[0].phase, 'cone-intersection-alpha-aware-order');
+	assert.equal(sweep.cases[0].report.phases[0].wallClock.medianMilliseconds, 1);
 });
 
 test('alpha-aware block pruning remains exhaustive and rejects conservative blocks', () => {

@@ -14,6 +14,7 @@ import {
 	computeConeIntersectionOracleCpu,
 	computeConeIntersectionSymmetricOrderCpu,
 } from './cpu';
+import { ALPHA_SUPPORT_EPSILON_RADIANS } from './cpu/cone-intersection-constants';
 import type { StaticTownInput, StaticTownPrecomputeOptions } from './types';
 import type { PreparedDataset } from '../data';
 import type { StaticTownPrecompute } from './types';
@@ -174,6 +175,30 @@ export interface ConeIntersectionVisitOrderStatistics {
 	p95: number;
 	/** Latest observed visit order. */
 	max: number;
+}
+
+/** One alpha-aware neighborhood width measured against the same reference dataset. */
+export interface AlphaAwareNeighborhoodBenchmarkCase {
+	/** Number of bilateral faces explored around `phiB0`. */
+	bilateralNeighborhoodFaceCount: number;
+	/** Benchmark report produced for that bilateral width. */
+	report: ConeIntersectionBenchmarkReport;
+}
+
+/** Comparative alpha-aware benchmark across several bilateral neighborhood widths. */
+export interface AlphaAwareNeighborhoodBenchmarkReport {
+	/** Backend profile that produced the sweep. */
+	profile: ComputeProfile;
+	/** City count used by the benchmark. */
+	cityCount: number;
+	/** Number of uniformly spaced azimuth samples per city. */
+	azimuthSampleCount: number;
+	/** Road alpha used by every case in the sweep. */
+	roadAlphaRadians: number;
+	/** Alpha epsilon used by every case in the sweep. */
+	alphaEpsilonRadians: number;
+	/** Measured cases ordered as requested by the caller. */
+	cases: AlphaAwareNeighborhoodBenchmarkCase[];
 }
 
 /**
@@ -383,6 +408,36 @@ export function benchmarkConeIntersectionAlphaAwareOrderCpu(
 		priorityWinningFaceCount: reference.winningFacePriorityFlags.reduce((sum, flag) => sum + flag, 0),
 		measurementIterations,
 		phases,
+	};
+}
+
+/** Benchmarks several alpha-aware bilateral widths against the same dataset. */
+export function benchmarkConeIntersectionAlphaAwareNeighborhoodSweepCpu(
+	staticInput: SymmetricConeIntersectionStaticInput,
+	rawCones: RawConePrecompute,
+	options: Omit<AlphaAwareConeIntersectionOptions, 'bilateralNeighborhoodFaceCount'>,
+	bilateralNeighborhoodFaceCounts: readonly number[],
+	benchmarkOptions: ComputeBenchmarkOptions = {},
+): AlphaAwareNeighborhoodBenchmarkReport {
+	if (!Array.isArray(bilateralNeighborhoodFaceCounts) || bilateralNeighborhoodFaceCounts.length === 0) {
+		throw new RangeError('bilateralNeighborhoodFaceCounts must contain at least one width');
+	}
+	const cases = bilateralNeighborhoodFaceCounts.map((bilateralNeighborhoodFaceCount) => ({
+		bilateralNeighborhoodFaceCount,
+		report: benchmarkConeIntersectionAlphaAwareOrderCpu(
+			staticInput,
+			rawCones,
+			{ ...options, bilateralNeighborhoodFaceCount },
+			benchmarkOptions,
+		),
+	}));
+	return {
+		profile: 'cpu',
+		cityCount: rawCones.cityCount,
+		azimuthSampleCount: rawCones.azimuthSampleCount,
+		roadAlphaRadians: options.roadAlphaRadians,
+		alphaEpsilonRadians: options.alphaEpsilonRadians ?? ALPHA_SUPPORT_EPSILON_RADIANS,
+		cases,
 	};
 }
 
