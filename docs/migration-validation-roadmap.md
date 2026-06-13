@@ -1522,6 +1522,9 @@ Travail realise:
   azimuts/alphas libres, presets random/corridor/cluster, comparaison ordre vs
   pruning, import/export JSON rejouable et export fichier, avec apercu 3D
   minimal;
+- le workspace expose aussi un banc de cache annuel mesure sur des annees
+  representives, avec comparaison miss/hit et stockage limite a
+  `coneIntersectionDistanceMeters`;
 - portage WebGL2 puis WebGPU du noyau `ciseledCones` avec comparaison readback
   contre l'oracle CPU;
 - contrat de cache memoire d'instance par annee pour
@@ -1558,7 +1561,8 @@ Prochaine implementation:
 2. regrouper les longues plages Road et les supports rapides en blocs;
 3. ajouter des volumes englobants conservateurs et mesurer le rejet reel;
 4. comparer chaque variante a l'oracle exhaustif;
-5. implementer ensuite le cache memoire d'instance par annee.
+5. implementer ensuite le cache memoire d'instance par annee si l'on veut
+   activer la reutilisation effective.
 
 Cas tests minimum:
 
@@ -1617,8 +1621,10 @@ Validation:
   - `src/routes/test/test3/+page.svelte` expose les etapes CPU `staticTown`,
     `dynamicTown`, `rawCones` et `coneIntersections` sur les datasets
     compacts charges depuis l'application.
-- M8 reste `in_progress`: les blocs conservateurs, leur benchmark sur datasets
-  reduits et le cache annuel ne sont pas encore implementes.
+- M8 reste `in_progress`: les blocs conservateurs et les mesures de cache
+  annuel sont en place; l'activation d'un vrai cache memoire d'instance par
+  annee reste un pas distinct si l'on veut passer de la mesure a la
+  reutilisation effective.
 - Etat reel observe ulterieurement:
   - un prototype non route de laboratoire heuristique existe dans
     `src/lib/testing/ray-range-heuristics.ts`;

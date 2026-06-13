@@ -1744,6 +1744,10 @@ desactiver a tout moment l'intersection avec les limites pays. Il ne contient
 pas non plus `ciseledConeRimEcef`, afin de limiter le cout memoire a un seul
 `Float32` par rayon.
 
+Dans le workspace, ce cache annuel est aussi mesure sur quelques annees
+representatives afin de comparer explicitement le cout d'un cache miss et
+d'un cache hit sans changer le contrat des intersections.
+
 ## Etape 9: Clipping Par Limites Geographiques
 
 Responsable principal: GPU, avec preparation CPU des limites.

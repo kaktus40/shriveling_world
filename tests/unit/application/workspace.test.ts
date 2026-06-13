@@ -169,6 +169,8 @@ test('workspace compute runs on the cpu reference backend and reports benchmark 
 	assert.equal(result.selection.fallbackUsed, true);
 	assert.equal(result.benchmark.profile, 'cpu');
 	assert.equal(result.benchmark.timings.length > 0, true);
+	assert.ok(result.annualCache);
+	assert.equal(result.annualCache.summary.yearCount > 0, true);
 	assert.equal(result.result.preparedDataset.cityCount, 2);
 	assert.equal(result.result.geojsonRuns.length, 1);
 });

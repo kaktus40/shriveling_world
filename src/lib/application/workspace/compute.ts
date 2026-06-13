@@ -15,6 +15,10 @@ import {
 	type AlphaAwareNeighborhoodBenchmarkReport,
 } from '$lib/domain/precompute';
 import { createDefaultConePipelineOptions } from '$lib/application/validation';
+import {
+	benchmarkWorkspaceAnnualConeIntersectionCache,
+	type WorkspaceAnnualCacheReport,
+} from './annual-cache';
 import type { WorkspaceDatasetSnapshot } from './catalog';
 
 /** Compute profile and benchmark exposed by the dataset workspace. */
@@ -22,6 +26,7 @@ export interface WorkspaceComputeResult {
 	selection: ComputeProfileSelection;
 	benchmark: ComputeBenchmarkReport;
 	alphaAwareSweep?: AlphaAwareNeighborhoodBenchmarkReport;
+	annualCache?: WorkspaceAnnualCacheReport;
 	result: ComputeResult;
 }
 
@@ -47,6 +52,7 @@ export async function computeWorkspaceDataset(
 ): Promise<WorkspaceComputeResult> {
 	const orchestrator = createComputeOrchestrator(createWorkspaceComputeBackendRegistry());
 	const coneOptions = createDefaultConePipelineOptions(workspace.pipeline.preparedDataset);
+	const shouldBenchmark = request.benchmark ?? true;
 	const result = await orchestrator.computeFrame(
 		{
 			sourceFiles: workspace.files,
@@ -92,12 +98,16 @@ export async function computeWorkspaceDataset(
 						buildAlphaAwareNeighborhoodFaceCounts(result.rawCones.azimuthSampleCount),
 						{ warmupIterations: 0, measurementIterations: 1 },
 					)
-				: undefined
+			: undefined
 			: undefined;
+	const annualCache = shouldBenchmark
+		? benchmarkWorkspaceAnnualConeIntersectionCache(workspace.pipeline.preparedDataset)
+		: undefined;
 	return {
 		selection: result.selection,
 		benchmark: result.benchmark,
 		alphaAwareSweep,
+		annualCache,
 		result,
 	};
 }

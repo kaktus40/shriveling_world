@@ -1,6 +1,7 @@
 <script lang="ts">
-	import type { WorkspaceComputeResult } from '$lib/application/workspace';
-	import type { AlphaAwareNeighborhoodBenchmarkReport } from '$lib/domain/precompute';
+import type { WorkspaceComputeResult } from '$lib/application/workspace';
+import type { AlphaAwareNeighborhoodBenchmarkReport } from '$lib/domain/precompute';
+import WorkspaceAnnualCacheTable from './WorkspaceAnnualCacheTable.svelte';
 
 	export let workspaceCompute: WorkspaceComputeResult | null = null;
 
@@ -63,6 +64,7 @@
 				</table>
 			</section>
 		{/if}
+		<WorkspaceAnnualCacheTable annualCache={workspaceCompute.annualCache ?? null} />
 	</article>
 {/if}
 
