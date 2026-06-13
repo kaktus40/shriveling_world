@@ -10,6 +10,10 @@ import {
 	type ComputeBackendRegistry,
 	type ComputeResult,
 } from '$lib/compute';
+import {
+	benchmarkConeIntersectionAlphaAwareNeighborhoodSweepCpu,
+	type AlphaAwareNeighborhoodBenchmarkReport,
+} from '$lib/domain/precompute';
 import { createDefaultConePipelineOptions } from '$lib/application/validation';
 import type { WorkspaceDatasetSnapshot } from './catalog';
 
@@ -17,6 +21,7 @@ import type { WorkspaceDatasetSnapshot } from './catalog';
 export interface WorkspaceComputeResult {
 	selection: ComputeProfileSelection;
 	benchmark: ComputeBenchmarkReport;
+	alphaAwareSweep?: AlphaAwareNeighborhoodBenchmarkReport;
 	result: ComputeResult;
 }
 
@@ -74,9 +79,25 @@ export async function computeWorkspaceDataset(
 			allowFallback: request.allowFallback ?? true,
 		},
 	);
+	const alphaAwareSweep =
+		request.coneIntersectionStrategy === 'alpha-aware-order' ||
+		request.coneIntersectionStrategy === 'alpha-aware-block-pruned'
+			? result.coneIntersections && result.rawCones && result.staticTown && result.dynamicTown
+				? benchmarkConeIntersectionAlphaAwareNeighborhoodSweepCpu(
+						result.staticTown,
+						result.rawCones,
+						{
+							roadAlphaRadians: result.dynamicTown.roadAlphaRadians,
+						},
+						buildAlphaAwareNeighborhoodFaceCounts(result.rawCones.azimuthSampleCount),
+						{ warmupIterations: 0, measurementIterations: 1 },
+					)
+				: undefined
+			: undefined;
 	return {
 		selection: result.selection,
 		benchmark: result.benchmark,
+		alphaAwareSweep,
 		result,
 	};
 }
@@ -87,4 +108,9 @@ function createWorkspaceComputeBackendRegistry(): ComputeBackendRegistry {
 		webgl2: createWebGl2ComputeBackendDescriptor(),
 		webgpu: createWebGpuComputeBackendDescriptor(),
 	};
+}
+
+function buildAlphaAwareNeighborhoodFaceCounts(azimuthSampleCount: number): readonly number[] {
+	const candidateCounts = [1, 2, 4];
+	return candidateCounts.filter((count) => count > 0 && count < azimuthSampleCount);
 }

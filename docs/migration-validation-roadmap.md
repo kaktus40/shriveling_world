@@ -1517,6 +1517,7 @@ Travail realise:
 - diagnostics de taille de fourchette et d'appartenance de la face gagnante;
 - benchmark stable `cone-intersection-alpha-aware-order`;
 - benchmark stable `cone-intersection-alpha-aware-block-pruned`;
+- le workspace expose la comparaison des largeurs bilaterales alpha-aware;
 - portage WebGL2 puis WebGPU du noyau `ciseledCones` avec comparaison readback
   contre l'oracle CPU;
 - contrat de cache memoire d'instance par annee pour
