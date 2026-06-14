@@ -111,6 +111,17 @@ instead of rebuilding the backend for every year or projection change.
     stable triangle index buffer and the one-time topology build per city;
   - the app cone adapter keeps the topology stable and only refreshes the
     per-city vertex payload when year, projection, or query focus changes;
-  - the remaining runtime TODO is not the presence of the adapter, but the
-    eventual convergence of this adapter with the historical low-level event
-    model so that the same fluid update semantics are preserved end to end.
+- the remaining runtime TODO is not the presence of the adapter, but the
+  eventual convergence of this adapter with the historical low-level event
+  model so that the same fluid update semantics are preserved end to end.
+
+## Validation Snapshot
+
+- Brave e2e on the reduced datasets currently passes for both `app` and
+  `workspace` across `CPU`, `WebGL2`, and `WebGPU`.
+- the WebGPU runtime failure that previously blocked Brave was caused by WGSL
+  syntax issues in `raw-cone-alphas` and `ciseled-cones`; those kernels now
+  compile again.
+- Firefox validation is deliberately left aside in this iteration so the
+  runtime can be stabilized on the browser path that most directly exercises
+  the GPU stack used for day-to-day validation.

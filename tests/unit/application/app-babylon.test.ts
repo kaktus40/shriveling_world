@@ -7,7 +7,7 @@ test('babylon probe returns true when the probe canvas can create webgl2', () =>
 		getContext: (kind: string) => (kind === 'webgl2' ? {} : null),
 	};
 
-	expect(probeBabylonContext(fakeCanvas as HTMLCanvasElement)).toBe(true);
+	expect(probeBabylonContext(fakeCanvas as unknown as HTMLCanvasElement)).toBe(true);
 });
 
 test('babylon probe returns false when the probe canvas cannot create any webgl context', () => {
@@ -15,5 +15,5 @@ test('babylon probe returns false when the probe canvas cannot create any webgl 
 		getContext: () => null,
 	};
 
-	expect(probeBabylonContext(fakeCanvas as HTMLCanvasElement)).toBe(false);
+	expect(probeBabylonContext(fakeCanvas as unknown as HTMLCanvasElement)).toBe(false);
 });

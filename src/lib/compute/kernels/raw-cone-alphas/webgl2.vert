@@ -3,7 +3,7 @@
 precision highp float;
 precision highp int;
 
-uniform sampler2D u_cityLinkOffsets;
+uniform usampler2D u_cityLinkOffsets;
 uniform usampler2D u_cityLinkCounts;
 uniform sampler2D u_cityLinkAzimuthRadians;
 uniform sampler2D u_cityLinkAlphaRadians;
@@ -77,11 +77,11 @@ float selectConeAlpha(uint cityIndex, float azimuthRadians) {
 }
 
 void main() {
-	uint sampleCount = uint(u_uniforms.w + 0.5);
-	uint instanceIndex = uint(gl_InstanceID);
-	uint sampleIndex = instanceIndex % sampleCount;
-	uint cityIndex = instanceIndex / sampleCount;
-	float azimuthRadians = (float(sampleIndex) * TWO_PI) / u_uniforms.w;
-	tf_coneAlphaRadians = selectConeAlpha(cityIndex, azimuthRadians);
+	int sampleCount = int(u_uniforms.w + 0.5);
+	int instanceIndex = gl_InstanceID;
+	int sampleIndex = instanceIndex % sampleCount;
+	int cityIndex = instanceIndex / sampleCount;
+	float azimuthRadians = (float(sampleIndex) * TWO_PI) / float(sampleCount);
+	tf_coneAlphaRadians = selectConeAlpha(uint(cityIndex), azimuthRadians);
 	gl_Position = vec4(0.0);
 }

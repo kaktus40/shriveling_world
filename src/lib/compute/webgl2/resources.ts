@@ -1,4 +1,3 @@
-import rawConeAlphasVertexShaderSource from '../kernels/raw-cone-alphas/webgl2.vert?raw';
 import cityNed2EcefVertexShaderSource from '../kernels/city-ned2ecef/webgl2.vert?raw';
 import boundaryAlgebreVertexShaderSource from '../kernels/boundary-algebre/webgl2.vert?raw';
 import projectionWebGl2ShaderSource from '../kernels/shared/projection/webgl2.glsl?raw';
@@ -17,12 +16,16 @@ import {
 } from './buffers';
 import { composeWebGl2VertexShaderSource } from './programs';
 import type { WebGl2ComputeResources } from './types';
+import { createRawConeAlphasVertexShaderSource } from './passes/raw-cone-alphas/source';
 
 /** Creates the cached WebGL2 resources for all migration compute passes. */
 export function createWebGl2ComputeResources(gl: WebGL2RenderingContext): WebGl2ComputeResources {
 	const cityProgram = createCityNed2EcefProgram(gl, cityNed2EcefVertexShaderSource);
-	const rawConeAlphaProgram = createRawConeAlphasProgram(gl, rawConeAlphasVertexShaderSource);
-	const boundaryProgram = createBoundaryAlgebreProgram(gl, boundaryAlgebreVertexShaderSource);
+	const rawConeAlphaProgram = createRawConeAlphasProgram(gl, createRawConeAlphasVertexShaderSource());
+	const boundaryProgram = createBoundaryAlgebreProgram(
+		gl,
+		composeWebGl2VertexShaderSource(sharedMathWebGl2ShaderSource, boundaryAlgebreVertexShaderSource),
+	);
 	const ciseledConesProgram = createCiseledConesProgram(
 		gl,
 		composeWebGl2VertexShaderSource(sharedMathWebGl2ShaderSource, rayIntersectTriangleWebGl2ShaderSource, ciseledConesVertexShaderSource),

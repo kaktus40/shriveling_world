@@ -29,7 +29,7 @@ export interface AppBusinessLayerDescriptor {
 export interface AppConeMeshDescriptor {
 	readonly name: string;
 	readonly cityIndex: number;
-	readonly cityCode: string;
+	readonly cityCode: number;
 	readonly color: AppColor3;
 	readonly opacity?: number;
 	readonly apex: AppPoint3;

@@ -56,16 +56,18 @@ fn is_on_directed_corridor(
 	direction: i32,
 	face_count: i32,
 ) -> bool {
-	let corridor_length = if (direction > 0) {
-		positive_mod_i32(end_face_index - start_face_index, face_count)
+	var corridor_length = 0;
+	if (direction > 0) {
+		corridor_length = positive_mod_i32(end_face_index - start_face_index, face_count);
 	} else {
-		positive_mod_i32(start_face_index - end_face_index, face_count)
-	};
-	let corridor_distance = if (direction > 0) {
-		positive_mod_i32(face_index - start_face_index, face_count)
+		corridor_length = positive_mod_i32(start_face_index - end_face_index, face_count);
+	}
+	var corridor_distance = 0;
+	if (direction > 0) {
+		corridor_distance = positive_mod_i32(face_index - start_face_index, face_count);
 	} else {
-		positive_mod_i32(start_face_index - face_index, face_count)
-	};
+		corridor_distance = positive_mod_i32(start_face_index - face_index, face_count);
+	}
 	return corridor_distance <= corridor_length;
 }
 
@@ -126,17 +128,17 @@ fn intersect_candidate_face(
 		rim1,
 		best_distance_meters,
 	);
-	if (
-		distance_meters > 0.0 &&
-		is_preferred_intersection(
-			distance_meters,
-			neighbor_city_index,
-			face_index,
-			best_distance_meters,
-			winning_neighbor_city_index,
-			winning_face_index,
-		)
-	) {
+		if (
+			distance_meters > 0.0 &&
+			is_preferred_intersection(
+				distance_meters,
+				neighbor_city_index,
+				face_index,
+				best_distance_meters,
+				winning_neighbor_city_index,
+				winning_face_index,
+			)
+		) {
 		return FaceIntersectionState(
 			distance_meters,
 			neighbor_city_index,
@@ -192,7 +194,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 		let phi_b0_radians = positive_angle(gamma_ba_radians - signed_angle_delta(phi_a_radians - gamma_ab_radians));
 		let start_face_index = i32(min(floor(phi_b0_radians / sample_step_radians), f32(azimuth_sample_count - 1u)));
 		let end_face_index = i32(min(floor(positive_angle(gamma_ba_radians) / sample_step_radians), f32(azimuth_sample_count - 1u)));
-		let direction = if (signed_angle_delta(gamma_ba_radians - phi_b0_radians) < 0.0) { -1 } else { 1 };
+		var direction: i32 = 1;
+		if (signed_angle_delta(gamma_ba_radians - phi_b0_radians) < 0.0) {
+			direction = -1;
+		}
 		let face_count = i32(azimuth_sample_count);
 		let neighbor_summit = read_city_summit(neighbor_index);
 		let before_start_face_index = positive_mod_i32(start_face_index - direction, face_count);

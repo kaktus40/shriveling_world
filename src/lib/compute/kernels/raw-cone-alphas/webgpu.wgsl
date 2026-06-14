@@ -62,7 +62,7 @@ fn selectComplexConeAlpha(cityIndex: u32, azimuthRadians: f32) -> f32 {
 	}
 
 	let span = lowerDistance + upperDistance;
-	let interpolation = 0.0;
+	var interpolation = 0.0;
 	if (span > 0.0) {
 		interpolation = smoothstep(0.0, span, lowerDistance);
 	}
@@ -82,10 +82,10 @@ fn selectConeAlpha(cityIndex: u32, azimuthRadians: f32) -> f32 {
 
 @compute @workgroup_size(1, 1, 1)
 fn main(@builtin(global_invocation_id) globalInvocationId: vec3<u32>) {
-	let sampleIndex = globalInvocationId.x;
-	let cityIndex = globalInvocationId.y;
-	let azimuthSampleCount = u32(uniforms.azimuthSampleCount + 0.5);
-	let azimuthRadians = (f32(sampleIndex) * TWO_PI) / uniforms.azimuthSampleCount;
-	let outputIndex = cityIndex * azimuthSampleCount + sampleIndex;
-	coneAlphaRadians[outputIndex] = selectConeAlpha(cityIndex, azimuthRadians);
+	let sampleCount = i32(round(uniforms.azimuthSampleCount));
+	let sampleIndex = i32(globalInvocationId.x);
+	let cityIndex = i32(globalInvocationId.y);
+	let azimuthRadians = (f32(sampleIndex) * TWO_PI) / f32(sampleCount);
+	let outputIndex = u32(cityIndex * sampleCount + sampleIndex);
+	coneAlphaRadians[outputIndex] = selectConeAlpha(u32(cityIndex), azimuthRadians);
 }

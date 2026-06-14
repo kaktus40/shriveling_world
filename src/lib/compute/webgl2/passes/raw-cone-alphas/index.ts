@@ -1,5 +1,3 @@
-import rawConeAlphasMathSource from '../../../kernels/shared/math/webgl2.glsl?raw';
-import rawConeAlphasKernelSource from '../../../kernels/raw-cone-alphas/webgl2.vert?raw';
 import type { DatasetDiagnostic } from '../../../../domain/data';
 import type { ComputeResult, StageTiming } from '../../../core';
 import { measureAsyncStage } from '../../../core/timing';
@@ -10,15 +8,10 @@ import {
 import {
 	createRawConeAlphasProgram,
 } from '../../buffers';
-import { composeWebGl2VertexShaderSource } from '../../programs';
 import type { WebGl2ComputeResources } from '../../types';
 import { bindRawConeAlphaTextures, shapeToCode } from '../../pass-utils';
 import { createRawConeAlphasDispatchResources } from './buffers';
-
-const rawConeAlphasVertexShaderSource = composeWebGl2VertexShaderSource(
-	rawConeAlphasMathSource,
-	rawConeAlphasKernelSource,
-);
+import { createRawConeAlphasVertexShaderSource } from './source';
 
 export interface WebGl2RawConeAlphaPassInput {
 	readonly gl: WebGL2RenderingContext;
@@ -66,7 +59,7 @@ export async function runWebGl2RawConeAlphaPass(
 		};
 	}
 
-	const program = input.resources.programCache?.get('raw-cone-alphas') ?? createRawConeAlphasProgram(input.gl, rawConeAlphasVertexShaderSource);
+	const program = input.resources.programCache?.get('raw-cone-alphas') ?? createRawConeAlphasProgram(input.gl, createRawConeAlphasVertexShaderSource());
 	const dispatchResources = createRawConeAlphasDispatchResources(
 		input.gl,
 		program,

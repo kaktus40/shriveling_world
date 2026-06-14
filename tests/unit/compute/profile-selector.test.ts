@@ -7,6 +7,7 @@ function descriptor(profile: 'webgpu' | 'webgl2' | 'cpu', available: boolean): C
 		isAvailable: () => available,
 		create: async () => ({
 			profile,
+			warm: async () => {},
 			computeFrame: async () => {
 				throw new Error('not implemented');
 			},

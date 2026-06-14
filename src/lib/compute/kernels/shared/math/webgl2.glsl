@@ -61,3 +61,24 @@ float initial_bearing_radians(vec3 north, vec3 east, vec3 targetNVector) {
 float angular_distance_radians(vec3 a, vec3 b) {
 	return acos(clamp(dot(normalize(a), normalize(b)), -1.0, 1.0));
 }
+
+bool isPreferredIntersection(
+	float distanceMeters,
+	uint neighborCityIndex,
+	uint faceIndex,
+	float bestDistanceMeters,
+	uint winningNeighborCityIndex,
+	uint winningFaceIndex
+) {
+	return (
+		distanceMeters < bestDistanceMeters ||
+		(
+			distanceMeters == bestDistanceMeters &&
+			winningNeighborCityIndex != 0xffffffffu &&
+			(
+				neighborCityIndex < winningNeighborCityIndex ||
+				(neighborCityIndex == winningNeighborCityIndex && faceIndex < winningFaceIndex)
+			)
+		)
+	);
+}

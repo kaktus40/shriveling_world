@@ -1843,6 +1843,9 @@ Etat reel observe ulterieurement:
   sur le shell SvelteKit minimal;
 - `playwright.config.ts` demarre Vite avec `--configLoader runner` et utilise
   le Chromium systeme si les navigateurs Playwright n'ont pas ete installes.
+- sur le lot de validation courant, les e2e reduced dataset passent sur Brave
+  pour `app` et `workspace` sur les profils `CPU`, `WebGL2` et `WebGPU`;
+- la validation Firefox reste diferee dans cette iteration.
 
 Conclusion:
 

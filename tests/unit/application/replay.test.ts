@@ -26,7 +26,7 @@ describe('replay scheduler', () => {
 	test('queues one more replay pass when a request arrives during execution', async () => {
 		const scheduledTasks: Array<() => void> = [];
 		let runCount = 0;
-		let resolveRun: (() => void) | null = null;
+		let resolveRun: (() => void) | undefined;
 		const scheduler = createReplayScheduler(
 			() =>
 				new Promise<void>((resolve) => {
@@ -45,12 +45,22 @@ describe('replay scheduler', () => {
 		scheduler.request();
 		assert.equal(scheduledTasks.length, 0);
 
-		resolveRun?.();
+		{
+			const currentResolveRun = resolveRun;
+			if (typeof currentResolveRun === 'function') {
+				currentResolveRun();
+			}
+		}
 		await Promise.resolve();
 		await Promise.resolve();
 		assert.equal(scheduledTasks.length, 1);
 		scheduledTasks.shift()?.();
-		resolveRun?.();
+		{
+			const currentResolveRun = resolveRun;
+			if (typeof currentResolveRun === 'function') {
+				currentResolveRun();
+			}
+		}
 		await Promise.resolve();
 		await Promise.resolve();
 		assert.equal(runCount, 2);

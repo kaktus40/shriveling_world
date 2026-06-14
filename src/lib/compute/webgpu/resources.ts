@@ -29,14 +29,18 @@ function buildPassContract(
 /** Creates the cached WebGPU resources for all migration compute passes. */
 export function createWebGpuComputeResources(device: GPUDevice): WebGpuComputeResources {
 	const cityMatrixModule = device.createShaderModule({ code: cityNed2EcefShaderSource });
-	const rawConeAlphaModule = device.createShaderModule({ code: rawConeAlphasShaderSource });
+	const rawConeAlphaModule = device.createShaderModule({
+		code: `${sharedMathShaderSource}\n${rawConeAlphasShaderSource}`,
+	});
 	const ciseledConeModule = device.createShaderModule({
 		code: `${sharedMathShaderSource}\n${rayIntersectTriangleShaderSource}\n${ciseledConesShaderSource}`,
 	});
 	const finalConeModule = device.createShaderModule({
 		code: `${projectionShaderSource}\n${finalConesShaderSource}`,
 	});
-	const boundaryModule = device.createShaderModule({ code: boundaryAlgebreShaderSource });
+	const boundaryModule = device.createShaderModule({
+		code: `${sharedMathShaderSource}\n${boundaryAlgebreShaderSource}`,
+	});
 	const curveGeometryProjectedModule = device.createShaderModule({
 		code: `${projectionShaderSource}\n${curveGeometryShaderSource}`,
 	});

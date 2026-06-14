@@ -89,3 +89,20 @@ test('webgl2 vertex shader composition keeps version first and portable precisio
 	expect(source).not.toContain('precision highp uint;');
 	expect(source.match(/#version 300 es/g)?.length).toBe(1);
 });
+
+test('raw-cone shaders keep the sample count arithmetic in integer space', () => {
+	const webgl2 = readKernelFile('raw-cone-alphas/webgl2.vert');
+	const webgpu = readKernelFile('raw-cone-alphas/webgpu.wgsl');
+
+	expect(webgl2).toContain('uniform usampler2D u_cityLinkOffsets;');
+	expect(webgl2).toContain('int sampleCount = int(u_uniforms.w + 0.5);');
+	expect(webgl2).toContain('int instanceIndex = gl_InstanceID;');
+	expect(webgl2).not.toContain('uniform sampler2D u_cityLinkOffsets;');
+	expect(webgl2).not.toContain('uint(u_uniforms.w + 0.5)');
+	expect(webgl2).not.toContain('uint(gl_InstanceID)');
+
+	expect(webgpu).toContain('let sampleCount = i32(round(uniforms.azimuthSampleCount));');
+	expect(webgpu).toContain('let sampleIndex = i32(globalInvocationId.x);');
+	expect(webgpu).not.toContain('u32(uniforms.azimuthSampleCount + 0.5)');
+	expect(webgpu).not.toContain('let azimuthSampleCount = u32');
+});

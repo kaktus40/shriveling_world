@@ -110,17 +110,17 @@ void updateCandidateFace(
 		rim1,
 		bestDistanceMeters
 	);
-	if (
-		distanceMeters > 0.0 &&
-		isPreferredIntersection(
-			distanceMeters,
-			neighborCityIndex,
-			faceIndex,
-			bestDistanceMeters,
-			winningNeighborCityIndex,
-			winningFaceIndex
-		)
-	) {
+		if (
+			distanceMeters > 0.0 &&
+			isPreferredIntersection(
+				distanceMeters,
+				neighborCityIndex,
+				faceIndex,
+				bestDistanceMeters,
+				winningNeighborCityIndex,
+				winningFaceIndex
+			)
+		) {
 		bestDistanceMeters = distanceMeters;
 		winningNeighborCityIndex = neighborCityIndex;
 		winningFaceIndex = faceIndex;
@@ -188,8 +188,8 @@ void main() {
 		int direction = signed_angle_delta(gammaBARadians - phiB0Radians) < 0.0 ? -1 : 1;
 		int faceCount = int(azimuthSampleCount);
 		vec3 neighborSummit = readCitySummit(neighborCityIndex);
-		int beforeStartFaceIndex = positiveModI32(startFaceIndex - direction, faceCount);
-		int afterEndFaceIndex = positiveModI32(endFaceIndex + direction, faceCount);
+		int beforeStartFaceIndex = positive_mod_i32(startFaceIndex - direction, faceCount);
+		int afterEndFaceIndex = positive_mod_i32(endFaceIndex + direction, faceCount);
 
 		int corridorFaceIndex = startFaceIndex;
 		for (uint visited = 0u; visited < azimuthSampleCount; visited += 1u) {

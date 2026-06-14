@@ -31,7 +31,7 @@ fn read_contour_nvector(point_index: u32) -> vec3<f32> {
 fn intersect_great_circle_with_segment(great_circle_normal: vec3<f32>, segment_start: vec3<f32>, segment_end: vec3<f32>) -> vec3<f32> {
   let bounds = segment_end - segment_start;
   let denominator = dot(bounds, great_circle_normal);
-  if (abs(denominator) <= 1e-6) {
+  if (abs(denominator) <= ANGULAR_EPSILON) {
     return vec3<f32>(0.0);
   }
   let ratio = -dot(segment_start, great_circle_normal) / denominator;

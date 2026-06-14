@@ -67,3 +67,22 @@ fn initial_bearing_radians(north: vec3<f32>, east: vec3<f32>, target_nvector: ve
 fn angular_distance_radians(a: vec3<f32>, b: vec3<f32>) -> f32 {
 	return acos(clamp(dot(normalize(a), normalize(b)), -1.0, 1.0));
 }
+
+fn is_preferred_intersection(
+	distance_meters: f32,
+	neighbor_city_index: u32,
+	face_index: u32,
+	best_distance_meters: f32,
+	winning_neighbor_city_index: u32,
+	winning_face_index: u32,
+) -> bool {
+	return distance_meters < best_distance_meters ||
+		(
+			distance_meters == best_distance_meters &&
+			winning_neighbor_city_index != 0xffffffffu &&
+			(
+				neighbor_city_index < winning_neighbor_city_index ||
+				(neighbor_city_index == winning_neighbor_city_index && face_index < winning_face_index)
+			)
+		);
+}

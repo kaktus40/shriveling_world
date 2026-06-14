@@ -21,7 +21,7 @@ vec3 readContourNVector(int pointIndex) {
 vec3 intersectGreatCircleWithSegment(vec3 greatCircleNormal, vec3 segmentStart, vec3 segmentEnd) {
 	vec3 bounds = segmentEnd - segmentStart;
 	float denominator = dot(bounds, greatCircleNormal);
-	if (abs(denominator) <= EPSILON) {
+	if (abs(denominator) <= ANGULAR_EPSILON) {
 		return vec3(0.0);
 	}
 	float ratio = -dot(segmentStart, greatCircleNormal) / denominator;
