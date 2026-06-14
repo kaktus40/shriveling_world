@@ -97,6 +97,7 @@ export class WebGl2ComputeBackend implements ComputeBackend {
 				await this.ensureResources(),
 				this.#ciseledConeRimEcefBuffer,
 				options.projection,
+				options,
 			);
 			extraTimings.push(boundaryPass.timing);
 			if (boundaryPass.extraTimings) {
@@ -192,9 +193,22 @@ export function webgl2Capabilities(available = false): ComputeCapabilities {
 	};
 }
 
-/** Probes whether a WebGL2 context can be created from a canvas-like object. */
+/** Probes whether a WebGL2 context can be created from a canvas-like object and validates at least one transform-feedback program. */
 export function probeWebGl2Availability(canvas?: WebGl2CanvasLike | null): boolean {
-	return probeWebGl2Context(canvas) !== null;
+	const gl = probeWebGl2Context(canvas);
+	if (!gl) {
+		return false;
+	}
+	// Attempt to create the canonical program set used by the fallback backend.
+	// createWebGl2ComputeResources compiles and links the transform-feedback
+	// programs; if any compile/link step fails, treat WebGL2 as unavailable.
+	try {
+		createWebGl2ComputeResources(gl);
+		return true;
+	} catch (e) {
+		// Compilation or linking failure => not available
+		return false;
+	}
 }
 
 /** Creates a canvas-like object suitable for a WebGL2 probe when the runtime supports it. */
