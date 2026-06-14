@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Engine } from '@babylonjs/core';
 	import {
 		APP_COMPUTE_PROFILE_LABELS,
 		APP_PROJECTION_LABELS,
@@ -58,8 +57,8 @@
 		}
 
 		void import('$lib/application/app/scene').then(({ createAppScene }) => {
-			if (!Engine.IsSupported) {
-				sceneError = 'Babylon scene unavailable: WebGL is not supported in this browser.';
+			if (!probeWebGlContext(canvasElement)) {
+				sceneError = 'Babylon scene unavailable: no WebGL or WebGL2 context could be created.';
 				return;
 			}
 			try {
@@ -89,6 +88,19 @@
 	});
 
 	$: controller?.update(getSceneState());
+
+	function probeWebGlContext(canvasElement: HTMLCanvasElement): boolean {
+		const contextOptions = {
+			antialias: true,
+			preserveDrawingBuffer: true,
+			stencil: true,
+			powerPreference: 'high-performance' as WebGLPowerPreference,
+		};
+		return (
+			canvasElement.getContext('webgl2', contextOptions) !== null ||
+			canvasElement.getContext('webgl', contextOptions) !== null
+		);
+	}
 </script>
 
 <section class="viewport" aria-label="Babylon viewport">
