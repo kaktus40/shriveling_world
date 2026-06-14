@@ -7,7 +7,8 @@ import {
   resolveDatasetManifest,
   type SourceFile,
 } from '$lib/domain/data';
-import { createWorkspaceComputeSession } from '$lib/application/workspace';
+import { createComputeSession } from '$lib/compute';
+import { createDefaultComputeBackendRegistry, createWebGl2ComputeBackendDescriptor } from '$lib/compute';
 
 function csv(name: string, text: string): SourceFile {
   return { name, text: text.trim() };
@@ -89,7 +90,104 @@ cityCodeOri,cityCodeDes,transportModeCode,eYearBegin,eYearEnd
 // Integration test asserting event-driven selective execution via passFilter.
 test('event-driven: selective re-execution with passFilter', async () => {
   const workspace = buildWorkspaceFixture();
-  const session = createWorkspaceComputeSession();
+  // Build a registry that forces the use of a fake WebGL2 backend so the
+  // passFilter logic exercised by WebGL2/WebGPU runners can be tested in CI.
+  function createFakeGl(): WebGL2RenderingContext {
+    const shader = {} as WebGLShader;
+    const program = {} as WebGLProgram;
+    const buffer = {} as WebGLBuffer;
+    const vao = {} as WebGLVertexArrayObject;
+    const transformFeedback = {} as WebGLTransformFeedback;
+    const texture = {} as WebGLTexture;
+    const uniformLocation = {} as WebGLUniformLocation;
+    return {
+      VERTEX_SHADER: 0x8b31,
+      FRAGMENT_SHADER: 0x8b30,
+      COMPILE_STATUS: 0x8b81,
+      LINK_STATUS: 0x8b82,
+      INTERLEAVED_ATTRIBS: 0x8c8c,
+      SEPARATE_ATTRIBS: 0x8c8d,
+      ARRAY_BUFFER: 0x8892,
+      TRANSFORM_FEEDBACK_BUFFER: 0x8c8e,
+      STATIC_DRAW: 0x88e4,
+      DYNAMIC_COPY: 0x88ea,
+      POINTS: 0x0000,
+      RASTERIZER_DISCARD: 0x8c89,
+      TRANSFORM_FEEDBACK: 0x8e22,
+      TEXTURE_2D: 0x0de1,
+      TEXTURE0: 0x84c0,
+      NEAREST: 0x2600,
+      CLAMP_TO_EDGE: 0x812f,
+      RGBA32F: 0x8814,
+      RG32F: 0x8230,
+      R32UI: 0x8236,
+      R32I: 0x8235,
+      RGBA: 0x1908,
+      RG: 0x8227,
+      RED_INTEGER: 0x8d94,
+      FLOAT: 0x1406,
+      INT: 0x1404,
+      UNSIGNED_INT: 0x1405,
+      UNPACK_ALIGNMENT: 0x0cf5,
+      createShader: () => shader,
+      shaderSource: () => {},
+      compileShader: () => {},
+      getShaderParameter: () => true,
+      getShaderInfoLog: () => '',
+      deleteShader: () => {},
+      createProgram: () => program,
+      attachShader: () => {},
+      transformFeedbackVaryings: () => {},
+      linkProgram: () => {},
+      getProgramParameter: () => true,
+      getProgramInfoLog: () => '',
+      deleteProgram: () => {},
+      getUniformLocation: () => uniformLocation,
+      createBuffer: () => buffer,
+      bindBuffer: () => {},
+      bufferData: () => {},
+      createVertexArray: () => vao,
+      bindVertexArray: () => {},
+      enableVertexAttribArray: () => {},
+      vertexAttribPointer: () => {},
+      createTransformFeedback: () => transformFeedback,
+      bindTransformFeedback: () => {},
+      bindBufferBase: () => {},
+      createTexture: () => texture,
+      bindTexture: () => {},
+      texParameteri: () => {},
+      texImage2D: () => {},
+      activeTexture: () => {},
+      pixelStorei: () => {},
+      uniform1i: () => {},
+      uniform4f: () => {},
+      useProgram: () => {},
+      uniform1f: () => {},
+      getBufferSubData: (_target: number, _offset: number, output: ArrayBufferView) => {
+        if (output instanceof Float32Array) {
+          output.fill(1234.5);
+        }
+      },
+      enable: () => {},
+      disable: () => {},
+      beginTransformFeedback: () => {},
+      drawArrays: () => {},
+      drawArraysInstanced: () => {},
+      endTransformFeedback: () => {},
+      finish: () => {},
+    } as unknown as WebGL2RenderingContext;
+  }
+
+  function createFakeCanvas(): HTMLCanvasElement {
+    return { getContext: (kind: string) => (kind === 'webgl2' ? createFakeGl() : null) } as unknown as HTMLCanvasElement;
+  }
+
+  const registry = {
+    ...createDefaultComputeBackendRegistry(),
+    webgl2: createWebGl2ComputeBackendDescriptor({ canvas: createFakeCanvas() } as any),
+  };
+
+  const session = createComputeSession(registry);
   await session.warm();
 
   // Full compute (no passFilter) should produce a full benchmark with many stages.
