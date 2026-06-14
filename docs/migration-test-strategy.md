@@ -376,7 +376,6 @@ Raison:
 
 - les contrats de calcul sont encore en evolution;
 - les tests de rendu doivent rester isoles du reste de la suite;
-- un smoke test Playwright suffit pour figer le chargement de base;
 - des scenarii plus complets seront ajoutes a mesure que l'UI se stabilisera.
 
 ## Strategie CPU/GPU Pour Les Limites GeoJSON

@@ -71,8 +71,6 @@ Utiliser les statuts suivants:
 - La cible de runner pour la migration est `Vitest` pour les tests unitaires,
   d'integration et de conformance CPU, avec `Playwright` pour les tests E2E et
   de rendu.
-- La suite Playwright doit exposer au moins un smoke test de chargement
-  applicatif avant validation de l'integration interactive complete.
 - Le contrat du requeteur applicatif est fixe dans
   `docs/query-controller-contract.md` et doit rester partage entre `workspace`
   et le futur `app`.
@@ -344,7 +342,6 @@ Resultat:
 
 - M2 valide sur le critere build applicatif.
 - Dette explicitement ouverte: validation stricte du code legacy non portee.
-- Le smoke E2E Playwright n'est plus une reserve ouverte sur ce worktree.
 
 Mise a jour npm:
 
@@ -906,7 +903,7 @@ Validation:
     `src/lib/application/workspace/`;
   - `src/routes/+layout.ts` charge desormais le catalogue datasets partage pour
     les ecrans applicatifs futurs;
-  - `src/routes/+page.svelte` n'est plus un simple smoke shell et consomme ce
+  - `src/routes/+page.svelte` n'est plus un simple shell et consomme ce
     `workspace` commun pour charger un dataset et exposer son resume.
   - une premiere route applicative non `test`, `src/routes/workspace/+page.svelte`,
     expose le dataset comme objet metier avec ses modes, villes, champs
@@ -1839,7 +1836,7 @@ Etat reel observe ulterieurement:
 - les pages `test1`, `test2` et `test3` existent et servent deja de validation
   interactive CPU;
 - aucune integration Babylon.js complete n'est encore branchee;
-- le smoke Playwright existe dans `tests/e2e/home.spec.ts` et passe desormais
+- un test Playwright existe dans `tests/e2e/home.spec.ts` et passe desormais
   sur le shell SvelteKit minimal;
 - `playwright.config.ts` demarre Vite avec `--configLoader runner` et utilise
   le Chromium systeme si les navigateurs Playwright n'ont pas ete installes.
