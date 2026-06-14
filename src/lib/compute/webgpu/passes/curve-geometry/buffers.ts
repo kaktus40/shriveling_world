@@ -1,6 +1,6 @@
 import type { CurveGeometryDispatchInput, CurveGeometryDispatchResources, GpuBufferUsageFlags } from '../../buffers';
 
-/** Creates the GPU allocations required by the curve-geometry WGSL pass. */
+/** Creates the GPU allocations required by the final curve WGSL pass. */
 export function createCurveGeometryDispatchResources(
 	device: GPUDevice,
 	usage: GpuBufferUsageFlags,
@@ -26,6 +26,14 @@ export function createCurveGeometryDispatchResources(
 		size: 16,
 		usage: usage.UNIFORM | usage.COPY_DST,
 	});
+	const projectionBuffer = device.createBuffer({
+		size: 16,
+		usage: usage.UNIFORM | usage.COPY_DST,
+	});
+	const projectionSettingsBuffer = device.createBuffer({
+		size: 32,
+		usage: usage.UNIFORM | usage.COPY_DST,
+	});
 	const outputBuffer = device.createBuffer({
 		size: Math.max(input.curveCount * (input.pointsPerCurve + 1), 1) * 4 * Float32Array.BYTES_PER_ELEMENT,
 		usage: usage.STORAGE | usage.COPY_SRC,
@@ -43,6 +51,25 @@ export function createCurveGeometryDispatchResources(
 			input.pointsPerCurve,
 			curvePositionToCode(input.curvePosition),
 			input.coefficient ?? 1,
+		]),
+	);
+	device.queue.writeBuffer(
+		projectionBuffer,
+		0,
+		new Float32Array([input.projectionInit, input.projectionEnd, input.projectionPercent, input.globeRadius]),
+	);
+	device.queue.writeBuffer(
+		projectionSettingsBuffer,
+		0,
+		new Float32Array([
+			input.projectionReferenceLongitudeRadians,
+			input.projectionReferenceLatitudeRadians,
+			input.projectionReferenceHeightMeters,
+			input.projectionStandardParallel1Radians,
+			input.projectionStandardParallel2Radians,
+			input.projectionZCoefficient,
+			0,
+			0,
 		]),
 	);
 
@@ -102,6 +129,26 @@ export function createCurveGeometryDispatchResources(
 				notes: ['[earthRadiusMeters, pointsPerCurve, curvePositionCode, coefficient]'],
 			},
 		},
+		projection: {
+			buffer: projectionBuffer,
+			contract: {
+				name: 'curveGeometryProjection',
+				elementType: 'float32',
+				strideBytes: 4 * Float32Array.BYTES_PER_ELEMENT,
+				count: 1,
+				notes: ['[projectionInit, projectionEnd, projectionPercent, globeRadius] for final curve geometry emission'],
+			},
+		},
+		projectionSettings: {
+			buffer: projectionSettingsBuffer,
+			contract: {
+				name: 'curveGeometryProjectionSettings',
+				elementType: 'float32',
+				strideBytes: 4 * Float32Array.BYTES_PER_ELEMENT,
+				count: 2,
+				notes: ['[referenceLongitude, referenceLatitude, referenceHeight, standardParallel1, standardParallel2, zCoefficient, unused, unused] for final curve geometry emission'],
+			},
+		},
 		curveVertexPositions: {
 			buffer: outputBuffer,
 			contract: {
@@ -111,7 +158,7 @@ export function createCurveGeometryDispatchResources(
 				count: input.curveCount * (input.pointsPerCurve + 1),
 				linearUnit: 'meters',
 				coordinateOrder: 'ecef',
-				notes: ['Render-ready curve vertices in ECEF meters'],
+				notes: ['Final curve geometry in display projection space, ready to display'],
 			},
 		},
 	};

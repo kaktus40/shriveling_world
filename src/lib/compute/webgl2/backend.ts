@@ -106,7 +106,7 @@ export class WebGl2ComputeBackend implements ComputeBackend {
 				this.profile,
 				extraTimings,
 				[
-					'WebGL2 backend dispatches city NED-to-ECEF, raw-cone alpha, cone-cone, GeoJSON boundary and final geometry transform-feedback passes before delegating the remaining compute stages to the CPU reference backend.',
+					'WebGL2 backend dispatches city NED-to-ECEF, raw-cone alpha, cone-cone, GeoJSON boundary, final cone geometry and final curve geometry transform-feedback passes before delegating the remaining compute stages to the CPU reference backend.',
 				],
 			),
 			diagnostics: [
@@ -134,7 +134,7 @@ export class WebGl2ComputeBackend implements ComputeBackend {
 					severity: 'warning',
 					code: 'webgl2-final-cones-pass-dispatched',
 					profile: this.profile,
-					message: 'WebGL2 backend dispatches a real final cone geometry transform-feedback pass before delegating the remaining compute stages to the CPU reference backend.',
+					message: 'WebGL2 backend dispatches real final cone geometry and final curve geometry transform-feedback passes before delegating the remaining compute stages to the CPU reference backend.',
 				},
 			],
 		};
@@ -180,7 +180,7 @@ export function webgl2Capabilities(available = false): ComputeCapabilities {
 		webgl2Available: available,
 		cpuAvailable: true,
 		notes: available
-			? ['WebGL2 fallback backend with city NED-to-ECEF, raw-cone alpha, ciseled-cone, GeoJSON boundary and final geometry transform-feedback passes']
+			? ['WebGL2 fallback backend with city NED-to-ECEF, raw-cone alpha, ciseled-cone, GeoJSON boundary, final cone geometry and final curve geometry transform-feedback passes']
 			: ['WebGL2 unavailable'],
 	};
 }

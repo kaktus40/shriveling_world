@@ -9,7 +9,7 @@ import {
 	packScalarsAsUintRgba,
 } from '../shared/resource-helpers';
 
-/** Creates the GPU allocations required by the curve-geometry WebGL2 pass. */
+/** Creates the GPU allocations required by the final curve WebGL2 pass. */
 export function createCurveGeometryDispatchResources(
 	gl: WebGL2RenderingContext,
 	program: WebGLProgram,
@@ -51,7 +51,17 @@ export function createCurveGeometryDispatchResources(
 	);
 	const outputBuffer = gl.createBuffer();
 	const uniformLocation = gl.getUniformLocation(program, 'u_uniforms');
-	if (!vertexArray || !outputBuffer || !uniformLocation) {
+	const projectionUniformLocation = gl.getUniformLocation(program, 'u_projection');
+	const projectionSettingsALocation = gl.getUniformLocation(program, 'u_projection_settings_a');
+	const projectionSettingsBLocation = gl.getUniformLocation(program, 'u_projection_settings_b');
+	if (
+		!vertexArray ||
+		!outputBuffer ||
+		!uniformLocation ||
+		!projectionUniformLocation ||
+		!projectionSettingsALocation ||
+		!projectionSettingsBLocation
+	) {
 		throw new Error('WebGL2 curve geometry resource allocation failed');
 	}
 
@@ -72,6 +82,9 @@ export function createCurveGeometryDispatchResources(
 		curveIdsTexture,
 		outputBuffer,
 		uniformLocation,
+		projectionUniformLocation,
+		projectionSettingsALocation,
+		projectionSettingsBLocation,
 		curveControlPointsEcefContract: {
 			name: 'curveControlPointsEcef',
 			elementType: 'float32',
@@ -110,7 +123,7 @@ export function createCurveGeometryDispatchResources(
 			count: input.curveCount * (input.pointsPerCurve + 1),
 			linearUnit: 'meters',
 			coordinateOrder: 'ecef',
-			notes: ['Render-ready curve vertices in ECEF meters'],
+			notes: ['Final curve geometry in display projection space, ready to display'],
 		},
 	};
 }

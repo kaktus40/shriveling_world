@@ -1,5 +1,8 @@
 struct CurveGeometryUniforms {
 	values: vec4<f32>,
+	projection: vec4<f32>,
+	projection_settings_a: vec4<f32>,
+	projection_settings_b: vec4<f32>,
 }
 
 @group(0) @binding(0) var<storage, read> curve_control_points_ecef: array<vec4<f32>>;
@@ -90,6 +93,18 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
 	let t = select(0.0, f32(sample_index) / f32(points_per_curve), points_per_curve > 0u);
 	let position = sample_cubic_bezier(point_a, point_p, point_q, point_b, t);
+	let projected = project_display_from_ecef(
+		position,
+		uniforms.projection.w,
+		earth_radius_meters,
+		uniforms.projection_settings_a.xyz,
+		uniforms.projection_settings_a.w,
+		uniforms.projection_settings_b.x,
+		i32(uniforms.projection.x),
+		i32(uniforms.projection.y),
+		uniforms.projection.z,
+		uniforms.projection_settings_b.y,
+	);
 	let output_index = curve_index * samples_per_curve + sample_index;
-	curve_vertex_positions[output_index] = vec4<f32>(position, 1.0);
+	curve_vertex_positions[output_index] = vec4<f32>(projected, 1.0);
 }

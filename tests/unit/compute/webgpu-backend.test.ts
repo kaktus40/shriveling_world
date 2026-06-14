@@ -145,7 +145,9 @@ test('webgpu probe becomes available with an injected device and the backend kee
 	expect(result.selection.selected).toBe('webgpu');
 	expect(result.benchmark.profile).toBe('webgpu');
 	expect(
-		result.benchmark.notes.some((note) => note.includes('city NED-to-ECEF, raw-cone alpha, cone-cone, boundary and final geometry passes')),
+		result.benchmark.notes.some((note) =>
+			note.includes('city NED-to-ECEF, raw-cone alpha, cone-cone, boundary, final cone geometry and final curve geometry passes'),
+		),
 	).toBe(true);
 	expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'webgpu-partial-cpu-delegation')).toBe(true);
 	expect(fake.calls.dispatches).toBeGreaterThanOrEqual(4);

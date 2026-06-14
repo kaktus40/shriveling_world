@@ -145,6 +145,16 @@ export interface FinalConesDispatchResources {
 /** Input bundle required by the curve-geometry WGSL pass. */
 export interface CurveGeometryDispatchInput extends CurveGeometryInput {
 	readonly earthRadiusMeters: number;
+	readonly globeRadius: number;
+	readonly projectionInit: number;
+	readonly projectionEnd: number;
+	readonly projectionPercent: number;
+	readonly projectionReferenceLongitudeRadians: number;
+	readonly projectionReferenceLatitudeRadians: number;
+	readonly projectionReferenceHeightMeters: number;
+	readonly projectionStandardParallel1Radians: number;
+	readonly projectionStandardParallel2Radians: number;
+	readonly projectionZCoefficient: number;
 }
 
 /** WebGPU resources required by the curve-geometry WGSL pass. */
@@ -154,5 +164,7 @@ export interface CurveGeometryDispatchResources {
 	readonly curveSpeedRatio: GpuBufferAllocation;
 	readonly curveIds: GpuBufferAllocation;
 	readonly uniform: GpuBufferAllocation;
+	readonly projection: GpuBufferAllocation;
+	readonly projectionSettings: GpuBufferAllocation;
 	readonly curveVertexPositions: GpuBufferAllocation;
 }

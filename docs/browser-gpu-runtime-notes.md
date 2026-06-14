@@ -86,10 +86,9 @@ instead of rebuilding the backend for every year or projection change.
     `roadAlphaRadians`, `cityLinkOffsets`, `cityLinkCounts`,
     `cityLinkDestinationIndexes`, `cityLinkAzimuthRadians`,
     `cityLinkAlphaRadians` and `cityFastestTerrestrialAlphaRadians`;
-  - curves still use the visible `curve-geometry` stage instead of a dedicated
-    `final-curves` contract;
-  - the curve cache is already year-keyed on the CPU precompute side, but the
-    runtime still needs a dedicated `final-curves` contract so the curve pass
-    can consume the selected year and projection mix without ambiguity;
-  - these points are tracked as documentation TODOs and should be resolved in a
-    later code pass rather than by silently changing the current behavior.
+  - the curve final stage is now explicit, but the browser runtime still needs
+    the same event-driven cache injection path as the historical app so that
+    year and projection changes can refresh uniforms / textures without
+    rebuilding the persistent session;
+  - these points are tracked as runtime TODOs and should be resolved in a later
+    code pass rather than by silently changing the current behavior.

@@ -169,6 +169,16 @@ export interface WebGl2FinalConesDispatchResources {
 /** Input bundle required by the curve-geometry WebGL2 pass. */
 export interface WebGl2CurveGeometryDispatchInput extends CurveGeometryInput {
 	readonly earthRadiusMeters: number;
+	readonly globeRadius: number;
+	readonly projectionInit: number;
+	readonly projectionEnd: number;
+	readonly projectionPercent: number;
+	readonly projectionReferenceLongitudeRadians: number;
+	readonly projectionReferenceLatitudeRadians: number;
+	readonly projectionReferenceHeightMeters: number;
+	readonly projectionStandardParallel1Radians: number;
+	readonly projectionStandardParallel2Radians: number;
+	readonly projectionZCoefficient: number;
 }
 
 /** WebGL2 resources required by the curve-geometry fallback pass. */
@@ -181,6 +191,9 @@ export interface WebGl2CurveGeometryDispatchResources {
 	readonly curveIdsTexture: WebGLTexture;
 	readonly outputBuffer: WebGLBuffer;
 	readonly uniformLocation: WebGLUniformLocation;
+	readonly projectionUniformLocation: WebGLUniformLocation;
+	readonly projectionSettingsALocation: WebGLUniformLocation;
+	readonly projectionSettingsBLocation: WebGLUniformLocation;
 	readonly curveControlPointsEcefContract: ComputeGpuBufferContract;
 	readonly curveThetaRadiansContract: ComputeGpuBufferContract;
 	readonly curveSpeedRatioContract: ComputeGpuBufferContract;

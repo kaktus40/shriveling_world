@@ -95,7 +95,7 @@ export class WebGpuComputeBackend implements ComputeBackend {
 				this.profile,
 				extraTimings,
 				[
-					'WebGPU backend dispatches city NED-to-ECEF, raw-cone alpha, cone-cone, boundary and final geometry passes before delegating the remaining compute stages to the CPU reference backend.',
+					'WebGPU backend dispatches city NED-to-ECEF, raw-cone alpha, cone-cone, boundary, final cone geometry and final curve geometry passes before delegating the remaining compute stages to the CPU reference backend.',
 				],
 			),
 			diagnostics: [
@@ -105,7 +105,7 @@ export class WebGpuComputeBackend implements ComputeBackend {
 					severity: 'warning',
 					code: 'webgpu-partial-cpu-delegation',
 					profile: this.profile,
-					message: 'WebGPU backend is wired, dispatches real city, raw-cone and cone-cone WGSL passes, but still delegates the remaining compute stages to the CPU reference backend.',
+				message: 'WebGPU backend is wired, dispatches real city, raw-cone, cone-cone, final cone geometry and final curve geometry WGSL passes, but still delegates the remaining compute stages to the CPU reference backend.',
 				},
 			],
 		};
@@ -165,7 +165,7 @@ export function webgpuCapabilities(available = false): ComputeCapabilities {
 		webgl2Available: false,
 		cpuAvailable: true,
 		notes: available
-			? ['WebGPU backend with city NED-to-ECEF, GeoJSON boundary, cone-cone and final geometry passes']
+			? ['WebGPU backend with city NED-to-ECEF, GeoJSON boundary, cone-cone, final cone geometry and final curve geometry passes']
 			: ['WebGPU unavailable'],
 	};
 }

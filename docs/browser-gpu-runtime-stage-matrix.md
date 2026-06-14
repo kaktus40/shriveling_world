@@ -29,7 +29,7 @@ model from the main branch:
 
 ## Stage Matrix
 
-| Data / contract | ingestion / base-network | prepared-dataset | geojson-boundary-precompute | geojson-boundary-raycast | static-town-precompute | dynamic-town-precompute | raw-cones-precompute | cone-intersections-precompute | final-cones-precompute | curve-geometry-precompute |
+| Data / contract | ingestion / base-network | prepared-dataset | geojson-boundary-precompute | geojson-boundary-raycast | static-town-precompute | dynamic-town-precompute | raw-cones-precompute | cone-intersections-precompute | final-cones-precompute | final-curves-precompute |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | source files / dataset manifest | CPU | - | - | - | - | - | - | - | - | - |
 | prepared dataset summary / static indices | CPU | U / SB | - | - | - | - | - | - | - | - |
@@ -41,7 +41,7 @@ model from the main branch:
 | cone intersection heuristics | - | - | - | - | - | - | - | U / SB | - | - |
 | country boundary enable / boundary limit flag | - | - | - | - | - | - | - | - | U / SB | - |
 | projection mix start / end / percent / settings | - | - | - | - | - | - | - | - | U / SB | U / SB |
-| curve controls / curve year / coefficient | - | - | - | - | - | - | - | - | - | U / SB |
+| curve controls / curve year / coefficient / projection mix | - | - | - | - | - | - | - | - | - | U / SB |
 | benchmark / diagnostics | CPU | CPU | CPU | CPU | CPU | CPU | CPU | CPU | CPU | CPU |
 
 ## Replay Rules
@@ -60,7 +60,7 @@ an input changes.
 | cone intersection strategy / alpha heuristic | `cone-intersections-precompute` | Keep the same runtime, replay the ciseled / intersection stage and downstream outputs. |
 | country boundary enable / boundary limit flag | `final-cones-precompute` | The country clipping decision is applied at final cone emission for every backend profile. |
 | projection mix or projection settings | `final-cones-precompute` | The projection formulas are applied at final cone emission for every backend profile; the curve replay can follow the same projection slice when the curve view consumes it. |
-| curve parameters | `curve-geometry-precompute` | Only the curve geometry stage must be replayed. |
+| curve parameters / year / projection mix | `final-curves-precompute` | Only the final curve stage must be replayed. |
 | compute profile (`cpu`, `webgl2`, `webgpu`) | profile-specific warm backend | The active runtime is swapped, but the same stage contract is replayed without re-reading the dataset. |
 
 ## Practical Consequence
@@ -85,7 +85,7 @@ As long as the route remains mounted:
 - the curve geometry slice is replayed from its own final stage when the curve
   controls or the selected year / projection slice change.
 
-## Pending Alignment
+## Runtime Notes
 
 The current migration already persists the browser runtime and documents the
 minimal replay chain. The following points remain intentionally open and should
@@ -100,12 +100,9 @@ flow:
   `roadAlphaRadians`, `cityLinkOffsets`, `cityLinkCounts`,
   `cityLinkDestinationIndexes`, `cityLinkAzimuthRadians`,
   `cityLinkAlphaRadians`, `cityFastestTerrestrialAlphaRadians`.
-- the curve pipeline still uses `curve-geometry-precompute` as its visible final
-  stage; a dedicated `final-curves-precompute` contract is still to be defined
-  if we want the curve flow to mirror the historical app more closely.
+- the curve pipeline now exposes `final-curves-precompute` as its visible final
+  stage, while the internal kernel folder can remain focused on curve geometry.
 - the curve parameters already live in a year-keyed cache on the CPU precompute
-  side, but the runtime still needs a dedicated `final-curves-precompute`
-  contract if we want the curve flow to mirror the historical app more closely.
-- the final curve stage should consume the selected year and the projection mix
-  so it can replay independently of earlier curve preparation when only the
-  display mix changes.
+  side, and the final curve stage consumes the selected year and the projection
+  mix so it can replay independently of earlier curve preparation when only
+  the display mix changes.

@@ -203,14 +203,19 @@ export interface CurveGeometryInput extends CurveGeometryOptions {
 	curveSpeedRatio: Float32Array;
 }
 
-/** Render-ready curve vertices produced by the curve geometry pass. */
+/**
+ * Render-ready curve vertices produced by the final curve stage.
+ *
+ * The buffer is already in the display projection space selected by the
+ * compute boundary, so the application shell can consume it directly.
+ */
 export interface CurveVertexBuffer {
 	/** Number of visible curves represented by the buffer. */
 	curveCount: number;
 	/** Number of segments sampled for every curve. */
 	pointsPerCurve: number;
 	/**
-	 * Curve vertices as aligned `vec4<f32>` values in meters.
+	 * Curve vertices as aligned `vec4<f32>` values in display space.
 	 *
 	 * Layout is dense by curve then sample. The fourth component is always `1`.
 	 */

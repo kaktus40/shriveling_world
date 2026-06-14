@@ -8,8 +8,8 @@ import {
 	type PreparedDataset,
 } from '../../domain/data';
 import {
-	computeCurveVertexBufferCpu,
 	computeFinalConePrecomputeCpu,
+	computeFinalCurveVertexBufferCpu,
 	computeDynamicTownPrecomputeForYearCpu,
 	computeRawConePrecomputeCpu,
 	computeStaticTownPrecomputeCpu,
@@ -204,17 +204,18 @@ export class CpuComputeBackend implements ComputeBackend {
 		if (options.curve?.enabled === true) {
 			const curvePrecompute = this.#curvePrecompute ?? annualCache?.curvePrecompute ?? createComputeAnnualCache(preparedDataset, staticTown).curvePrecompute;
 			const curveGeometryResult = measureStage(
-				'curve-geometry-precompute',
+				'final-curves-precompute',
 				'precompute',
 				this.profile,
 				() =>
-					computeCurveVertexBufferCpu(
+					computeFinalCurveVertexBufferCpu(
 						prepareCurveGeometryInput(curvePrecompute, {
 							year: options.curve?.year ?? dynamicYear,
 							pointsPerCurve: options.curve?.pointsPerCurve ?? 15,
 							curvePosition: options.curve?.curvePosition ?? 'above',
 							coefficient: options.curve?.coefficient ?? 1,
 						}),
+						options.projection,
 					),
 			);
 			curveGeometry = curveGeometryResult.value;

@@ -9,6 +9,9 @@ uniform sampler2D u_curveThetaRadians;
 uniform sampler2D u_curveSpeedRatio;
 uniform usampler2D u_curveIds;
 uniform vec4 u_uniforms;
+uniform vec4 u_projection;
+uniform vec4 u_projection_settings_a;
+uniform vec4 u_projection_settings_b;
 
 out vec4 tf_curveVertexPosition;
 
@@ -83,6 +86,18 @@ void main() {
 
 	float t = pointsPerCurve == 0u ? 0.0 : float(sampleIndex) / float(pointsPerCurve);
 	vec3 position = sampleCubicBezier(pointA, pointP, pointQ, pointB, t);
-	tf_curveVertexPosition = vec4(position, 1.0);
+	vec3 projected = project_display_from_ecef(
+		position,
+		u_projection.w,
+		earthRadiusMeters,
+		u_projection_settings_a.xyz,
+		u_projection_settings_a.w,
+		u_projection_settings_b.x,
+		int(u_projection.x),
+		int(u_projection.y),
+		u_projection.z,
+		u_projection_settings_b.y
+	);
+	tf_curveVertexPosition = vec4(projected, 1.0);
 	gl_Position = vec4(0.0);
 }

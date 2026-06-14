@@ -83,7 +83,7 @@ endif
 :RawConePass;
 :ConeConeIntersectionPass;
 :ConeBoundaryClipPass;
-:CurveGeometryPass;
+:FinalCurveGeometryPass;
 
 |Renderer - Babylon.js|
 :Creer ou mettre a jour les vertex buffers;
@@ -949,7 +949,7 @@ Fonction cible: `computeVisualizationFrame(resources, input)`
   - dispatch `RawConePass`;
   - dispatch `ConeConeIntersectionPass`;
   - dispatch `ConeBoundaryClipPass`;
-  - dispatch `CurveGeometryPass`;
+  - dispatch `FinalCurveGeometryPass`;
   - synchronise les buffers finaux.
 - Sortie: `ComputedFrame`.
 
@@ -1889,11 +1889,11 @@ class CurveVertexBuffer {
   positions
 }
 
-component "CurveGeometryPass WGSL" as curves
+component "FinalCurveGeometryPass WGSL" as curves
 
 CurvePrecompute --> curves : buffers statiques
 CurveDynamicInput --> curves : uniforms ou buffers dynamiques
-curves --> CurveVertexBuffer : GPU\nparallel curve x sample
+curves --> CurveVertexBuffer : GPU\nparallel curve x sample\nprojection mix final
 @enduml
 ```
 
@@ -1907,8 +1907,9 @@ La reference CPU est implementee dans
 `src/lib/domain/precompute/cpu/curve-cpu.ts`. Elle reproduit les points historiques
 `P` et `Q` par midpoints normalises successifs et produit directement
 `[A, P, Q, B]` en ECEF metres. Les profils WebGL2 et WebGPU utilisent le meme
-contrat pour echantillonner les courbes en geometrie render-ready, sans
-dependre du moteur de rendu.
+contrat pour echantillonner les courbes en geometrie render-ready finale, avec
+le mix de projection applique dans la passe finale et sans dependre du moteur
+de rendu.
 
 ## Etape 11: Affichage Babylon.js
 
@@ -1983,7 +1984,7 @@ TS -> GPU : writeBuffer(dynamic buffers)
 TS -> GPU : dispatch RawConePass
 TS -> GPU : dispatch ConeConeIntersectionPass
 TS -> GPU : dispatch ConeBoundaryClipPass
-TS -> GPU : dispatch CurveGeometryPass
+TS -> GPU : dispatch FinalCurveGeometryPass
 GPU --> TS : compute complete
 TS -> Babylon : update cone/curve buffers
 Babylon --> UI : frame rendered

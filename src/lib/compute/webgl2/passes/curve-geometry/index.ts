@@ -1,4 +1,5 @@
 import curveGeometryVertexShaderSource from '../../../kernels/curve-geometry/webgl2.vert?raw';
+import projectionWebGl2ShaderSource from '../../../kernels/shared/projection/webgl2.glsl?raw';
 import { EARTH_RADIUS_METERS } from '../../../../shared';
 import type { DatasetDiagnostic } from '../../../../domain/data';
 import { prepareCurveGeometryInput, prepareCurvePrecompute } from '../../../../domain/precompute';
@@ -14,6 +15,7 @@ import {
 } from '../../buffers';
 import { createCurveGeometryDispatchResources } from './buffers';
 import type { WebGl2ComputeResources } from '../../types';
+import { DEFAULT_PROJECTION_SETTINGS, projectionModeToIndex } from '$lib/shared/math';
 
 export interface WebGl2CurveGeometryPassInput {
 	readonly gl: WebGL2RenderingContext;
@@ -35,7 +37,7 @@ export async function runWebGl2CurveGeometryPass(
 	if (!staticTown || !curveGeometry) {
 		return {
 			timing: {
-				stage: 'curve-geometry-precompute',
+				stage: 'final-curves-precompute',
 				scope: 'precompute',
 				profile: 'webgl2',
 				startedAtMs: 0,
@@ -56,7 +58,7 @@ export async function runWebGl2CurveGeometryPass(
 	if (curveInput.curveCount <= 0) {
 		return {
 			timing: {
-				stage: 'curve-geometry-precompute',
+				stage: 'final-curves-precompute',
 				scope: 'precompute',
 				profile: 'webgl2',
 				startedAtMs: 0,
@@ -69,10 +71,27 @@ export async function runWebGl2CurveGeometryPass(
 
 	const gl = input.gl;
 	const resources = input.resources;
-	const program = resources.programCache?.get('curve-geometry') ?? createCurveGeometryProgram(gl, curveGeometryVertexShaderSource);
+	const program =
+		resources.programCache?.get('curve-geometry') ??
+		createCurveGeometryProgram(gl, `${projectionWebGl2ShaderSource}\n${curveGeometryVertexShaderSource}`);
 	const dispatchResources = createCurveGeometryDispatchResources(gl, program, {
 		...curveInput,
 		earthRadiusMeters: EARTH_RADIUS_METERS,
+		globeRadius: input.options.projection?.settings?.globeRadius ?? DEFAULT_PROJECTION_SETTINGS.globeRadius,
+		projectionInit: projectionModeToIndex(input.options.projection?.start ?? 'none'),
+		projectionEnd: projectionModeToIndex(input.options.projection?.end ?? 'none'),
+		projectionPercent: input.options.projection?.percent ?? 0,
+		projectionReferenceLongitudeRadians:
+			input.options.projection?.settings?.referenceLongitudeRadians ?? DEFAULT_PROJECTION_SETTINGS.referenceLongitudeRadians,
+		projectionReferenceLatitudeRadians:
+			input.options.projection?.settings?.referenceLatitudeRadians ?? DEFAULT_PROJECTION_SETTINGS.referenceLatitudeRadians,
+		projectionReferenceHeightMeters:
+			input.options.projection?.settings?.referenceHeightMeters ?? DEFAULT_PROJECTION_SETTINGS.referenceHeightMeters,
+		projectionStandardParallel1Radians:
+			input.options.projection?.settings?.standardParallel1Radians ?? DEFAULT_PROJECTION_SETTINGS.standardParallel1Radians,
+		projectionStandardParallel2Radians:
+			input.options.projection?.settings?.standardParallel2Radians ?? DEFAULT_PROJECTION_SETTINGS.standardParallel2Radians,
+		projectionZCoefficient: input.options.projection?.settings?.zCoefficient ?? DEFAULT_PROJECTION_SETTINGS.zCoefficient,
 	});
 	const transformFeedback = gl.createTransformFeedback();
 	if (!transformFeedback) {
@@ -80,7 +99,7 @@ export async function runWebGl2CurveGeometryPass(
 	}
 
 	const { timing } = await measureAsyncStage(
-		'curve-geometry-precompute',
+		'final-curves-precompute',
 		'precompute',
 		'webgl2',
 		async () => {
@@ -91,6 +110,27 @@ export async function runWebGl2CurveGeometryPass(
 				curveInput.pointsPerCurve,
 				curvePositionToCode(curveInput.curvePosition),
 				curveInput.coefficient ?? 1,
+			);
+			gl.uniform4f(
+				dispatchResources.projectionUniformLocation,
+				projectionModeToIndex(input.options.projection?.start ?? 'none'),
+				projectionModeToIndex(input.options.projection?.end ?? 'none'),
+				input.options.projection?.percent ?? 0,
+				input.options.projection?.settings?.globeRadius ?? DEFAULT_PROJECTION_SETTINGS.globeRadius,
+			);
+			gl.uniform4f(
+				dispatchResources.projectionSettingsALocation,
+				input.options.projection?.settings?.referenceLongitudeRadians ?? DEFAULT_PROJECTION_SETTINGS.referenceLongitudeRadians,
+				input.options.projection?.settings?.referenceLatitudeRadians ?? DEFAULT_PROJECTION_SETTINGS.referenceLatitudeRadians,
+				input.options.projection?.settings?.referenceHeightMeters ?? DEFAULT_PROJECTION_SETTINGS.referenceHeightMeters,
+				input.options.projection?.settings?.standardParallel1Radians ?? DEFAULT_PROJECTION_SETTINGS.standardParallel1Radians,
+			);
+			gl.uniform4f(
+				dispatchResources.projectionSettingsBLocation,
+				input.options.projection?.settings?.standardParallel2Radians ?? DEFAULT_PROJECTION_SETTINGS.standardParallel2Radians,
+				input.options.projection?.settings?.zCoefficient ?? DEFAULT_PROJECTION_SETTINGS.zCoefficient,
+				0,
+				0,
 			);
 			bindCurveGeometryTextures(gl, dispatchResources);
 			gl.bindVertexArray(dispatchResources.vertexArray);
@@ -119,7 +159,7 @@ export async function runWebGl2CurveGeometryPass(
 	if (readback) {
 		diagnostics.push(
 			...compareFloat32Buffers(
-				'webgl2-curve-geometry',
+				'webgl2-final-curves',
 				curveGeometry.positions,
 				readback,
 			),

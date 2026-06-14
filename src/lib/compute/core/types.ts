@@ -64,7 +64,7 @@ export type ComputeStage =
 	| 'raw-cones-precompute'
 	| 'cone-intersections-precompute'
 	| 'final-cones-precompute'
-	| 'curve-geometry-precompute'
+	| 'final-curves-precompute'
 	| 'total';
 
 /** Phase family used to classify benchmark timings. */

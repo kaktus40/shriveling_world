@@ -37,7 +37,9 @@ export function createWebGpuComputeResources(device: GPUDevice): WebGpuComputeRe
 		code: `${projectionShaderSource}\n${finalConesShaderSource}`,
 	});
 	const boundaryModule = device.createShaderModule({ code: boundaryAlgebreShaderSource });
-	const curveGeometryModule = device.createShaderModule({ code: curveGeometryShaderSource });
+	const curveGeometryProjectedModule = device.createShaderModule({
+		code: `${projectionShaderSource}\n${curveGeometryShaderSource}`,
+	});
 
 	const buffers: readonly ComputeGpuBufferContract[] = [];
 	return {
@@ -59,8 +61,8 @@ export function createWebGpuComputeResources(device: GPUDevice): WebGpuComputeRe
 				buildPassContract('final-cones', 'final-cones-precompute', [
 					'Final real WGSL geometry-emission kernel: merge boundary clipping and display projection into the final render-ready cone geometry.',
 				]),
-				buildPassContract('curve-geometry', 'curve-geometry-precompute', [
-					'Curve geometry WGSL kernel: sample render-ready curve vertices from prepared curve controls and yearly speed ratios.',
+				buildPassContract('curve-geometry', 'final-curves-precompute', [
+					'Final curve geometry WGSL kernel: sample render-ready curve vertices from prepared curve controls, yearly speed ratios and the display projection mix.',
 				]),
 			],
 		},
@@ -70,7 +72,7 @@ export function createWebGpuComputeResources(device: GPUDevice): WebGpuComputeRe
 			['ciseled-cones', ciseledConeModule],
 			['final-cones', finalConeModule],
 			['boundary-algebre', boundaryModule],
-			['curve-geometry', curveGeometryModule],
+			['curve-geometry', curveGeometryProjectedModule],
 		]),
 		pipelineCache: new Map(),
 		bindGroupCache: new Map(),

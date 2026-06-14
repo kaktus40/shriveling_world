@@ -30,7 +30,10 @@ export function createWebGl2ComputeResources(gl: WebGL2RenderingContext): WebGl2
 		gl,
 		`${projectionWebGl2ShaderSource}\n${finalConesVertexShaderSource}`,
 	);
-	const curveGeometryProgram = createCurveGeometryProgram(gl, curveGeometryVertexShaderSource);
+	const curveGeometryProgram = createCurveGeometryProgram(
+		gl,
+		`${projectionWebGl2ShaderSource}\n${curveGeometryVertexShaderSource}`,
+	);
 
 	return {
 		buffers: [],
@@ -83,12 +86,12 @@ export function createWebGl2ComputeResources(gl: WebGL2RenderingContext): WebGl2
 				},
 				{
 					name: 'curve-geometry',
-					stage: 'curve-geometry-precompute',
+					stage: 'final-curves-precompute',
 					profile: 'webgl2',
 					inputs: [],
 					outputs: [],
 					workgroupSize: [1, 1, 1],
-					notes: ['Curve geometry WebGL2 pass: sample render-ready curve vertices from prepared curve controls and yearly speed ratios.'],
+					notes: ['Final curve geometry WebGL2 pass: sample render-ready curve vertices from prepared curve controls, yearly speed ratios and the display projection mix.'],
 				},
 			],
 		},

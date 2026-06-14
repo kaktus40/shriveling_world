@@ -90,13 +90,10 @@ export function buildAppBusinessLayers(
 			name: 'curve-geometry',
 			color: [0.37, 0.89, 0.65],
 			opacity: 0.72,
-			polylines: buildProjectedCurvePolylines(
+			polylines: buildPolylinesFromVec4Buffer(
 				result.curveGeometry.positions,
-				result.curveGeometry.curveCount,
-				result.curveGeometry.pointsPerCurve,
-				projectionStart,
-				projectionEnd,
-				projectionPercent,
+				result.curveGeometry.pointsPerCurve + 1,
+				false,
 			),
 		});
 	}
@@ -167,43 +164,6 @@ function buildPolylinesFromVec4Buffer(
 			points.push(points[0]);
 		}
 		polylines.push({ points, closed });
-	}
-
-	return polylines;
-}
-
-function buildProjectedCurvePolylines(
-	buffer: Float32Array,
-	curveCount: number,
-	pointsPerCurve: number,
-	projectionStart: AppProjectionMode,
-	projectionEnd: AppProjectionMode,
-	projectionPercent: number,
-): AppPolylineDescriptor[] {
-	if (curveCount <= 0 || pointsPerCurve < 0 || buffer.length === 0) {
-		return [];
-	}
-
-	const stride = 4;
-	const pointsPerPolyline = pointsPerCurve + 1;
-	const polylines: AppPolylineDescriptor[] = [];
-
-	for (let curveIndex = 0; curveIndex < curveCount; curveIndex += 1) {
-		const points: AppPoint3[] = [];
-		for (let sampleIndex = 0; sampleIndex < pointsPerPolyline; sampleIndex += 1) {
-			const offset = (curveIndex * pointsPerPolyline + sampleIndex) * stride;
-			points.push(
-				projectAppEcefPoint(
-					buffer[offset],
-					buffer[offset + 1],
-					buffer[offset + 2],
-					projectionStart,
-					projectionEnd,
-					projectionPercent,
-				),
-			);
-		}
-		polylines.push({ points });
 	}
 
 	return polylines;

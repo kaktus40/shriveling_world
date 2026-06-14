@@ -11,10 +11,12 @@ import {
 } from '../../../src/lib/domain/data';
 import {
 	computeCurveVertexBufferCpu,
+	computeFinalCurveVertexBufferCpu,
 	prepareCurveGeometryInput,
 	prepareCurvePrecompute,
 	computeStaticTownPrecomputeCpu,
 } from '../../../src/lib/domain/precompute';
+import { projectEcefPoint } from '../../../src/lib/shared/math';
 
 function csv(name: string, text: string): SourceFile {
 	return { name, text: text.trim() };
@@ -82,4 +84,40 @@ test('curve geometry CPU sampling preserves endpoints and produces dense vec4 po
 	assert.equal(geometry.positions[11], 1);
 	assert.deepEqual(Array.from(geometry.positions.slice(0, 4)), Array.from(staticTown.curveControlPointsEcef.slice(0, 4)));
 	assert.deepEqual(Array.from(geometry.positions.slice(8, 12)), Array.from(staticTown.curveControlPointsEcef.slice(12, 16)));
+});
+
+test('final curve CPU emission applies the projection mix once', () => {
+	const prepared = prepareDataset(buildBaseNetwork());
+	const staticTown = computeStaticTownPrecomputeCpu(toStaticTownInput(prepared), {
+		sectorCount: 4,
+		neighborLimit: 1,
+	});
+	const curvePrecompute = prepareCurvePrecompute(prepared, staticTown);
+	const geometryInput = prepareCurveGeometryInput(curvePrecompute, {
+		year: 2010,
+		pointsPerCurve: 2,
+		curvePosition: 'above',
+		coefficient: 1,
+	});
+	const geometry = computeCurveVertexBufferCpu(geometryInput);
+	const finalGeometry = computeFinalCurveVertexBufferCpu(geometryInput, {
+		start: 'none',
+		end: 'equirectangular',
+		percent: 100,
+	});
+
+	assert.equal(finalGeometry.curveCount, 1);
+	assert.equal(finalGeometry.pointsPerCurve, 2);
+	assert.notDeepEqual(
+		Array.from(finalGeometry.positions.slice(0, 4)),
+		Array.from(staticTown.curveControlPointsEcef.slice(0, 4)),
+	);
+	assert.deepEqual(
+		Array.from(finalGeometry.positions.slice(0, 3)),
+		Array.from(projectEcefPoint(geometry.positions[0], geometry.positions[1], geometry.positions[2], {
+			start: 'none',
+			end: 'equirectangular',
+			percent: 100,
+		})),
+	);
 });

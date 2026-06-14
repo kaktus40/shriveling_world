@@ -1,4 +1,5 @@
 import curveGeometryShaderSource from '../../../kernels/curve-geometry/webgpu.wgsl?raw';
+import projectionShaderSource from '../../../kernels/shared/projection/webgpu.wgsl?raw';
 import { EARTH_RADIUS_METERS } from '../../../../shared';
 import type { DatasetDiagnostic } from '../../../../domain/data';
 import { prepareCurveGeometryInput, prepareCurvePrecompute } from '../../../../domain/precompute';
@@ -14,6 +15,7 @@ import {
 	type GpuBufferUsageFlags,
 } from '../../buffers';
 import { createCurveGeometryDispatchResources } from './buffers';
+import { DEFAULT_PROJECTION_SETTINGS, projectionModeToIndex } from '$lib/shared/math';
 
 export interface WebGpuCurveGeometryPassInput {
 	readonly context: WebGpuComputeContext;
@@ -37,7 +39,7 @@ export async function runWebGpuCurveGeometryPass(
 	if (!staticTown || !curveGeometry) {
 		return {
 			timing: {
-				stage: 'curve-geometry-precompute',
+				stage: 'final-curves-precompute',
 				scope: 'precompute',
 				profile: 'webgpu',
 				startedAtMs: 0,
@@ -59,7 +61,7 @@ export async function runWebGpuCurveGeometryPass(
 	if (curveInput.curveCount <= 0) {
 		return {
 			timing: {
-				stage: 'curve-geometry-precompute',
+				stage: 'final-curves-precompute',
 				scope: 'precompute',
 				profile: 'webgpu',
 				startedAtMs: 0,
@@ -73,13 +75,28 @@ export async function runWebGpuCurveGeometryPass(
 	const dispatchResources = createCurveGeometryDispatchResources(input.context.device, input.usage, {
 		...curveInput,
 		earthRadiusMeters: EARTH_RADIUS_METERS,
+		globeRadius: input.options.projection?.settings?.globeRadius ?? DEFAULT_PROJECTION_SETTINGS.globeRadius,
+		projectionInit: projectionModeToIndex(input.options.projection?.start ?? 'none'),
+		projectionEnd: projectionModeToIndex(input.options.projection?.end ?? 'none'),
+		projectionPercent: input.options.projection?.percent ?? 0,
+		projectionReferenceLongitudeRadians:
+			input.options.projection?.settings?.referenceLongitudeRadians ?? DEFAULT_PROJECTION_SETTINGS.referenceLongitudeRadians,
+		projectionReferenceLatitudeRadians:
+			input.options.projection?.settings?.referenceLatitudeRadians ?? DEFAULT_PROJECTION_SETTINGS.referenceLatitudeRadians,
+		projectionReferenceHeightMeters:
+			input.options.projection?.settings?.referenceHeightMeters ?? DEFAULT_PROJECTION_SETTINGS.referenceHeightMeters,
+		projectionStandardParallel1Radians:
+			input.options.projection?.settings?.standardParallel1Radians ?? DEFAULT_PROJECTION_SETTINGS.standardParallel1Radians,
+		projectionStandardParallel2Radians:
+			input.options.projection?.settings?.standardParallel2Radians ?? DEFAULT_PROJECTION_SETTINGS.standardParallel2Radians,
+		projectionZCoefficient: input.options.projection?.settings?.zCoefficient ?? DEFAULT_PROJECTION_SETTINGS.zCoefficient,
 	});
 	const pipeline = await input.context.device.createComputePipelineAsync({
 		layout: 'auto',
 		compute: {
 			module:
 				input.resources.shaderModuleCache?.get('curve-geometry') ??
-				input.context.device.createShaderModule({ code: curveGeometryShaderSource }),
+				input.context.device.createShaderModule({ code: `${projectionShaderSource}\n${curveGeometryShaderSource}` }),
 			entryPoint: 'main',
 		},
 	});
@@ -96,7 +113,7 @@ export async function runWebGpuCurveGeometryPass(
 	});
 
 	const { timing } = await measureAsyncStage(
-		'curve-geometry-precompute',
+		'final-curves-precompute',
 		'precompute',
 		'webgpu',
 		async () => {
@@ -120,7 +137,7 @@ export async function runWebGpuCurveGeometryPass(
 	if (readback) {
 		diagnostics.push(
 			...compareFloat32Buffers(
-				'webgpu-curve-geometry',
+				'webgpu-final-curves',
 				curveGeometry.positions,
 				readback,
 			),
