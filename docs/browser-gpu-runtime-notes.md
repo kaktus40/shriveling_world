@@ -81,7 +81,14 @@ instead of rebuilding the backend for every year or projection change.
   - the yearly dynamic alpha cache exists in CPU space, but browser backends do
     not yet consume a year-keyed dynamic-town dictionary as the canonical replay
     source;
+  - the desired yearly dynamic cache shape is a year-keyed map that keeps
+    `roadAlphaRadians`, `cityLinkOffsets`, `cityLinkCounts`,
+    `cityLinkDestinationIndexes`, `cityLinkAzimuthRadians`,
+    `cityLinkAlphaRadians` and `cityFastestTerrestrialAlphaRadians`;
   - curves still use the visible `curve-geometry` stage instead of a dedicated
     `final-curves` contract;
+  - the desired curve cache shape is a year-keyed map of curve inputs / ratios
+    so the final curve pass can consume the selected year and projection mix
+    without recomputing the earlier static curve geometry;
   - these points are tracked as documentation TODOs and should be resolved in a
     later code pass rather than by silently changing the current behavior.
