@@ -73,6 +73,8 @@ As long as the route remains mounted:
 - the session should be prewarmed on mount so the available browser GPU
   backends are ready before the first user-driven recomputation;
 - the backend should stay warm;
+- edits that belong to one interaction, such as the year rail or the
+  projection rail, should be coalesced before the replay request is fired;
 - changing the year should not recreate the runtime and should reuse the yearly cache already prepared by `dynamic-town-precompute`;
 - changing the projection mix should not recreate the runtime;
 - changing the profile should only swap the active backend, not the data

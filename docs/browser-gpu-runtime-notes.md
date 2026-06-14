@@ -68,6 +68,9 @@ instead of rebuilding the backend for every year or projection change.
 - the UI should not auto-load a dataset at route entry;
 - E2E tests should use reduced datasets and explicitly cover CPU, WebGL2 and
   WebGPU paths.
+- repeated UI edits that belong to the same interaction, such as the year rail
+  or the projection rail, should be coalesced into one replay request instead
+  of triggering a separate compute call for each sub-control;
 - each route owns one persistent compute session, prewarms it on mount, and
   disposes it on unmount;
 - `final-cones` is the place where projection formulas are applied for every

@@ -29,6 +29,7 @@
 	} from '$lib/application/app/measurement';
 	import { collectAppQueryMatchedCityIndexes } from '$lib/application/app/query';
 	import { loadAppSceneCompute } from '$lib/application/app/compute';
+	import { createReplayScheduler } from '$lib/application/replay';
 	import type { ComputeProfile } from '$lib/compute';
 	import {
 		createDefaultQueryTree,
@@ -75,6 +76,12 @@
 	let measurementSummary: AppMeasurementSummary | null = null;
 	let activeModule: AppModuleKey | null = 'scene';
 	let computeSession = createWorkspaceComputeSession();
+	const appComputeReplay = createReplayScheduler(() => {
+		if (!appState) {
+			return;
+		}
+		return reloadAppCompute(appState, selectedYear);
+	});
 	$: queryMatchedCityIndexes = collectAppQueryMatchedCityIndexes(queryResult);
 	$: queryCityIds = appState?.cities.map((city) => city.cityId) ?? [];
 	$: queryCityCodes = appState?.cities.map((city) => city.cityCode) ?? [];
@@ -120,6 +127,7 @@
 
 		return () => {
 			void computeSession.dispose();
+			appComputeReplay.dispose();
 			disposeAppE2e();
 			queryController?.dispose();
 			queryController = null;
@@ -208,9 +216,7 @@
 			return;
 		}
 		selectedYear = next;
-		if (appState) {
-			void reloadAppCompute(appState, next);
-		}
+		appComputeReplay.request();
 	}
 
 	function handleCityIndexChange(next: number): void {
@@ -228,30 +234,22 @@
 			return;
 		}
 		selectedComputeProfile = next;
-		if (appState) {
-			void reloadAppCompute(appState, selectedYear);
-		}
+		appComputeReplay.request();
 	}
 
 	function handleProjectionStartChange(next: AppProjectionMode): void {
 		projectionStart = next;
-		if (appState) {
-			void reloadAppCompute(appState, selectedYear);
-		}
+		appComputeReplay.request();
 	}
 
 	function handleProjectionEndChange(next: AppProjectionMode): void {
 		projectionEnd = next;
-		if (appState) {
-			void reloadAppCompute(appState, selectedYear);
-		}
+		appComputeReplay.request();
 	}
 
 	function handleProjectionPercentChange(next: number): void {
 		projectionPercent = next;
-		if (appState) {
-			void reloadAppCompute(appState, selectedYear);
-		}
+		appComputeReplay.request();
 	}
 
 	function handleShowCityLabelsChange(next: boolean): void {
@@ -331,9 +329,7 @@
 		projectionPercent = appState?.selection.projectionPercent ?? projectionPercent;
 		showCityLabels = appState?.selection.showCityLabels ?? showCityLabels;
 		measurementSelection = resetAppMeasurementSelection(selectedCityIndex);
-		if (appState) {
-			void reloadAppCompute(appState, selectedYear);
-		}
+		appComputeReplay.request();
 	}
 
 	$: selectedCity =
