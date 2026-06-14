@@ -47,6 +47,7 @@
 	let queryWorker: QueryWorkerClient | null = null;
 	let workspaceCompute: WorkspaceComputeResult | null = null;
 	let selectedComputeProfile: ComputeProfile = 'cpu';
+	let forceNextComputeProfile = false;
 	let selectedConeIntersectionStrategy: ComputeConeIntersectionStrategy = 'oracle';
 	let selectedComputeDiagnosticProfile: ComputeProfile | 'all' = 'all';
 	let loading = false;
@@ -99,10 +100,11 @@
 			},
 			setComputeProfile: async (profile: ComputeProfile) => {
 				selectedComputeProfile = profile;
+				forceNextComputeProfile = true;
 				if (workspace) {
 					await reloadCompute(selectedDataset, selectedComputeProfile, selectedConeIntersectionStrategy);
 				}
-			},
+				},
 			setConeIntersectionStrategy: async (strategy: ComputeConeIntersectionStrategy) => {
 				selectedConeIntersectionStrategy = strategy;
 				if (workspace) {
@@ -188,8 +190,11 @@
 		try {
 			workspaceCompute = await computeWorkspacePageState(currentWorkspace, {
 				profile: nextComputeProfile,
+				forced: forceNextComputeProfile ? nextComputeProfile : undefined,
 				coneIntersectionStrategy: nextConeIntersectionStrategy,
 			}, computeSession);
+			// reset the flag after the explicit forced attempt
+			forceNextComputeProfile = false;
 		} catch (error) {
 			workspaceCompute = null;
 			computeError = error instanceof Error ? error.message : String(error);
