@@ -106,8 +106,10 @@ flow:
   side, and the final curve stage consumes the selected year and the projection
   mix so it can replay independently of earlier curve preparation when only
   the display mix changes.
-- the cone display contract is still split between the dense final cone buffer
-  and the Babylon viewport adapter: the runtime now produces final cones in
-  display-ready projection space, but the migration still needs the historical
-  per-city Babylon cone mesh assembly to restore the one-time triangle index
-  buffer and the stable vertex payload refresh path used by `coneMeshShader`.
+- the cone display contract is now split between the dense final cone buffer
+  and the Babylon viewport adapter; the adapter keeps a stable per-city
+  triangle index buffer and refreshes vertex payloads only when the replay
+  state changes.
+- the remaining runtime work is to keep the event-driven year/projection flow
+  aligned across `app`, `workspace`, CPU, WebGL2 and WebGPU so the same warm
+  runtime and replay semantics remain visible at the route level.

@@ -270,7 +270,7 @@ Regrouper:
 - `Layers`:
   - city labels;
   - boundary;
-  - final cones;
+  - final cone meshes;
   - curves;
   - countries.
 - `Display`:

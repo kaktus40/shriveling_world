@@ -13,9 +13,10 @@ import {
 } from '@babylonjs/core';
 import type { WorkspaceComputeResult } from '$lib/application/workspace';
 import { APP_GLOBE_RADIUS } from './geometry';
+import { createAppConeMeshController } from './cone-meshes';
 import { createAppBusinessLayerController } from './business-layers';
 import { createAppCityMarkerController } from './city-markers';
-import { buildAppBusinessLayers } from './render';
+import { buildAppBusinessLayers, buildAppConeMeshDescriptors } from './render';
 import { projectAppGeographicPoint } from './projection';
 import type { AppMeasurementSelection } from './measurement';
 import type { AppCameraMode, AppPageState, AppProjectionMode } from './page';
@@ -104,6 +105,7 @@ export function createAppScene(
 	atmosphere.isPickable = false;
 
 	const cityMarkers = createAppCityMarkerController(scene);
+	const coneMeshes = createAppConeMeshController(scene);
 	const businessLayers = createAppBusinessLayerController(scene);
 	let hoveredCityIndex: number | null = null;
 	let currentState: AppSceneState = initialState;
@@ -282,6 +284,17 @@ export function createAppScene(
 				nextState.selectedCityIndex,
 			),
 		);
+		coneMeshes.update(
+			buildAppConeMeshDescriptors(
+				nextState.workspaceCompute?.result ?? null,
+				nextState.appState?.cities ?? [],
+				nextState.projectionStart,
+				nextState.projectionEnd,
+				nextState.projectionPercent,
+				nextState.selectedCityIndex,
+				nextState.queryMatchedCityIndexes,
+			),
+		);
 	}
 
 	cityMarkers.setCities(initialState.appState?.cities ?? []);
@@ -295,6 +308,17 @@ export function createAppScene(
 			initialState.projectionEnd,
 			initialState.projectionPercent,
 			initialState.selectedCityIndex,
+		),
+	);
+	coneMeshes.update(
+		buildAppConeMeshDescriptors(
+			initialState.workspaceCompute?.result ?? null,
+			initialState.appState?.cities ?? [],
+			initialState.projectionStart,
+			initialState.projectionEnd,
+			initialState.projectionPercent,
+			initialState.selectedCityIndex,
+			initialState.queryMatchedCityIndexes,
 		),
 	);
 	applyCameraMode(initialState);
@@ -315,6 +339,7 @@ export function createAppScene(
 		dispose() {
 			resizeObserver.disconnect();
 			cityMarkers.dispose();
+			coneMeshes.dispose();
 			businessLayers.dispose();
 			scene.dispose();
 			engine.dispose();

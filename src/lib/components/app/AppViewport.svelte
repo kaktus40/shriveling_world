@@ -124,7 +124,7 @@
 			<li>{appState ? `${appState.summary.edgeCount} edges ready` : 'Waiting for compute data'}</li>
 			<li>
 				{workspaceCompute?.result.geojsonRuns.reduce((count, run) => count + (run.finalCones ? 1 : 0), 0) ?? 0}
-				final cone layer(s)
+				final cone mesh layer(s)
 			</li>
 			<li>{workspaceCompute?.result.curveGeometry ? 'Curve layer ready' : 'Curve layer pending'}</li>
 			<li>{APP_PROJECTION_LABELS[projectionStart]} to {APP_PROJECTION_LABELS[projectionEnd]} at {projectionPercent}%</li>

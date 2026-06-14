@@ -20,14 +20,17 @@ Le pipeline cible distingue quatre niveaux:
 Critique de reprise a garder en tete:
 
 - les cones finals sont bien produits comme geometrie dense et finalisee par
-  `final-cones-precompute`, mais la migration n'a pas encore reintroduit le
-  montage Babylon historique de type `coneMeshShader`;
+  `final-cones-precompute`, et la migration les consomme maintenant via un
+  adaptateur Babylon dedie;
 - dans le code historique, le tableau d'indices des facettes des cones est
   construit une seule fois par ville et reutilise tant que la topologie ne
   change pas;
-- la migration affiche actuellement les couches metier de cones comme
-  polylines, ce qui reste suffisant pour la validation fonctionnelle mais ne
-  remplace pas encore le mesh triangule Babylon attendu pour la partie `app`.
+- la migration conserve cette logique de topology stable dans l'adapter
+  Babylon, qui se contente de rafraichir les sommets quand l'etat de replay
+  change;
+- les couches metier de cones restent lisibles comme objets calcules, tandis
+  que le mesh triangule Babylon sert la surface `app` sans remonter la logique
+  metier dans la vue.
 
 La regle de responsabilite est la suivante:
 

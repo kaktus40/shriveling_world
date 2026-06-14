@@ -4,6 +4,7 @@ import type { ComputeResult } from '$lib/compute';
 import { EARTH_RADIUS_METERS } from '$lib/shared';
 import { APP_GLOBE_RADIUS } from '$lib/application/app/geometry';
 import {
+	buildAppConeMeshDescriptors,
 	buildAppBusinessLayers,
 	ecefToAppPoint,
 } from '$lib/application/app/render';
@@ -77,6 +78,20 @@ function buildMinimalComputeResult(): ComputeResult {
 	};
 }
 
+const cities = [
+	{
+		cityIndex: 0,
+		cityId: 11,
+		cityCode: 101,
+		cityLabel: 'Synthetic City',
+		longitudeRadians: 0,
+		latitudeRadians: 0,
+		linkedRecordCount: 0,
+		inEdgeCount: 0,
+		outEdgeCount: 0,
+	},
+] as const;
+
 describe('app render helpers', () => {
 	test('scale ecef points to the app globe radius', () => {
 		assert.deepEqual(ecefToAppPoint(EARTH_RADIUS_METERS, 0, 0), [APP_GLOBE_RADIUS, 0, 0]);
@@ -84,16 +99,30 @@ describe('app render helpers', () => {
 
 	test('extract real business layers from compute results', () => {
 		const layers = buildAppBusinessLayers(buildMinimalComputeResult(), 'none', 'none', 100);
-		assert.equal(layers.length, 3);
+		assert.equal(layers.length, 2);
 		assert.equal(layers[0]?.name, 'boundary-0-synthetic.geojson');
-		assert.equal(layers[1]?.name, 'final-cones-0-synthetic.geojson');
-		assert.equal(layers[2]?.name, 'curve-geometry');
+		assert.equal(layers[1]?.name, 'curve-geometry');
 		assert.equal(layers[0]?.polylines[0]?.points.length, 3);
-		assert.equal(layers[1]?.polylines[0]?.points.length, 3);
-		assert.equal(layers[2]?.polylines[0]?.points.length, 2);
+		assert.equal(layers[1]?.polylines[0]?.points.length, 2);
 		assert.equal(layers[0]?.opacity, 0.66);
-		assert.equal(layers[1]?.opacity, 0.6);
-		assert.equal(layers[2]?.opacity, 0.72);
+		assert.equal(layers[1]?.opacity, 0.72);
+	});
+
+	test('extract Babylon cone meshes from final cone geometry', () => {
+		const cones = buildAppConeMeshDescriptors(
+			buildMinimalComputeResult(),
+			cities,
+			'none',
+			'none',
+			100,
+			0,
+		);
+		assert.equal(cones.length, 1);
+		assert.equal(cones[0]?.name, 'final-cones-0-synthetic.geojson-0');
+		assert.equal(cones[0]?.rimPoints.length, 2);
+		assert.equal(cones[0]?.apex[0], APP_GLOBE_RADIUS);
+		assert.ok(Math.abs(cones[0]?.apex[1] ?? 0) < 1e-9);
+		assert.ok(Math.abs(cones[0]?.apex[2] ?? 0) < 1e-9);
 	});
 
 	test('project business layer geometry with the selected projection', () => {

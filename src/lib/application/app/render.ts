@@ -1,8 +1,9 @@
 import type { ComputeResult } from '$lib/compute';
 import { EARTH_RADIUS_METERS } from '$lib/shared';
 import { APP_GLOBE_RADIUS } from './geometry';
-import { projectAppEcefPoint } from './projection';
+import { projectAppEcefPoint, projectAppGeographicPoint } from './projection';
 import type { AppProjectionMode } from './page';
+import type { WorkspaceCitySummary } from '$lib/application/workspace';
 
 /** Immutable 3D point used by the Babylon scene adapters. */
 export type AppPoint3 = readonly [number, number, number];
@@ -22,6 +23,17 @@ export interface AppBusinessLayerDescriptor {
 	readonly color: AppColor3;
 	readonly opacity?: number;
 	readonly polylines: readonly AppPolylineDescriptor[];
+}
+
+/** One cone mesh surfaced by the operational app renderer. */
+export interface AppConeMeshDescriptor {
+	readonly name: string;
+	readonly cityIndex: number;
+	readonly cityCode: string;
+	readonly color: AppColor3;
+	readonly opacity?: number;
+	readonly apex: AppPoint3;
+	readonly rimPoints: readonly AppPoint3[];
 }
 
 const ecefScale = APP_GLOBE_RADIUS / EARTH_RADIUS_METERS;
@@ -51,9 +63,7 @@ export function buildAppBusinessLayers(
 		// it can be swapped later if the compute output gains an explicit city link.
 		const isFocused = focusCityIndex === runIndex;
 		const boundaryColor: AppColor3 = isFocused ? [0.7, 0.9, 1] : [0.58, 0.8, 0.96];
-		const finalConeColor: AppColor3 = isFocused ? [1, 0.83, 0.36] : [0.96, 0.73, 0.35];
 		const boundaryOpacity = isFocused ? 0.86 : 0.66;
-		const finalConeOpacity = isFocused ? 0.82 : 0.6;
 		if (geojsonRun.boundaryRaycast) {
 			layers.push({
 				name: `boundary-${runIndex}-${geojsonRun.fileName}`,
@@ -66,20 +76,6 @@ export function buildAppBusinessLayers(
 					projectionStart,
 					projectionEnd,
 					projectionPercent,
-				),
-			});
-		}
-
-		if (geojsonRun.finalCones) {
-			layers.push({
-				name: `final-cones-${runIndex}-${geojsonRun.fileName}`,
-				color: finalConeColor,
-				opacity: finalConeOpacity,
-				// Final cones are already emitted in display space by the compute stage.
-				polylines: buildPolylinesFromVec4Buffer(
-					geojsonRun.finalCones.finalConeGeometryEcef,
-					geojsonRun.finalCones.azimuthSampleCount,
-					true,
 				),
 			});
 		}
@@ -99,6 +95,80 @@ export function buildAppBusinessLayers(
 	}
 
 	return layers;
+}
+
+/**
+ * Builds the Babylon cone-mesh descriptors from the final cone geometry.
+ *
+ * The geometry is already in display projection space; this adapter only adds
+ * the city apex and exposes a stable per-city ring topology for Babylon.
+ */
+export function buildAppConeMeshDescriptors(
+	result: ComputeResult | null,
+	cities: readonly WorkspaceCitySummary[],
+	projectionStart: AppProjectionMode = 'none',
+	projectionEnd: AppProjectionMode = 'equirectangular',
+	projectionPercent = 50,
+	focusCityIndex: number | null = null,
+	queryMatchedCityIndexes: readonly number[] = [],
+): readonly AppConeMeshDescriptor[] {
+	if (!result || cities.length === 0) {
+		return [];
+	}
+
+	const descriptors: AppConeMeshDescriptor[] = [];
+	const queryMatchedCityIndexSet = new Set(queryMatchedCityIndexes);
+	for (const [runIndex, geojsonRun] of result.geojsonRuns.entries()) {
+		const finalCones = geojsonRun.finalCones;
+		if (!finalCones || finalCones.azimuthSampleCount <= 0) {
+			continue;
+		}
+
+		const cityCount = Math.min(finalCones.cityCount, cities.length);
+		const sampleCount = finalCones.azimuthSampleCount;
+		for (let cityIndex = 0; cityIndex < cityCount; cityIndex += 1) {
+			const city = cities[cityIndex];
+			if (!city) {
+				continue;
+			}
+			const isFocused = focusCityIndex === city.cityIndex;
+			const isMatched = queryMatchedCityIndexSet.has(city.cityIndex);
+			const coneColor: AppColor3 = isFocused
+				? [1, 0.83, 0.36]
+				: isMatched
+					? [0.96, 0.73, 0.35]
+					: [0.9, 0.7, 0.32];
+			const coneOpacity = isFocused ? 0.88 : 0.68;
+			const rimPoints: AppPoint3[] = [];
+			const offset = cityIndex * sampleCount * 4;
+			for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
+				const pointOffset = offset + sampleIndex * 4;
+				rimPoints.push([
+					finalCones.finalConeGeometryEcef[pointOffset],
+					finalCones.finalConeGeometryEcef[pointOffset + 1],
+					finalCones.finalConeGeometryEcef[pointOffset + 2],
+				]);
+			}
+			descriptors.push({
+				name: `final-cones-${runIndex}-${geojsonRun.fileName}-${city.cityIndex}`,
+				cityIndex: city.cityIndex,
+				cityCode: city.cityCode,
+				color: coneColor,
+				opacity: coneOpacity,
+				apex: projectAppGeographicPoint(
+					city.longitudeRadians,
+					city.latitudeRadians,
+					0,
+					projectionStart,
+					projectionEnd,
+					projectionPercent,
+				),
+				rimPoints,
+			});
+		}
+	}
+
+	return descriptors;
 }
 
 function buildProjectedPolylinesFromVec4Buffer(
