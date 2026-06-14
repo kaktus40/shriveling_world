@@ -56,6 +56,20 @@
 			return undefined;
 		}
 
+		// Probe for WebGL2 or WebGL1 support before loading the heavy Babylon scene.
+		// This avoids letting the engine throw and allows a clearer error message.
+		try {
+			const hasWebGl2 = !!canvasElement.getContext && !!canvasElement.getContext('webgl2');
+			const hasWebGl = !!canvasElement.getContext && !!canvasElement.getContext('webgl');
+			if (!hasWebGl2 && !hasWebGl) {
+				sceneError = 'WebGL not supported';
+				return undefined;
+			}
+		} catch (e) {
+			sceneError = 'WebGL not supported';
+			return undefined;
+		}
+
 		void import('$lib/application/app/scene').then(({ createAppScene }) => {
 			try {
 				controller = createAppScene(canvasElement, getSceneState(), {
