@@ -47,6 +47,10 @@ Elle doit rester simple:
 - selection de la ville;
 - navigation camera;
 - affichage et bascule des couches metier;
+- les cones visibles dans `app` doivent a terme etre montes comme de vrais
+  meshes Babylon par ville, avec un index buffer triangulaire stable construit
+  une seule fois par topologie; la version actuelle reste encore sur un
+  adapter line-based pour la lisibilite de migration;
 - requeteur de surface pour accentuer ou masquer des cones;
 - outils de mesure surimprimes;
 - export rapide si necessaire.

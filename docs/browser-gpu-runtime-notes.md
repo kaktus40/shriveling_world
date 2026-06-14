@@ -90,5 +90,14 @@ instead of rebuilding the backend for every year or projection change.
     the same event-driven cache injection path as the historical app so that
     year and projection changes can refresh uniforms / textures without
     rebuilding the persistent session;
+  - the final cone contract is already dense and final-stage based, but the
+    Babylon app shell still renders those outputs as polylines; the historical
+    `coneMeshShader` path instead built a per-city cone mesh once, reused a
+    stable triangle index buffer, and only refreshed vertex data on year or
+    projection changes;
+  - the migration therefore still needs a maintainable Babylon cone-mesh
+    adapter that consumes the dense `final-cones` slices and rebuilds only the
+    per-city vertex payload, while leaving the shared index buffer stable across
+    recomputations;
   - these points are tracked as runtime TODOs and should be resolved in a later
     code pass rather than by silently changing the current behavior.
