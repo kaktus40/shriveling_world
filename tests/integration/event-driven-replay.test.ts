@@ -220,6 +220,7 @@ test('event-driven: selective re-execution with passFilter', async () => {
       benchmark: true,
       dynamicYear: 2010,
       passFilter: ['static-town-precompute', 'raw-cones-precompute', 'cone-intersections-precompute'],
+      rawCone: { shape: 'road' as any, azimuthSampleCount: 16, coneLengthMeters: 1000, attenuationRadians: 0.1 },
     },
     { preferred: 'webgl2', allowFallback: true },
   );
