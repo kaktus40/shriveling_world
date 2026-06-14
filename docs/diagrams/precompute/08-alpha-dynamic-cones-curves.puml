@@ -1,10 +1,12 @@
 @startuml
-title Angle alpha, cone dynamique et courbe entre deux villes
+title Alpha dynamique, cache annuel et courbes finales
 
 skinparam componentStyle rectangle
 skinparam shadowing false
 
 rectangle "Annee selectionnee" as year
+rectangle "Cache annuel alpha\nMap year -> dynamicTownData" as alphaCache
+rectangle "Cache annuel courbes\nMap year -> curveYearData" as curveCache
 rectangle "Vitesses des modes actifs\nmetres par seconde" as speeds
 rectangle "maximumSpeed\nvitesse maximale annuelle" as maxSpeed
 rectangle "Road speed\nvitesse terrestre par defaut" as roadSpeed
@@ -21,12 +23,14 @@ database "Invariants statiques A-B\nazimuts + theta\ncontroles ECEF [A, P, Q, B]
 
 component "Cone dynamique A\nRoad: roadAlpha\nRegulier rapide: minimum connecte\nComplexe: alpha par azimut" as coneA
 component "Cone dynamique B\nRoad: roadAlpha\nRegulier rapide: minimum connecte\nComplexe: alpha par azimut" as coneB
-component "Geometrie de courbe A-B\nDroite / ligne brisee /\ngeodesique / Bezier" as curve
+component "Courbe finale A-B\nfinal-curves-precompute (cible)\nprojection mix + annee" as finalCurve
 
 rectangle "Buffers geometriques finaux" as buffers
 rectangle "Renderer\nBabylon.js ou luma.gl\naucun calcul scientifique" as renderer
 
-year --> speeds : selectionne les valeurs actives
+year --> alphaCache : lit la slice annuelle
+year --> curveCache : lit la slice annuelle
+alphaCache --> speeds : selectionne les valeurs actives
 speeds --> maxSpeed : maximum annuel
 speeds --> roadSpeed : mode Road
 speeds --> terrSpeed : mode terrestre
@@ -48,14 +52,16 @@ edgeAlpha --> coneB : direction B vers A
 invariants --> coneA : azimut A vers B
 invariants --> coneB : azimut B vers A
 
-invariants --> curve : [A, P, Q, B] + theta
-nonTerrSpeed --> curve : vitesse du mode
-terrSpeed --> curve : arête terrestre affichable
-maxSpeed --> curve : rapport de vitesses
+curveCache --> finalCurve : theta + ratios + coefficients
+invariants --> finalCurve : [A, P, Q, B] + theta
+nonTerrSpeed --> finalCurve : vitesse du mode
+terrSpeed --> finalCurve : arête terrestre affichable
+maxSpeed --> finalCurve : rapport de vitesses
+year --> finalCurve : selection annuelle
 
 coneA --> buffers
 coneB --> buffers
-curve --> buffers
+finalCurve --> buffers
 buffers --> renderer
 
 note bottom of alpha
@@ -69,5 +75,11 @@ note bottom of edgeAlpha
   conserver le minimum alpha.
   Une liaison plus lente que Road
   ne depasse jamais roadAlpha.
+end note
+
+note right of finalCurve
+  La courbe finale doit consommer la
+  slice annuelle choisie et le mix
+  de projection active.
 end note
 @enduml

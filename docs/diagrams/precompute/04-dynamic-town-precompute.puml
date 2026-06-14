@@ -1,5 +1,5 @@
 @startuml
-title Detail du precalcul dynamique par annee
+title Cache annuel dynamique des alphas par annee
 
 |CPU - Entrees|
 start
@@ -39,6 +39,7 @@ endif
 :ecrire cityFastestTerrestrialAlpha;
 
 |CPU - Sortie|
-:precalcul dynamique par annee[annee];
+:dynamicTownData[annee] =\n{ roadAlphaRadians,\n  cityLinkOffsets,\n  cityLinkCounts,\n  cityLinkDestinationIndexes,\n  cityLinkAzimuthRadians,\n  cityLinkAlphaRadians,\n  cityFastestTerrestrialAlphaRadians };
+:cache annuel des alphas;
 stop
 @enduml

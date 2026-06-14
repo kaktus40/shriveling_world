@@ -5,31 +5,40 @@ actor Utilisateur
 participant "Session de calcul persistante" as Session
 participant "Interface Svelte" as UI
 participant "Orchestrateur de calcul TS" as TS
-participant "Cache de precalcul CPU" as Cache
+participant "Cache annuel des alphas" as CacheAlpha
+participant "Cache annuel des courbes" as CacheCurve
 participant "Peripherique WebGPU" as GPU
 participant "Couches Babylon" as Babylon
 
 Utilisateur -> UI : changerAnnee(annee)
 UI -> Session : changerAnnee(annee)
 Session -> TS : calculerVisualisation(annee, parametres)
-TS -> Cache : lireCacheAnnuel(annee)
-Cache --> TS : offsets, comptes, azimuts, alphas, roadAlphaRadians
+TS -> CacheAlpha : lireCacheAnnuel(annee)
+CacheAlpha --> TS : offsets, comptes, azimuts, alphas, roadAlphaRadians
+TS -> CacheCurve : lireCacheAnnuel(annee)
+CacheCurve --> TS : theta, ratios, pointsPerCurve, coefficient
 TS -> GPU : mettre a jour uniforms / buffers dynamiques
 TS -> GPU : replay depuis raw-cones-precompute
 TS -> GPU : dispatch Passe Cones Bruts
 TS -> GPU : dispatch Passe Intersections Cone/Cone
 TS -> GPU : dispatch Passe Decoupe Par Limites
 TS -> GPU : dispatch Passe Cones Finaux
-TS -> GPU : dispatch Passe Geometrie Courbes
+TS -> GPU : dispatch Passe Final-Courbes
 GPU --> TS : commandes terminees
 TS -> Babylon : mettre a jour les buffers cones et courbes
 Babylon --> UI : image rendue
 
-note over Cache
+note over CacheAlpha
   Le cache annuel des alphas est prechauffe une fois
   par dynamic-town-precompute.
   Le changement d'annee le relit au lieu de le
   recalculer.
+end note
+
+note over CacheCurve
+  Le cache annuel des courbes est prechauffe en
+  amont et expose les parametres necessaires au
+  futur final-curves-precompute.
 end note
 
 note right of Session

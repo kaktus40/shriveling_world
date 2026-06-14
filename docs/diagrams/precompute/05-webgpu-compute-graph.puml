@@ -4,14 +4,14 @@ title Graphe de calcul WebGPU pour cones, projections et courbes
 skinparam componentStyle rectangle
 
 database "Buffers GPU statiques\nsommetsECEF\nned2ECEF\noverlapCandidates\nBVH circulaires\nlimites\ncontroles courbes" as staticBuffers
-database "Buffers GPU dynamiques\ncityLinkOffsets[annee]\ncityLinkCounts[annee]\ncityLinkAzimuthRadians[annee]\ncityLinkAlphaRadians[annee]\nroadAlphaRadians[annee]\nhauteurs courbes[annee]" as dynamicBuffers
+database "Caches GPU dynamiques\nMap annee -> cityLinkOffsets\nMap annee -> cityLinkCounts\nMap annee -> cityLinkAzimuthRadians\nMap annee -> cityLinkAlphaRadians\nMap annee -> roadAlphaRadians\nMap annee -> hauteurs courbes" as dynamicBuffers
 database "Uniformes de projection\nprojectionStart\nprojectionEnd\nprojectionPercent\nprojectionSettings" as projectionUniforms
 component "Session de calcul persistante\nBackend warm" as runtime
 
 component "Passe Cones Bruts WGSL\nEntree: statique + dynamique\nSortie: buffer cones bruts" as raw
 component "Passe Reduction Intersections WGSL\nEntree: cones bruts + voisins + BVH + limites\nSorties: cones ciseles + cones finaux" as intersect
 component "Passe Final-Cones WGSL\nEntree: cones finaux + projection mix + limite pays\nSortie: geometrie render-ready" as finalCones
-component "Passe Courbes Finales WGSL\nEntree: controles + annee + projection mix\nSortie: buffer vertices courbes" as curve
+component "Passe Final-Courbes WGSL (cible)\nEntree: courbes annuelles + projection mix\nSortie: buffer vertices courbes" as curve
 component "Couche Cones Babylon\nEntree: buffer cones finaux" as coneLayer
 component "Couche Courbes Babylon\nEntree: buffer vertices courbes" as curveLayer
 
@@ -53,5 +53,7 @@ note right of curve
   Les courbes finales consomment la meme
   logique de projection et la slice annuelle
   active pour garder un rendu cohérent.
+  Le cache annuel des courbes doit etre
+  consulte avant replay.
 end note
 @enduml
