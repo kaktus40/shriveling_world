@@ -8,7 +8,6 @@
 		type AppProjectionMode,
 	} from '$lib/application/app';
 	import type { AppMeasurementSelection, AppMeasurementSummary } from '$lib/application/app/measurement';
-	import { probeBabylonContext } from '$lib/application/app/babylon';
 	import type { AppSceneController, AppSceneState } from '$lib/application/app/scene';
 	import type { WorkspaceComputeResult } from '$lib/application/workspace';
 	import type { WorkspaceCitySummary } from '$lib/application/workspace';
@@ -58,10 +57,6 @@
 		}
 
 		void import('$lib/application/app/scene').then(({ createAppScene }) => {
-			if (!probeBabylonContext()) {
-				sceneError = 'Babylon scene unavailable: no WebGL or WebGL2 context could be created.';
-				return;
-			}
 			try {
 				controller = createAppScene(canvasElement, getSceneState(), {
 					onCityPick: (cityIndex) => onCityIndexChange(cityIndex),
