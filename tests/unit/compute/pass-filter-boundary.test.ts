@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { runWebGl2BoundaryStages } from '../../../../src/lib/compute/webgl2/boundary';
+import { runWebGl2BoundaryStages } from '../../../src/lib/compute/webgl2/boundary';
 
 // This test verifies that when passFilter excludes the 'geojson-boundary-raycast'
 // stage, the boundary runner returns a synthetic timing (skip) and does not
