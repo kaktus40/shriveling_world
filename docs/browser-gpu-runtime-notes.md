@@ -71,6 +71,9 @@ instead of rebuilding the backend for every year or projection change.
 - repeated UI edits that belong to the same interaction, such as the year rail
   or the projection rail, should be coalesced into one replay request instead
   of triggering a separate compute call for each sub-control;
+- the dataset workspace should use the same replay coalescing model for
+  compute-profile and cone-intersection toggles so one UI gesture does not
+  schedule multiple backend runs;
 - the curve final stage follows the same replay request as final cones when
   year or projection changes alter the visible curve slice, so the app does
   not split cone and curve refreshes into separate runtime passes;

@@ -75,6 +75,9 @@ As long as the route remains mounted:
 - the backend should stay warm;
 - edits that belong to one interaction, such as the year rail or the
   projection rail, should be coalesced before the replay request is fired;
+- the dataset workspace reuses the same replay coalescing helper for compute
+  profile and cone-intersection changes, so a short burst of UI changes still
+  resolves to one backend replay;
 - changing the year should not recreate the runtime and should reuse the yearly cache already prepared by `dynamic-town-precompute`;
 - changing the projection mix should not recreate the runtime;
 - changing the profile should only swap the active backend, not the data

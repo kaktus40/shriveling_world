@@ -23,6 +23,7 @@
 		loadWorkspacePageState,
 		computeWorkspacePageState,
 	} from '$lib/application/workspace';
+	import { createReplayScheduler } from '$lib/application/replay';
 	import { installWorkspaceE2eApi } from '$lib/application/workspace/testing';
 	import { createWorkspaceComputeSession } from '$lib/application/workspace';
 	import type { DatasetDiagnostic, QueryableField } from '$lib/domain/data';
@@ -55,6 +56,7 @@
 	let queryError = '';
 	let computeDiagnostics: readonly DatasetDiagnostic[] = [];
 	let computeSession = createWorkspaceComputeSession();
+	let workspaceComputeReplay = createReplayScheduler(() => reloadCompute());
 	let workspaceQueryController = createQueryController({
 		getQueryWorker: () => queryWorker,
 		getQuerySnapshot: () => querySnapshot,
@@ -115,6 +117,7 @@
 		});
 
 		return () => {
+			workspaceComputeReplay.dispose();
 			void computeSession.dispose();
 			disposeWorkspaceE2e();
 			workspaceQueryController.dispose();
@@ -143,7 +146,7 @@
 			queryResult = null;
 			queryError = '';
 			computeError = '';
-			await reloadCompute();
+			workspaceComputeReplay.request();
 			workspaceQueryController.scheduleExecute();
 		} catch (error) {
 			workspace = null;
@@ -200,20 +203,22 @@
 	}
 
 	function handleComputeProfileChange(_next: ComputeProfile): void {
+		selectedComputeProfile = _next;
 		workspaceCompute = null;
 		computeDiagnostics = [];
 		computeError = '';
 		if (workspace) {
-			void reloadCompute(selectedDataset, _next, selectedConeIntersectionStrategy);
+			workspaceComputeReplay.request();
 		}
 	}
 
 	function handleConeIntersectionStrategyChange(_next: ComputeConeIntersectionStrategy): void {
+		selectedConeIntersectionStrategy = _next;
 		workspaceCompute = null;
 		computeDiagnostics = [];
 		computeError = '';
 		if (workspace) {
-			void reloadCompute(selectedDataset, selectedComputeProfile, _next);
+			workspaceComputeReplay.request();
 		}
 	}
 
@@ -261,19 +266,23 @@
 	</p>
 </section>
 
-<WorkspaceControls
-	datasets={data.datasets}
-	bind:selectedDataset
-	bind:selectedComputeProfile
-	bind:selectedConeIntersectionStrategy
-	{loading}
-	onDatasetChange={handleDatasetChange}
-	onComputeProfileChange={handleComputeProfileChange}
-	onConeIntersectionStrategyChange={handleConeIntersectionStrategyChange}
+	<WorkspaceControls
+		datasets={data.datasets}
+		bind:selectedDataset
+		bind:selectedComputeProfile
+		bind:selectedConeIntersectionStrategy
+		{loading}
+		onDatasetChange={handleDatasetChange}
+		onComputeProfileChange={handleComputeProfileChange}
+		onConeIntersectionStrategyChange={handleConeIntersectionStrategyChange}
 		onReloadWorkspace={(nextDataset) => void reloadWorkspace(nextDataset)}
-		onReloadCompute={(nextDataset, nextProfile, nextStrategy) =>
-			void reloadCompute(nextDataset, nextProfile, nextStrategy)}
-/>
+		onReloadCompute={(nextDataset, nextProfile, nextStrategy) => {
+			selectedDataset = nextDataset;
+			selectedComputeProfile = nextProfile;
+			selectedConeIntersectionStrategy = nextStrategy;
+			workspaceComputeReplay.request();
+		}}
+	/>
 
 {#if !workspace && !loading && !errorMessage}
 	<WorkspaceNoticePanel
