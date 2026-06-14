@@ -84,3 +84,28 @@ As long as the route remains mounted:
   changes;
 - the curve geometry slice is replayed from its own final stage when the curve
   controls or the selected year / projection slice change.
+
+## Pending Alignment
+
+The current migration already persists the browser runtime and documents the
+minimal replay chain. The following points remain intentionally open and should
+be revisited before we claim full parity with the historical event-driven GPU
+flow:
+
+- `dynamic-town-precompute` already exists as a yearly cache in the CPU domain,
+  but the runtime still feeds a single selected `dynamicTown` into the compute
+  chain; the cache is not yet wired as the canonical replay source for browser
+  GPU backends.
+- the year-change replay currently restarts from `raw-cones-precompute`, which
+  matches the runtime contract, but the code still needs an explicit year-keyed
+  lookup for the dynamic alpha tables to mirror the historical `calculate()`
+  reuse model.
+- the country boundary limit is documented as a final-stage decision, but the
+  runtime still has to prove that this flag can be toggled without forcing a
+  boundary-raycast rerun.
+- the curve pipeline still uses `curve-geometry-precompute` as its visible final
+  stage; a dedicated `final-curves-precompute` contract is still to be defined
+  if we want the curve flow to mirror the historical app more closely.
+- the curve parameters must eventually live in a year-keyed cache, just like
+  the alpha tables, so the curve final pass can be replayed from the selected
+  year and projection mix without recomputing earlier stages.

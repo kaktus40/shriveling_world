@@ -1665,6 +1665,10 @@ Browser GPU runtime note:
   forcer un retour au raycast GeoJSON lorsqu elle change seule;
 - les courbes finales doivent consommer la meme projection mix et la slice
   annuelle courante pour rester coherentes avec la vue principale;
+- le contrat annuel des courbes reste a formaliser sous une forme
+  `final-curves-precompute` si l on veut egaler le patron historique;
+- les caches annuels alphas / courbes doivent etre exposes comme dictionnaires
+  indexes par annee avant de pouvoir figer le replay event-driven complet;
 - les remarques de suivi sont detaillees dans
   [`docs/browser-gpu-runtime-notes.md`](browser-gpu-runtime-notes.md).
 - la granularite de reprise par etape est figee dans

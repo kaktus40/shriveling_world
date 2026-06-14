@@ -77,3 +77,11 @@ instead of rebuilding the backend for every year or projection change.
   matrix and must drive the event handlers in `workspace` and `app`.
 - the replay matrix also documents the country-boundary final-stage decision and
   the curve final-stage dependency on year / projection state.
+- current migration gap:
+  - the yearly dynamic alpha cache exists in CPU space, but browser backends do
+    not yet consume a year-keyed dynamic-town dictionary as the canonical replay
+    source;
+  - curves still use the visible `curve-geometry` stage instead of a dedicated
+    `final-curves` contract;
+  - these points are tracked as documentation TODOs and should be resolved in a
+    later code pass rather than by silently changing the current behavior.
