@@ -9,6 +9,7 @@
 	import AppProjectionRail from '$lib/components/app/AppProjectionRail.svelte';
 	import AppYearRail from '$lib/components/app/AppYearRail.svelte';
 	import AppViewport from '$lib/components/app/AppViewport.svelte';
+	import { primeComputeRuntime } from '$lib/application/runtime';
 	import {
 		loadAppPageState,
 		type AppPageState,
@@ -89,7 +90,7 @@
 
 	onMount(() => {
 		queryWorker = createQueryWorkerClient();
-		void computeSession.warm();
+		void primeComputeRuntime(computeSession);
 		queryController = createQueryController({
 			getQueryWorker: () => queryWorker,
 			getQuerySnapshot: () => appState?.querySnapshot ?? null,

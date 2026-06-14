@@ -199,6 +199,7 @@ export interface ComputeResult {
 /** Lifecycle contract shared by every compute backend implementation. */
 export interface ComputeBackend {
 	readonly profile: ComputeProfile;
+	warm(): Promise<void>;
 	computeFrame(
 		input: ComputeInput,
 		options?: ComputeOptions,

@@ -106,7 +106,9 @@ async function warmBackend(
 	if (!(await descriptor.isAvailable())) {
 		return;
 	}
-	backends.set(profile, await descriptor.create());
+	const backend = await descriptor.create();
+	await backend.warm();
+	backends.set(profile, backend);
 }
 
 async function createSelectedBackend(
@@ -114,10 +116,16 @@ async function createSelectedBackend(
 	selection: ComputeProfileSelection,
 ): Promise<ComputeBackend> {
 	if (selection.selected === 'webgl2' && registry.webgl2) {
-		return registry.webgl2.create();
+		const backend = await registry.webgl2.create();
+		await backend.warm();
+		return backend;
 	}
 	if (selection.selected === 'webgpu' && registry.webgpu) {
-		return registry.webgpu.create();
+		const backend = await registry.webgpu.create();
+		await backend.warm();
+		return backend;
 	}
-	return registry.cpu.create();
+	const backend = await registry.cpu.create();
+	await backend.warm();
+	return backend;
 }

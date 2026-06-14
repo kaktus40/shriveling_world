@@ -8,6 +8,7 @@
 		type AppProjectionMode,
 	} from '$lib/application/app';
 	import type { AppMeasurementSelection, AppMeasurementSummary } from '$lib/application/app/measurement';
+	import { probeBabylonContext } from '$lib/application/app/babylon';
 	import type { AppSceneController, AppSceneState } from '$lib/application/app/scene';
 	import type { WorkspaceComputeResult } from '$lib/application/workspace';
 	import type { WorkspaceCitySummary } from '$lib/application/workspace';
@@ -57,7 +58,7 @@
 		}
 
 		void import('$lib/application/app/scene').then(({ createAppScene }) => {
-			if (!probeWebGlContext(canvasElement)) {
+			if (!probeBabylonContext()) {
 				sceneError = 'Babylon scene unavailable: no WebGL or WebGL2 context could be created.';
 				return;
 			}
@@ -88,19 +89,6 @@
 	});
 
 	$: controller?.update(getSceneState());
-
-	function probeWebGlContext(canvasElement: HTMLCanvasElement): boolean {
-		const contextOptions = {
-			antialias: true,
-			preserveDrawingBuffer: true,
-			stencil: true,
-			powerPreference: 'high-performance' as WebGLPowerPreference,
-		};
-		return (
-			canvasElement.getContext('webgl2', contextOptions) !== null ||
-			canvasElement.getContext('webgl', contextOptions) !== null
-		);
-	}
 </script>
 
 <section class="viewport" aria-label="Babylon viewport">

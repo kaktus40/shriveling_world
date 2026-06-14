@@ -3,6 +3,7 @@ import { expect, test } from 'vitest';
 
 import {
 	createWebGl2ComputeBackendDescriptor,
+	createWebGl2ProbeCanvas,
 	probeWebGl2Availability,
 	type WebGl2ComputeBackendOptions,
 } from '$lib/compute';
@@ -213,6 +214,29 @@ function createFakeGl(): WebGL2RenderingContext & { calls: { drawCalls: number; 
 test('webgl2 probe stays false without a canvas', () => {
 	expect(probeWebGl2Availability(undefined)).toBe(false);
 	expect(createWebGl2ComputeBackendDescriptor().isAvailable()).toBe(false);
+});
+
+test('webgl2 probe prefers a DOM canvas over OffscreenCanvas when both exist', () => {
+	const globalAny = globalThis as any;
+	const originalDocument = globalAny.document;
+	const originalOffscreenCanvas = globalAny.OffscreenCanvas;
+	const domCanvas = createFakeCanvas();
+
+	try {
+		globalAny.document = {
+			createElement: () => domCanvas,
+		};
+		globalAny.OffscreenCanvas = class {
+			getContext(): null {
+				return null;
+			}
+		};
+
+		expect(createWebGl2ProbeCanvas()).toBe(domCanvas);
+	} finally {
+		globalAny.document = originalDocument;
+		globalAny.OffscreenCanvas = originalOffscreenCanvas;
+	}
 });
 
 test('webgl2 probe becomes available with a webgl2-capable canvas and the backend keeps the selected profile', async () => {

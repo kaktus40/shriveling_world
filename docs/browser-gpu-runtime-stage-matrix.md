@@ -55,7 +55,7 @@ an input changes.
 | GeoJSON geometry / boundary inputs | `geojson-boundary-precompute` | Replay the boundary precompute, then the dependent raycast and final stages. |
 | boundary azimuth sample count | `geojson-boundary-precompute` | The boundary precompute contract changes before the raycast. |
 | static town options (`sectorCount`, `neighborLimit`) | `static-town-precompute` | The static neighborhood contract changes, so all dependent stages must be replayed. |
-| year / yearly dynamic state | `raw-cones-precompute` | Reuse the persistent runtime and the yearly dynamic cache prepared by `dynamic-town-precompute`, then replay raw cones and downstream stages. |
+| year / yearly dynamic state | `raw-cones-precompute` | Reuse the persistent runtime and the yearly dynamic cache prepared by `dynamic-town-precompute`, then replay raw cones and downstream stages. The route-level runtime should already be prewarmed so this replay only refreshes uniforms / textures and does not recreate Babylon or the compute session. |
 | raw cone shape / sample count / length / attenuation | `raw-cones-precompute` | Raw cone buffers change, so intersection, final geometry and curves depending on those outputs must be replayed. |
 | cone intersection strategy / alpha heuristic | `cone-intersections-precompute` | Keep the same runtime, replay the ciseled / intersection stage and downstream outputs. |
 | country boundary enable / boundary limit flag | `final-cones-precompute` | The country clipping decision is applied at final cone emission for every backend profile. |
@@ -92,6 +92,9 @@ As long as the route remains mounted:
   changes;
 - the curve geometry slice is replayed from its own final stage when the curve
   controls or the selected year / projection slice change.
+ - Babylon support probing must use a throwaway canvas and never consume the
+   render canvas itself, otherwise the viewport can self-sabotage its own
+   context creation.
 
 ## Runtime Notes
 

@@ -50,6 +50,11 @@ export class CpuComputeBackend implements ComputeBackend {
 	#dynamicTownByYear: DynamicTownPrecomputeByYear | null = null;
 	#curvePrecompute: CurvePrecompute | null = null;
 
+	async warm(): Promise<void> {
+		// CPU backend has no external runtime to warm up, but the method keeps
+		// the lifecycle contract uniform across all compute backends.
+	}
+
 	async computeFrame(
 		input: ComputeInput,
 		options: ComputeOptions = {},

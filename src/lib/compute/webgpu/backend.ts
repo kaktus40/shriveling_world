@@ -44,6 +44,14 @@ export class WebGpuComputeBackend implements ComputeBackend {
 		this.#cpuBackend = options.cpuBackend ?? createCpuComputeBackend();
 	}
 
+	async warm(): Promise<void> {
+		if (!(await this.ensureAvailable())) {
+			throw new Error('WebGPU compute backend unavailable: no adapter could be created');
+		}
+		await this.ensureContext();
+		await this.ensureResources();
+	}
+
 	async computeFrame(
 		input: ComputeInput,
 		options: ComputeOptions = {},

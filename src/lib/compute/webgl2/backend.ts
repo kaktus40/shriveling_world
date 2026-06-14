@@ -48,6 +48,13 @@ export class WebGl2ComputeBackend implements ComputeBackend {
 		this.#cpuBackend = options.cpuBackend ?? createCpuComputeBackend();
 	}
 
+	async warm(): Promise<void> {
+		if (!(await this.ensureAvailable())) {
+			throw new Error('WebGL2 compute backend unavailable: no WebGL2 context could be created');
+		}
+		await this.ensureResources();
+	}
+
 	async computeFrame(
 		input: ComputeInput,
 		options: ComputeOptions = {},
@@ -192,11 +199,11 @@ export function probeWebGl2Availability(canvas?: WebGl2CanvasLike | null): boole
 
 /** Creates a canvas-like object suitable for a WebGL2 probe when the runtime supports it. */
 export function createWebGl2ProbeCanvas(): WebGl2CanvasLike | null {
-	if (typeof OffscreenCanvas !== 'undefined') {
-		return new OffscreenCanvas(1, 1);
-	}
 	if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
 		return document.createElement('canvas');
+	}
+	if (typeof OffscreenCanvas !== 'undefined') {
+		return new OffscreenCanvas(1, 1);
 	}
 	return null;
 }

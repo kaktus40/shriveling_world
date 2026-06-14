@@ -24,6 +24,7 @@
 		computeWorkspacePageState,
 	} from '$lib/application/workspace';
 	import { createReplayScheduler } from '$lib/application/replay';
+	import { primeComputeRuntime } from '$lib/application/runtime';
 	import { installWorkspaceE2eApi } from '$lib/application/workspace/testing';
 	import { createWorkspaceComputeSession } from '$lib/application/workspace';
 	import type { DatasetDiagnostic, QueryableField } from '$lib/domain/data';
@@ -89,7 +90,7 @@
 
 	onMount(() => {
 		queryWorker = createQueryWorkerClient();
-		void computeSession.warm();
+		void primeComputeRuntime(computeSession);
 		const disposeWorkspaceE2e = installWorkspaceE2eApi({
 			setDataset: async (dataset: string) => {
 				selectedDataset = dataset;

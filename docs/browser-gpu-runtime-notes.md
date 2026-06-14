@@ -65,6 +65,9 @@ instead of rebuilding the backend for every year or projection change.
 
 - `app` and `workspace` should keep the selected backend warm while only year,
   projection, or display parameters change;
+- the route layer should prewarm the compute session through a shared
+  application helper so Babylon viewport setup stays separate from compute
+  runtime setup;
 - the UI should not auto-load a dataset at route entry;
 - E2E tests should use reduced datasets and explicitly cover CPU, WebGL2 and
   WebGPU paths.
@@ -79,6 +82,9 @@ instead of rebuilding the backend for every year or projection change.
   not split cone and curve refreshes into separate runtime passes;
 - each route owns one persistent compute session, prewarms it on mount, and
   disposes it on unmount;
+- Babylon support probing must use a throwaway canvas and never consume the
+  render canvas itself, otherwise the viewport can self-sabotage its own
+  context creation;
 - `final-cones` is the place where projection formulas are applied for every
   backend profile, but the session that drives it must remain alive between
   recomputations.
