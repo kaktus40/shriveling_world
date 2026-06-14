@@ -102,7 +102,7 @@ test('event-driven: selective re-execution with passFilter', async () => {
       benchmark: true,
       boundaryRaycast: { azimuthSampleCount: 360 },
       staticTown: { sectorCount: 360, neighborLimit: 4 },
-      rawCone: { shape: 'symmetric' as any, azimuthSampleCount: 16, coneLengthMeters: 1000, attenuationRadians: 0.1 },
+      rawCone: { shape: 'road' as any, azimuthSampleCount: 16, coneLengthMeters: 1000, attenuationRadians: 0.1 },
       coneIntersection: { enabled: true },
     },
     { preferred: 'webgl2', allowFallback: true },
