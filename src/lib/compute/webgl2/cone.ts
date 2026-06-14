@@ -1,5 +1,6 @@
 import type { DatasetDiagnostic } from '../../domain/data';
 import type { ComputeOptions, ComputeResult, StageTiming } from '../core';
+import type { ComputeStage } from '../core/types';
 import type { WebGl2ComputeResources } from './types';
 import { runWebGl2CityMatrixPass } from './passes/city-ned2ecef';
 import { runWebGl2RawConeAlphaPass } from './passes/raw-cone-alphas';
@@ -20,7 +21,9 @@ export async function runWebGl2ConeStages(
 	const diagnostics: DatasetDiagnostic[] = [];
 	let ciseledConeRimEcefBuffer: WebGLBuffer | null = null;
 
-	if (result.staticTown) {
+	const shouldRun = (stage: ComputeStage) => !options.passFilter || options.passFilter.includes(stage);
+
+	if (shouldRun('static-town-precompute') && result.staticTown) {
 		const cityMatrixPass = await runWebGl2CityMatrixPass({
 			gl,
 			result,
@@ -30,7 +33,7 @@ export async function runWebGl2ConeStages(
 		diagnostics.push(...cityMatrixPass.diagnostics);
 	}
 
-	if (result.rawCones) {
+	if (shouldRun('raw-cones-precompute') && result.rawCones) {
 		const rawConeAlphaPass = await runWebGl2RawConeAlphaPass({
 			gl,
 			result,
@@ -40,7 +43,7 @@ export async function runWebGl2ConeStages(
 		diagnostics.push(...rawConeAlphaPass.diagnostics);
 	}
 
-	if (result.staticTown && result.rawCones && result.coneIntersections) {
+	if (shouldRun('cone-intersections-precompute') && result.staticTown && result.rawCones && result.coneIntersections) {
 		const ciseledConePass = await runWebGl2CiseledConePass({
 			gl,
 			result,

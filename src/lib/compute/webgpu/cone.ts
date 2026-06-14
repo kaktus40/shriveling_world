@@ -3,6 +3,7 @@ import { getGpuBufferUsage } from '../shared/compute';
 import type { DatasetDiagnostic } from '../../domain/data';
 import type { ComputeResult, StageTiming } from '../core';
 import type { ComputeOptions } from '../core';
+import type { ComputeStage } from '../core/types';
 import type { WebGpuComputeContext, WebGpuComputeResources } from './types';
 import { runWebGpuCityMatrixPass } from './passes/city-ned2ecef';
 import { runWebGpuRawConeAlphaPass } from './passes/raw-cone-alphas';
@@ -23,7 +24,9 @@ export async function runWebGpuConeStages(
 	const diagnostics: DatasetDiagnostic[] = [];
 	let ciseledConeRimEcef: GpuBufferAllocation | null = null;
 
-	if (result.staticTown) {
+	const shouldRun = (stage: ComputeStage) => !options.passFilter || options.passFilter.includes(stage);
+
+	if (shouldRun('static-town-precompute') && result.staticTown) {
 		const cityMatrixPass = await runWebGpuCityMatrixPass({
 			context,
 			result,
@@ -34,7 +37,7 @@ export async function runWebGpuConeStages(
 		diagnostics.push(...cityMatrixPass.diagnostics);
 	}
 
-	if (result.rawCones) {
+	if (shouldRun('raw-cones-precompute') && result.rawCones) {
 		const rawConeAlphaPass = await runWebGpuRawConeAlphaPass({
 			context,
 			result,
@@ -45,7 +48,7 @@ export async function runWebGpuConeStages(
 		diagnostics.push(...rawConeAlphaPass.diagnostics);
 	}
 
-	if (result.staticTown && result.rawCones && result.coneIntersections) {
+	if (shouldRun('cone-intersections-precompute') && result.staticTown && result.rawCones && result.coneIntersections) {
 		const ciseledConePass = await runWebGpuCiseledConePass({
 			context,
 			result,
