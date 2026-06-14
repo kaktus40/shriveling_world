@@ -36,10 +36,11 @@ model from the main branch:
 | GeoJSON contours / contour indexes | CPU | SB | T / SB | T / SB | - | - | - | - | - | - |
 | city NED2ECEF matrices | - | SB | - | - | SB | - | - | - | - | - |
 | pair invariants / overlap candidates | - | SB | - | - | SB | - | - | SB | - | - |
-| dynamic year / yearly town state | - | - | - | - | - | U / SB | U / SB | U / SB | U / SB | U / SB |
+| yearly dynamic alpha cache / road alphas / yearly town state | - | - | - | - | - | U / SB | U / SB | U / SB | U / SB | U / SB |
 | raw cone parameters | - | - | - | - | - | - | U / SB | U / SB | - | - |
 | cone intersection heuristics | - | - | - | - | - | - | - | U / SB | - | - |
-| projection mix start / end / percent / settings | - | - | - | - | - | - | - | - | U | - |
+| country boundary enable / boundary limit flag | - | - | - | - | - | - | - | - | U / SB | - |
+| projection mix start / end / percent / settings | - | - | - | - | - | - | - | - | U / SB | U / SB |
 | curve controls / curve year / coefficient | - | - | - | - | - | - | - | - | - | U / SB |
 | benchmark / diagnostics | CPU | CPU | CPU | CPU | CPU | CPU | CPU | CPU | CPU | CPU |
 
@@ -54,10 +55,11 @@ an input changes.
 | GeoJSON geometry / boundary inputs | `geojson-boundary-precompute` | Replay the boundary precompute, then the dependent raycast and final stages. |
 | boundary azimuth sample count | `geojson-boundary-precompute` | The boundary precompute contract changes before the raycast. |
 | static town options (`sectorCount`, `neighborLimit`) | `static-town-precompute` | The static neighborhood contract changes, so all dependent stages must be replayed. |
-| year / yearly dynamic state | `dynamic-town-precompute` | Reuse the persistent runtime, refresh dynamic buffers, then replay raw cones and downstream stages. |
+| year / yearly dynamic state | `raw-cones-precompute` | Reuse the persistent runtime and the yearly dynamic cache prepared by `dynamic-town-precompute`, then replay raw cones and downstream stages. |
 | raw cone shape / sample count / length / attenuation | `raw-cones-precompute` | Raw cone buffers change, so intersection, final geometry and curves depending on those outputs must be replayed. |
 | cone intersection strategy / alpha heuristic | `cone-intersections-precompute` | Keep the same runtime, replay the ciseled / intersection stage and downstream outputs. |
-| projection mix or projection settings | `final-cones-precompute` | The projection formulas are applied at final cone emission for every backend profile. |
+| country boundary enable / boundary limit flag | `final-cones-precompute` | The country clipping decision is applied at final cone emission for every backend profile. |
+| projection mix or projection settings | `final-cones-precompute` | The projection formulas are applied at final cone emission for every backend profile; the curve replay can follow the same projection slice when the curve view consumes it. |
 | curve parameters | `curve-geometry-precompute` | Only the curve geometry stage must be replayed. |
 | compute profile (`cpu`, `webgl2`, `webgpu`) | profile-specific warm backend | The active runtime is swapped, but the same stage contract is replayed without re-reading the dataset. |
 
@@ -71,9 +73,14 @@ As long as the route remains mounted:
 - the session should be prewarmed on mount so the available browser GPU
   backends are ready before the first user-driven recomputation;
 - the backend should stay warm;
-- changing the year should not recreate the runtime;
+- changing the year should not recreate the runtime and should reuse the yearly cache already prepared by `dynamic-town-precompute`;
 - changing the projection mix should not recreate the runtime;
 - changing the profile should only swap the active backend, not the data
   contract;
 - the compute passes remain event-driven and replay only from the first affected
   stage.
+- the country-boundary decision remains a final-stage concern and does not
+  force a return to the boundary raycast when only the country limit flag
+  changes;
+- the curve geometry slice is replayed from its own final stage when the curve
+  controls or the selected year / projection slice change.

@@ -6,7 +6,7 @@ start
 :rayon brut A\nsommet, direction, longueur connue;
 :voisins statiques de A;
 :faces circulaires des cones voisins;
-:limite pays alignee sur l'azimut;
+:drapeau limite pays et limite alignee sur l'azimut;
 :projection mix\nstart/end/percent/settings;
 
 |Recherche prioritaire|
@@ -27,7 +27,7 @@ endif
 
 |Reduction pays|
 :coneIntersectionT = bestT;
-:finalT = min(coneIntersectionT, countryBoundaryT);
+:if countryBoundaryEnabled then\n  finalT = min(coneIntersectionT, countryBoundaryT)\nelse\n  finalT = coneIntersectionT\nendif;
 :appliquer projection mix dans finalCones;
 
 |Sorties WebGPU|

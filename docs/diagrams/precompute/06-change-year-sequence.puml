@@ -12,10 +12,10 @@ participant "Couches Babylon" as Babylon
 Utilisateur -> UI : changerAnnee(annee)
 UI -> Session : changerAnnee(annee)
 Session -> TS : calculerVisualisation(annee, parametres)
-TS -> Cache : obtenirPrecalculDynamique(annee)
-Cache --> TS : offsets, comptes, azimuts, alphas, roadAlphaRadians, hauteursCourbes
+TS -> Cache : lireCacheAnnuel(annee)
+Cache --> TS : offsets, comptes, azimuts, alphas, roadAlphaRadians
 TS -> GPU : mettre a jour uniforms / buffers dynamiques
-TS -> GPU : replay depuis dynamic-town-precompute
+TS -> GPU : replay depuis raw-cones-precompute
 TS -> GPU : dispatch Passe Cones Bruts
 TS -> GPU : dispatch Passe Intersections Cone/Cone
 TS -> GPU : dispatch Passe Decoupe Par Limites
@@ -26,14 +26,16 @@ TS -> Babylon : mettre a jour les buffers cones et courbes
 Babylon --> UI : image rendue
 
 note over Cache
-  Le reseau lossless, le dataset prepare
-  et le precalcul statique des villes
-  ne sont pas recalcules pendant cette sequence.
+  Le cache annuel des alphas est prechauffe une fois
+  par dynamic-town-precompute.
+  Le changement d'annee le relit au lieu de le
+  recalculer.
 end note
 
 note right of Session
   La session de calcul vit pendant toute la duree de la page.
-  Un changement de projection ou de pourcentage doit suivre
-  la meme logique evenementielle sans recreation du backend.
+  Un changement de projection, de pourcentage ou de
+  limite pays doit suivre la meme logique evenementielle
+  sans recreation du backend.
 end note
 @enduml

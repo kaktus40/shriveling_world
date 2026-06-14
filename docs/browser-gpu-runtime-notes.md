@@ -26,6 +26,13 @@ instead of rebuilding the backend for every year or projection change.
   and programs are operational before the first interactive recomputation;
 - reuse that session across year and projection changes even when the user
   changes the display projection mix.
+- treat `dynamic-town-precompute` as a yearly cache/prewarm stage for the
+  dynamic alphas so that a year change can resume from `raw-cones-precompute`
+  without rebuilding the earlier runtime state;
+- keep the country-boundary decision at `final-cones` so toggling the boundary
+  limit does not force a return to the GeoJSON raycast stage;
+- let the curve final stage consume the selected year and projection slice when
+  the visible curve geometry depends on that state.
 
 ## WebGL2
 
@@ -36,6 +43,9 @@ instead of rebuilding the backend for every year or projection change.
   than recreating hidden one-shot canvases on each compute call.
 - the GPU pass that replaces the historical `GPUComputer.calculate()` flow
   should iterate over the full 2D output table in the same session.
+- the 2D table traversal must stay compatible with a persistent canvas/context;
+  changing the year updates the inputs and replays the affected passes, but it
+  does not recreate the context.
 
 ## WebGPU
 
@@ -65,3 +75,5 @@ instead of rebuilding the backend for every year or projection change.
   recomputations.
 - the minimal replay stage for each user change is documented in the stage
   matrix and must drive the event handlers in `workspace` and `app`.
+- the replay matrix also documents the country-boundary final-stage decision and
+  the curve final-stage dependency on year / projection state.

@@ -1658,6 +1658,13 @@ Browser GPU runtime note:
   shader no-op, meme quand la rasterisation est desactivee;
 - le backend WebGPU doit suivre la meme logique de persistance, et ses modules
   WGSL doivent valider proprement avant d etre exposes comme stables;
+- le changement d annee doit reposer sur le cache annuel des alphas prepare
+  par `dynamic-town-precompute`, puis repartir de `raw-cones-precompute`
+  sans reconstruire le runtime;
+- la decision de limite pays doit rester au niveau `final-cones` et ne pas
+  forcer un retour au raycast GeoJSON lorsqu elle change seule;
+- les courbes finales doivent consommer la meme projection mix et la slice
+  annuelle courante pour rester coherentes avec la vue principale;
 - les remarques de suivi sont detaillees dans
   [`docs/browser-gpu-runtime-notes.md`](browser-gpu-runtime-notes.md).
 - la granularite de reprise par etape est figee dans
