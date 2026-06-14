@@ -92,28 +92,20 @@ minimal replay chain. The following points remain intentionally open and should
 be revisited before we claim full parity with the historical event-driven GPU
 flow:
 
-- `dynamic-town-precompute` already exists as a yearly cache in the CPU domain,
-  but the runtime still feeds a single selected `dynamicTown` into the compute
-  chain; the browser GPU backends still need an explicit
-  `Record<string, DynamicTownPrecompute>` or `Map<number, DynamicTownPrecompute>`
-  replay source.
-- the year-change replay currently restarts from `raw-cones-precompute`, which
-  matches the runtime contract, but the code still needs the year-keyed dynamic
-  alpha map to be the canonical source that injects the selected year into the
-  shader uniforms / textures before replaying downstream passes.
+- `dynamic-town-precompute` is now reused as a yearly cache on the CPU path;
+  the remaining runtime work is to keep that cache as the single source of
+  truth when the browser GPU backends inject the selected year into uniforms or
+  textures before replaying downstream passes.
 - the canonical yearly dynamic entry should keep at least the following fields:
   `roadAlphaRadians`, `cityLinkOffsets`, `cityLinkCounts`,
   `cityLinkDestinationIndexes`, `cityLinkAzimuthRadians`,
   `cityLinkAlphaRadians`, `cityFastestTerrestrialAlphaRadians`.
-- the country boundary limit is documented as a final-stage decision, but the
-  runtime still has to prove that this flag can be toggled without forcing a
-  boundary-raycast rerun.
 - the curve pipeline still uses `curve-geometry-precompute` as its visible final
   stage; a dedicated `final-curves-precompute` contract is still to be defined
   if we want the curve flow to mirror the historical app more closely.
-- the curve parameters must eventually live in a year-keyed cache as well,
-  ideally `Record<string, CurveYearPrecompute>` or an equivalent map whose
-  value stores the selected-year curve inputs needed by the final curve pass.
+- the curve parameters already live in a year-keyed cache on the CPU precompute
+  side, but the runtime still needs a dedicated `final-curves-precompute`
+  contract if we want the curve flow to mirror the historical app more closely.
 - the final curve stage should consume the selected year and the projection mix
   so it can replay independently of earlier curve preparation when only the
   display mix changes.

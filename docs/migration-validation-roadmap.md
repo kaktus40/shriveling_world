@@ -1667,14 +1667,13 @@ Browser GPU runtime note:
   annuelle courante pour rester coherentes avec la vue principale;
 - le contrat annuel des courbes reste a formaliser sous une forme
   `final-curves-precompute` si l on veut egaler le patron historique;
-- les caches annuels alphas / courbes doivent etre exposes comme dictionnaires
-  indexes par annee avant de pouvoir figer le replay event-driven complet;
 - le cache annuel des alphas doit exposer au minimum
   `roadAlphaRadians`, `cityLinkOffsets`, `cityLinkCounts`,
   `cityLinkDestinationIndexes`, `cityLinkAzimuthRadians`,
   `cityLinkAlphaRadians`, `cityFastestTerrestrialAlphaRadians`;
-- le cache annuel des courbes doit exposer les parametres annuels utilises par
-  la passe finale de courbes, sur le modele historique `year -> data`;
+- le cache annuel des courbes est deja present dans le precompute CPU, mais le
+  runtime browser devra disposer d un contrat `final-curves` explicite pour
+  l exploiter sans ambiguite;
 - les remarques de suivi sont detaillees dans
   [`docs/browser-gpu-runtime-notes.md`](browser-gpu-runtime-notes.md).
 - la granularite de reprise par etape est figee dans

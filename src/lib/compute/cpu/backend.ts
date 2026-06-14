@@ -9,14 +9,15 @@ import {
 } from '../../domain/data';
 import {
 	computeCurveVertexBufferCpu,
-	computeDynamicTownPrecomputeForYearCpu,
 	computeFinalConePrecomputeCpu,
+	computeDynamicTownPrecomputeForYearCpu,
 	computeRawConePrecomputeCpu,
 	computeStaticTownPrecomputeCpu,
 	prepareCurveGeometryInput,
-	prepareCurvePrecompute,
 	type CurveVertexBuffer,
+	type CurvePrecompute,
 	type DynamicTownPrecompute,
+	type DynamicTownPrecomputeByYear,
 	type ConeIntersectionOraclePrecompute,
 	type RawConePrecompute,
 	type RawConePrecomputeOptions,
@@ -36,6 +37,7 @@ import {
 	type ComputeResult,
 	type StageTiming,
 } from '../core/types';
+import { createComputeAnnualCache, createComputeAnnualCacheKey } from '../core/annual-cache';
 import { measureStage, sumStageDurations } from '../core/timing';
 import { tagDiagnostics } from '../shared/compute';
 import { runCpuBoundaryStages } from './boundary';
@@ -44,6 +46,9 @@ import { runCpuConeIntersectionStage } from './cone';
 /** CPU reference backend for the whole migration compute pipeline. */
 export class CpuComputeBackend implements ComputeBackend {
 	readonly profile = 'cpu' as const;
+	#annualCacheKey: string | null = null;
+	#dynamicTownByYear: DynamicTownPrecomputeByYear | null = null;
+	#curvePrecompute: CurvePrecompute | null = null;
 
 	async computeFrame(
 		input: ComputeInput,
@@ -108,6 +113,17 @@ export class CpuComputeBackend implements ComputeBackend {
 			() => computeStaticTownPrecomputeCpu(toStaticTownInput(preparedDataset), staticTownOptions),
 		);
 		timings.push(staticTiming);
+		const annualCacheKey = createComputeAnnualCacheKey({
+			sourceFiles,
+			staticTown: staticTownOptions,
+		});
+		let annualCache = null;
+		if (this.#annualCacheKey !== annualCacheKey || !this.#dynamicTownByYear || !this.#curvePrecompute) {
+			annualCache = createComputeAnnualCache(preparedDataset, staticTown);
+			this.#annualCacheKey = annualCacheKey;
+			this.#dynamicTownByYear = annualCache.dynamicTownByYear;
+			this.#curvePrecompute = annualCache.curvePrecompute;
+		}
 
 		let dynamicTown: DynamicTownPrecompute | undefined;
 		let rawCones: RawConePrecompute | undefined;
@@ -120,7 +136,7 @@ export class CpuComputeBackend implements ComputeBackend {
 				'dynamic-town-precompute',
 				'precompute',
 				this.profile,
-				() => computeDynamicTownPrecomputeForYearCpu(preparedDataset, staticTown, dynamicYear),
+				() => resolveAnnualDynamicTown(this.#dynamicTownByYear, preparedDataset, staticTown, dynamicYear),
 			);
 			dynamicTown = dynamicTiming.value;
 			timings.push(dynamicTiming.timing);
@@ -186,7 +202,7 @@ export class CpuComputeBackend implements ComputeBackend {
 		}
 
 		if (options.curve?.enabled === true) {
-			const curvePrecompute = prepareCurvePrecompute(preparedDataset, staticTown);
+			const curvePrecompute = this.#curvePrecompute ?? annualCache?.curvePrecompute ?? createComputeAnnualCache(preparedDataset, staticTown).curvePrecompute;
 			const curveGeometryResult = measureStage(
 				'curve-geometry-precompute',
 				'precompute',
@@ -256,6 +272,21 @@ export function cpuCapabilities(): ComputeCapabilities {
 /** Creates the default CPU backend descriptor. */
 export function createCpuComputeBackend(): CpuComputeBackend {
 	return new CpuComputeBackend();
+}
+
+function resolveAnnualDynamicTown(
+	dynamicTownByYear: DynamicTownPrecomputeByYear | null,
+	preparedDataset: PreparedDataset,
+	staticTown: StaticTownPrecompute,
+	year: number,
+): DynamicTownPrecompute {
+	if (dynamicTownByYear) {
+		const cached = dynamicTownByYear[String(year)];
+		if (cached) {
+			return cached;
+		}
+	}
+	return computeDynamicTownPrecomputeForYearCpu(preparedDataset, staticTown, year);
 }
 
 /** Creates a CPU-only registry that is always available. */
