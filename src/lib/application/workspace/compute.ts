@@ -70,6 +70,17 @@ export async function computeWorkspaceDataset(
 	const shouldBenchmark = request.benchmark ?? true;
 	const dynamicYear = request.dynamicYear ?? workspace.pipeline.preparedDataset.speedTimeline.span.beginYear;
 	try {
+		// Log requested profile and dataset to help diagnose fallback behavior.
+		try {
+			console.debug('computeWorkspaceDataset: dataset=', workspace.pipeline.preparedDataset.datasetName,
+				'request=', request.profile ?? 'unset', 'forced=', request.forced ?? 'none');
+			// Ask the session which profile would be selected given the current registry and request.
+			const selection = await runtime.selectProfile({ preferred: request.profile, forced: request.forced, allowFallback: request.allowFallback ?? true });
+			console.debug('computeWorkspaceDataset: profile selection=', selection);
+		} catch (selError) {
+			console.debug('computeWorkspaceDataset: profile selection probe failed:', selError);
+		}
+
 		const result = await runtime.computeFrame(
 			{
 				sourceFiles: workspace.files,
@@ -77,40 +88,40 @@ export async function computeWorkspaceDataset(
 			},
 			{
 				profileRequest: {
-					preferred: request.profile,
-					forced: request.forced,
-					allowFallback: request.allowFallback ?? true,
+						preferred: request.profile,
+						forced: request.forced,
+						allowFallback: request.allowFallback ?? true,
 				},
 				benchmark: request.benchmark ?? true,
 				boundaryRaycast: { azimuthSampleCount: 360 },
 				staticTown: { sectorCount: 360, neighborLimit: Math.min(Math.max(workspace.pipeline.preparedDataset.cityCount - 1, 0), 16) },
 				dynamicYear,
 				projection: request.projectionStart && request.projectionEnd
-					? {
+						? {
 							start: request.projectionStart,
 							end: request.projectionEnd,
 							percent: request.projectionPercent ?? 0,
 							settings: request.projectionSettings,
 						}
-					: undefined,
+						: undefined,
 				rawCone: {
-					shape: coneOptions.shape,
-					azimuthSampleCount: coneOptions.azimuthSampleCount,
-					coneLengthMeters: coneOptions.coneLengthMeters,
-					attenuationRadians: coneOptions.attenuationRadians,
+						shape: coneOptions.shape,
+						azimuthSampleCount: coneOptions.azimuthSampleCount,
+						coneLengthMeters: coneOptions.coneLengthMeters,
+						attenuationRadians: coneOptions.attenuationRadians,
 				},
 				curve: request.curve?.enabled === true
-					? {
+						? {
 							enabled: true,
 							year: request.curve.year ?? dynamicYear,
 							pointsPerCurve: request.curve.pointsPerCurve ?? 15,
 							curvePosition: request.curve.curvePosition ?? 'above',
 							coefficient: request.curve.coefficient ?? 1,
 						}
-					: undefined,
+						: undefined,
 				coneIntersection: {
-					enabled: true,
-					strategy: request.coneIntersectionStrategy ?? 'oracle',
+						enabled: true,
+						strategy: request.coneIntersectionStrategy ?? 'oracle',
 				},
 			},
 			{
