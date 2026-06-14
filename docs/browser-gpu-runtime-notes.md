@@ -71,6 +71,9 @@ instead of rebuilding the backend for every year or projection change.
 - repeated UI edits that belong to the same interaction, such as the year rail
   or the projection rail, should be coalesced into one replay request instead
   of triggering a separate compute call for each sub-control;
+- the curve final stage follows the same replay request as final cones when
+  year or projection changes alter the visible curve slice, so the app does
+  not split cone and curve refreshes into separate runtime passes;
 - each route owns one persistent compute session, prewarms it on mount, and
   disposes it on unmount;
 - `final-cones` is the place where projection formulas are applied for every

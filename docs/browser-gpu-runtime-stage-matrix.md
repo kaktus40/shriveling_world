@@ -81,6 +81,9 @@ As long as the route remains mounted:
   contract;
 - the compute passes remain event-driven and replay only from the first affected
   stage.
+- cone and curve refreshes triggered by the same year/projection interaction
+  should stay on the same replay request so the renderer receives a coherent
+  updated frame without an extra runtime pass;
 - the country-boundary decision remains a final-stage concern and does not
   force a return to the boundary raycast when only the country limit flag
   changes;

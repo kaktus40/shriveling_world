@@ -27,6 +27,7 @@ export function diffComputeOptions(
 		previous.staticTown?.neighborLimit !== next.staticTown?.neighborLimit ||
 		previous.staticTown?.sectorCount !== next.staticTown?.sectorCount;
 	const dynamicTown = previous.dynamicYear !== next.dynamicYear;
+	const projection = diffProjectionOptions(previous, next);
 	const rawCones =
 		dynamicTown ||
 		previous.rawCone?.shape !== next.rawCone?.shape ||
@@ -34,13 +35,14 @@ export function diffComputeOptions(
 		previous.rawCone?.coneLengthMeters !== next.rawCone?.coneLengthMeters ||
 		previous.rawCone?.attenuationRadians !== next.rawCone?.attenuationRadians;
 	const coneIntersections = rawCones || diffConeIntersectionStrategy(previous, next);
-	const finalCones = boundary || coneIntersections;
+	const finalCones = boundary || coneIntersections || projection;
 	const curveGeometry =
 		previous.curve?.enabled !== next.curve?.enabled ||
 		previous.curve?.year !== next.curve?.year ||
 		previous.curve?.pointsPerCurve !== next.curve?.pointsPerCurve ||
 		previous.curve?.curvePosition !== next.curve?.curvePosition ||
-		previous.curve?.coefficient !== next.curve?.coefficient;
+		previous.curve?.coefficient !== next.curve?.coefficient ||
+		projection;
 
 	return {
 		preparedDataset: false,
@@ -52,6 +54,31 @@ export function diffComputeOptions(
 		finalCones,
 		curveGeometry,
 	};
+}
+
+function diffProjectionOptions(previous: ComputeOptions, next: ComputeOptions): boolean {
+	const previousProjection = previous.projection;
+	const nextProjection = next.projection;
+	if (previousProjection?.start !== nextProjection?.start) {
+		return true;
+	}
+	if (previousProjection?.end !== nextProjection?.end) {
+		return true;
+	}
+	if (previousProjection?.percent !== nextProjection?.percent) {
+		return true;
+	}
+	const previousSettings = previousProjection?.settings;
+	const nextSettings = nextProjection?.settings;
+	return (
+		previousSettings?.globeRadius !== nextSettings?.globeRadius ||
+		previousSettings?.referenceLongitudeRadians !== nextSettings?.referenceLongitudeRadians ||
+		previousSettings?.referenceLatitudeRadians !== nextSettings?.referenceLatitudeRadians ||
+		previousSettings?.referenceHeightMeters !== nextSettings?.referenceHeightMeters ||
+		previousSettings?.standardParallel1Radians !== nextSettings?.standardParallel1Radians ||
+		previousSettings?.standardParallel2Radians !== nextSettings?.standardParallel2Radians ||
+		previousSettings?.zCoefficient !== nextSettings?.zCoefficient
+	);
 }
 
 function diffConeIntersectionStrategy(
