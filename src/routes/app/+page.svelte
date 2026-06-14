@@ -82,6 +82,7 @@
 
 	onMount(() => {
 		queryWorker = createQueryWorkerClient();
+		void computeSession.warm();
 		queryController = createQueryController({
 			getQueryWorker: () => queryWorker,
 			getQuerySnapshot: () => appState?.querySnapshot ?? null,

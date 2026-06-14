@@ -1,24 +1,33 @@
 @startuml
-title Graphe de calcul WebGPU pour cones et courbes
+title Graphe de calcul WebGPU pour cones, projections et courbes
 
 skinparam componentStyle rectangle
 
 database "Buffers GPU statiques\nsommetsECEF\nned2ECEF\noverlapCandidates\nBVH circulaires\nlimites\ncontroles courbes" as staticBuffers
 database "Buffers GPU dynamiques\ncityLinkOffsets[annee]\ncityLinkCounts[annee]\ncityLinkAzimuthRadians[annee]\ncityLinkAlphaRadians[annee]\nroadAlphaRadians[annee]\nhauteurs courbes[annee]" as dynamicBuffers
+database "Uniformes de projection\nprojectionStart\nprojectionEnd\nprojectionPercent\nprojectionSettings" as projectionUniforms
+component "Session de calcul persistante\nBackend warm" as runtime
 
 component "Passe Cones Bruts WGSL\nEntree: statique + dynamique\nSortie: buffer cones bruts" as raw
 component "Passe Reduction Intersections WGSL\nEntree: cones bruts + voisins + BVH + limites\nSorties: cones ciseles + cones finaux" as intersect
+component "Passe Final-Cones WGSL\nEntree: cones finaux + projection mix\nSortie: geometrie render-ready" as finalCones
 component "Passe Geometrie Courbes WGSL\nEntree: controles + hauteurs dynamiques\nSortie: buffer vertices courbes" as curve
 component "Couche Cones Babylon\nEntree: buffer cones finaux" as coneLayer
 component "Couche Courbes Babylon\nEntree: buffer vertices courbes" as curveLayer
 
+runtime --> raw
+runtime --> intersect
+runtime --> finalCones
+runtime --> curve
 staticBuffers --> raw
 dynamicBuffers --> raw
 raw --> intersect
 staticBuffers --> intersect
+projectionUniforms --> finalCones
+intersect --> finalCones
+finalCones --> coneLayer
 staticBuffers --> curve
 dynamicBuffers --> curve
-intersect --> coneLayer
 curve --> curveLayer
 
 note bottom of raw
@@ -31,5 +40,11 @@ note bottom of intersect
   minimum des intersections cone/cone
   puis minimum avec limite pays.
   La sortie ciselee reste optionnelle.
+end note
+
+note right of finalCones
+  La projection mix est appliquee ici.
+  Le runtime reste chaud entre deux
+  changements de annee ou de projection.
 end note
 @enduml

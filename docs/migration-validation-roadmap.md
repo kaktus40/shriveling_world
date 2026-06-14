@@ -1660,6 +1660,9 @@ Browser GPU runtime note:
   WGSL doivent valider proprement avant d etre exposes comme stables;
 - les remarques de suivi sont detaillees dans
   [`docs/browser-gpu-runtime-notes.md`](browser-gpu-runtime-notes.md).
+- la granularite de reprise par etape est figee dans
+  [`docs/browser-gpu-runtime-stage-matrix.md`](browser-gpu-runtime-stage-matrix.md)
+  et doit guider les handlers d evenement du workspace et de l application.
 
 Travail attendu:
 

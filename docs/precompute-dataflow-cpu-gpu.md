@@ -103,6 +103,11 @@ preferee. Le benchmark doit enregistrer des temps par etape pour chaque profil
 disponible afin de comparer ingestion, preparation et calcul sur un meme
 dataset.
 
+La matrice de reprise par etape est documentee dans
+[`docs/browser-gpu-runtime-stage-matrix.md`](browser-gpu-runtime-stage-matrix.md).
+Elle precise quelles donnees sont inserees dans chaque passe, et a partir de
+quelle etape reprendre le pipeline quand un parametre change.
+
 ## Contrats D'Interfacage Communs
 
 Les trois profils `WebGPU -> WebGL2 -> CPU` doivent consommer les memes

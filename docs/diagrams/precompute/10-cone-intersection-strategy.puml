@@ -1,5 +1,5 @@
 @startuml
-title Strategie d'intersection des cones et reduction finale
+title Strategie d'intersection des cones, reduction finale et projection mix
 
 |Entrees|
 start
@@ -7,6 +7,7 @@ start
 :voisins statiques de A;
 :faces circulaires des cones voisins;
 :limite pays alignee sur l'azimut;
+:projection mix\nstart/end/percent/settings;
 
 |Recherche prioritaire|
 :pour chaque voisin B;
@@ -27,6 +28,7 @@ endif
 |Reduction pays|
 :coneIntersectionT = bestT;
 :finalT = min(coneIntersectionT, countryBoundaryT);
+:appliquer projection mix dans finalCones;
 
 |Sorties WebGPU|
 :ecrire ciseledConeRimEcef;

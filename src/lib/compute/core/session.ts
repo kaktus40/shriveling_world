@@ -18,6 +18,7 @@ import { createDefaultComputeBackendRegistry } from '../cpu';
  * context instead of tearing it down after each pass.
  */
 export interface ComputeSession {
+	warm(): Promise<void>;
 	selectProfile(request: ComputeProfileRequest): Promise<ComputeProfileSelection>;
 	computeFrame(input: ComputeInput, options?: ComputeOptions, request?: ComputeProfileRequest): Promise<ComputeResult>;
 	dispose(): Promise<void>;
@@ -32,10 +33,21 @@ export interface ComputeSession {
 export function createComputeSession(
 	registry: ComputeBackendRegistry = createDefaultComputeBackendRegistry(),
 ): ComputeSession {
-	let backend: ComputeBackend | null = null;
-	let backendProfile: ComputeProfileSelection['selected'] | null = null;
+	const backends = new Map<ComputeProfileSelection['selected'], ComputeBackend>();
 
 	return {
+		async warm(): Promise<void> {
+			await Promise.all([
+				warmBackend(registry, backends, 'cpu'),
+				warmBackend(registry, backends, 'webgl2'),
+				warmBackend(registry, backends, 'webgpu'),
+			].map((task) =>
+				task.catch((error) => {
+					console.warn('Compute backend warm-up failed:', error);
+				}),
+			));
+		},
+
 		selectProfile(request: ComputeProfileRequest): Promise<ComputeProfileSelection> {
 			return selectComputeProfile(request, registry);
 		},
@@ -46,20 +58,16 @@ export function createComputeSession(
 			request: ComputeProfileRequest = {},
 		): Promise<ComputeResult> {
 			const selection = await selectComputeProfile(request, registry);
-			const selectedBackend = await resolveSelectedBackend(registry, selection, backend, backendProfile);
-			backend = selectedBackend.backend;
-			backendProfile = selection.selected;
-			return selectedBackend.backend.computeFrame(input, options, selection);
+			const backend = await resolveSelectedBackend(registry, selection, backends);
+			return backend.computeFrame(input, options, selection);
 		},
 
 		async dispose(): Promise<void> {
-			if (!backend) {
-				return;
+			const disposals = Array.from(backends.values()).map((backend) => backend.dispose());
+			backends.clear();
+			if (disposals.length > 0) {
+				await Promise.all(disposals);
 			}
-			const currentBackend = backend;
-			backend = null;
-			backendProfile = null;
-			await currentBackend.dispose();
 		},
 	};
 }
@@ -67,18 +75,38 @@ export function createComputeSession(
 async function resolveSelectedBackend(
 	registry: ComputeBackendRegistry,
 	selection: ComputeProfileSelection,
-	currentBackend: ComputeBackend | null,
-	currentProfile: ComputeProfileSelection['selected'] | null,
-): Promise<{ backend: ComputeBackend }> {
-	if (currentBackend && currentProfile === selection.selected) {
-		return { backend: currentBackend };
+	backends: Map<ComputeProfileSelection['selected'], ComputeBackend>,
+): Promise<ComputeBackend> {
+	const currentBackend = backends.get(selection.selected);
+	if (currentBackend) {
+		return currentBackend;
 	}
 
 	const nextBackend = await createSelectedBackend(registry, selection);
-	if (currentBackend) {
-		await currentBackend.dispose();
+	backends.set(selection.selected, nextBackend);
+	return nextBackend;
+}
+
+async function warmBackend(
+	registry: ComputeBackendRegistry,
+	backends: Map<ComputeProfileSelection['selected'], ComputeBackend>,
+	profile: ComputeProfileSelection['selected'],
+): Promise<void> {
+	if (backends.has(profile)) {
+		return;
 	}
-	return { backend: nextBackend };
+	const descriptor = profile === 'cpu'
+		? registry.cpu
+		: profile === 'webgl2'
+			? registry.webgl2
+			: registry.webgpu;
+	if (!descriptor) {
+		return;
+	}
+	if (!(await descriptor.isAvailable())) {
+		return;
+	}
+	backends.set(profile, await descriptor.create());
 }
 
 async function createSelectedBackend(

@@ -87,6 +87,7 @@
 
 	onMount(() => {
 		queryWorker = createQueryWorkerClient();
+		void computeSession.warm();
 		const disposeWorkspaceE2e = installWorkspaceE2eApi({
 			setDataset: async (dataset: string) => {
 				selectedDataset = dataset;
