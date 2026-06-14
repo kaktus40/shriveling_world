@@ -2,7 +2,6 @@
 
 precision highp float;
 precision highp int;
-precision highp uint;
 
 uniform vec4 u_uniforms;
 uniform vec4 u_projection;

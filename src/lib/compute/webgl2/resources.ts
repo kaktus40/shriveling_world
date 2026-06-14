@@ -15,6 +15,7 @@ import {
 	createFinalConesProgram,
 	createRawConeAlphasProgram,
 } from './buffers';
+import { composeWebGl2VertexShaderSource } from './programs';
 import type { WebGl2ComputeResources } from './types';
 
 /** Creates the cached WebGL2 resources for all migration compute passes. */
@@ -24,15 +25,15 @@ export function createWebGl2ComputeResources(gl: WebGL2RenderingContext): WebGl2
 	const boundaryProgram = createBoundaryAlgebreProgram(gl, boundaryAlgebreVertexShaderSource);
 	const ciseledConesProgram = createCiseledConesProgram(
 		gl,
-		`${sharedMathWebGl2ShaderSource}\n${rayIntersectTriangleWebGl2ShaderSource}\n${ciseledConesVertexShaderSource}`,
+		composeWebGl2VertexShaderSource(sharedMathWebGl2ShaderSource, rayIntersectTriangleWebGl2ShaderSource, ciseledConesVertexShaderSource),
 	);
 	const finalConesProgram = createFinalConesProgram(
 		gl,
-		`${projectionWebGl2ShaderSource}\n${finalConesVertexShaderSource}`,
+		composeWebGl2VertexShaderSource(projectionWebGl2ShaderSource, finalConesVertexShaderSource),
 	);
 	const curveGeometryProgram = createCurveGeometryProgram(
 		gl,
-		`${projectionWebGl2ShaderSource}\n${curveGeometryVertexShaderSource}`,
+		composeWebGl2VertexShaderSource(projectionWebGl2ShaderSource, curveGeometryVertexShaderSource),
 	);
 
 	return {

@@ -2,7 +2,6 @@
 
 precision highp float;
 precision highp int;
-precision highp uint;
 
 const uint UNUSED_INDEX = 0xffffffffu;
 

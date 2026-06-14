@@ -10,11 +10,15 @@ import {
 import {
 	createRawConeAlphasProgram,
 } from '../../buffers';
+import { composeWebGl2VertexShaderSource } from '../../programs';
 import type { WebGl2ComputeResources } from '../../types';
 import { bindRawConeAlphaTextures, shapeToCode } from '../../pass-utils';
 import { createRawConeAlphasDispatchResources } from './buffers';
 
-const rawConeAlphasVertexShaderSource = `${rawConeAlphasMathSource}\n${rawConeAlphasKernelSource}`;
+const rawConeAlphasVertexShaderSource = composeWebGl2VertexShaderSource(
+	rawConeAlphasMathSource,
+	rawConeAlphasKernelSource,
+);
 
 export interface WebGl2RawConeAlphaPassInput {
 	readonly gl: WebGL2RenderingContext;

@@ -12,6 +12,7 @@ import {
 import {
 	createCiseledConesProgram,
 } from '../../buffers';
+import { composeWebGl2VertexShaderSource } from '../../programs';
 import { bindCiseledConesTextures } from '../../pass-bindings';
 import type { WebGl2ComputeResources } from '../../types';
 import { createCiseledConesDispatchResources } from './buffers';
@@ -71,7 +72,11 @@ export async function runWebGl2CiseledConePass(
 		input.resources.programCache?.get('ciseled-cones') ??
 		createCiseledConesProgram(
 			input.gl,
-			`${sharedMathVertexShaderSource}\n${rayIntersectTriangleVertexShaderSource}\n${ciseledConesVertexShaderSource}`,
+			composeWebGl2VertexShaderSource(
+				sharedMathVertexShaderSource,
+				rayIntersectTriangleVertexShaderSource,
+				ciseledConesVertexShaderSource,
+			),
 		);
 	const dispatchResources = createCiseledConesDispatchResources(
 		input.gl,

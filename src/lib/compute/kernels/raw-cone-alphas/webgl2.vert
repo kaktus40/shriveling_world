@@ -2,7 +2,6 @@
 
 precision highp float;
 precision highp int;
-precision highp uint;
 
 uniform sampler2D u_cityLinkOffsets;
 uniform usampler2D u_cityLinkCounts;

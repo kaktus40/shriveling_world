@@ -1,4 +1,11 @@
 /** WebGL2 program compilation helpers for the migration compute passes. */
+const WEBGL2_VERTEX_SHADER_PREAMBLE = `precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp isampler2D;
+precision highp usampler2D;
+`;
+
 /** Compiles a WebGL2 shader and throws with the info log on failure. */
 export function compileShader(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader {
 	const shader = gl.createShader(type);
@@ -43,6 +50,16 @@ function linkTransformFeedbackProgram(
 	gl.deleteShader(vertexShader);
 	gl.deleteShader(fragmentShader);
 	return program;
+}
+
+/** Composes a WebGL2 vertex shader from shared snippets and a kernel body. */
+export function composeWebGl2VertexShaderSource(...sources: string[]): string {
+	const body = sources.map(stripLeadingVersion).join('\n');
+	return `#version 300 es\n${WEBGL2_VERTEX_SHADER_PREAMBLE}\n${body}`;
+}
+
+function stripLeadingVersion(source: string): string {
+	return source.replace(/^\s*#version 300 es\s*/i, '');
 }
 
 /** Compiles the WebGL2 transform-feedback program for city NED-to-ECEF matrices. */

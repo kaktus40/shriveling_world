@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, test } from 'vitest';
+import { composeWebGl2VertexShaderSource } from '$lib/compute/webgl2/programs';
 
 const SHARED_MATH_DIR = resolve(process.cwd(), 'src/lib/compute/kernels/shared/math');
 const KERNELS_DIR = resolve(process.cwd(), 'src/lib/compute/kernels');
@@ -71,4 +72,20 @@ test('pass shaders do not redefine the shared angular helpers locally', () => {
 			expect(source).not.toMatch(new RegExp(`(?:fn|float|vec2|vec3|vec4)\\s+${helper}\\s*\\(`));
 		}
 	}
+});
+
+test('webgl2 vertex shader composition keeps version first and portable precision qualifiers', () => {
+	const source = composeWebGl2VertexShaderSource(
+		'#version 300 es\nvoid helper() {}',
+		'void main() {}',
+	);
+
+	expect(source.startsWith('#version 300 es\n')).toBe(true);
+	expect(source).toContain('precision highp float;');
+	expect(source).toContain('precision highp int;');
+	expect(source).toContain('precision highp sampler2D;');
+	expect(source).toContain('precision highp isampler2D;');
+	expect(source).toContain('precision highp usampler2D;');
+	expect(source).not.toContain('precision highp uint;');
+	expect(source.match(/#version 300 es/g)?.length).toBe(1);
 });

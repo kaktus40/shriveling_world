@@ -13,6 +13,7 @@ import {
 	createCurveGeometryProgram,
 	type WebGl2CurveGeometryDispatchResources,
 } from '../../buffers';
+import { composeWebGl2VertexShaderSource } from '../../programs';
 import { createCurveGeometryDispatchResources } from './buffers';
 import type { WebGl2ComputeResources } from '../../types';
 import { DEFAULT_PROJECTION_SETTINGS, projectionModeToIndex } from '$lib/shared/math';
@@ -73,7 +74,10 @@ export async function runWebGl2CurveGeometryPass(
 	const resources = input.resources;
 	const program =
 		resources.programCache?.get('curve-geometry') ??
-		createCurveGeometryProgram(gl, `${projectionWebGl2ShaderSource}\n${curveGeometryVertexShaderSource}`);
+		createCurveGeometryProgram(
+			gl,
+			composeWebGl2VertexShaderSource(projectionWebGl2ShaderSource, curveGeometryVertexShaderSource),
+		);
 	const dispatchResources = createCurveGeometryDispatchResources(gl, program, {
 		...curveInput,
 		earthRadiusMeters: EARTH_RADIUS_METERS,
