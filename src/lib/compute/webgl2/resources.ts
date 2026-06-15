@@ -121,6 +121,8 @@ export function createWebGl2ComputeResources(gl: WebGL2RenderingContext): WebGl2
 			['curve-geometry', curveGeometryProgram],
 		]),
 		framebufferCache: new Map(),
+	// reserved place for double-buffer sets per-pass; Phase C will populate this map
+	doubleBufferSets: new Map<string, any>(),
 	};
 	__webgl2ResourcesCache.set(gl, resources);
 	return resources;

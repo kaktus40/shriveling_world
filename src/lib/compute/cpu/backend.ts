@@ -38,7 +38,8 @@ import {
 	type StageTiming,
 } from '../core/types';
 import { createComputeAnnualCache, createComputeAnnualCacheKey } from '../core/annual-cache';
-import { measureStage, sumStageDurations } from '../core/timing';
+import { measureStage, sumStageDurations, measureAsyncStage } from '../core/timing';
+import { createInprocessWorker } from '../phase-c/phase-c';
 import { tagDiagnostics } from '../shared/compute';
 import { runCpuBoundaryStages } from './boundary';
 import { runCpuConeIntersectionStage } from './cone';
@@ -49,6 +50,7 @@ export class CpuComputeBackend implements ComputeBackend {
 	#annualCacheKey: string | null = null;
 	#dynamicTownByYear: DynamicTownPrecomputeByYear | null = null;
 	#curvePrecompute: CurvePrecompute | null = null;
+	#worker = createInprocessWorker();
 
 	async warm(): Promise<void> {
 		// CPU backend has no external runtime to warm up, but the method keeps
@@ -123,12 +125,22 @@ export class CpuComputeBackend implements ComputeBackend {
 		let staticTown: StaticTownPrecompute | undefined;
 		let annualCache: ReturnType<typeof createComputeAnnualCache> | null = null;
 		if (needStaticTown) {
-			const { value: computedStaticTown, timing: staticTiming } = measureStage(
+			const staticTimingResult = await measureAsyncStage(
 				'static-town-precompute',
 				'precompute',
 				this.profile,
-				() => computeStaticTownPrecomputeCpu(toStaticTownInput(preparedDataset), staticTownOptions),
+				async () => {
+					try {
+						const req = await this.#worker.post({ id: `staticTown-${Date.now()}`, type: 'compute', payload: { action: 'staticTown', staticTownInput: toStaticTownInput(preparedDataset), staticTownOptions } });
+						if (req.ok) return req.payload as StaticTownPrecompute;
+						// fallback
+						return computeStaticTownPrecomputeCpu(toStaticTownInput(preparedDataset), staticTownOptions);
+					} catch (e) {
+						return computeStaticTownPrecomputeCpu(toStaticTownInput(preparedDataset), staticTownOptions);
+					}
+				},
 			);
+			const { value: computedStaticTown, timing: staticTiming } = staticTimingResult;
 			staticTown = computedStaticTown;
 			timings.push(staticTiming);
 			const annualCacheKey = createComputeAnnualCacheKey({
@@ -161,84 +173,82 @@ export class CpuComputeBackend implements ComputeBackend {
 		}
 
 		if (needRawCones && options.rawCone && dynamicTown && staticTown) {
-			const rawConeTiming = measureStage(
+			const rawConeTiming = await measureAsyncStage(
 				'raw-cones-precompute',
 				'precompute',
 				this.profile,
-				() =>
-					computeRawConePrecomputeCpu(
-						staticTown as StaticTownPrecompute,
-						dynamicTown as DynamicTownPrecompute,
-						options.rawCone as RawConePrecomputeOptions,
-					),
+				async () => {
+					try {
+						const req = await this.#worker.post({ id: `rawCones-${Date.now()}`, type: 'compute', payload: { action: 'rawCones', staticTown, dynamicTown, options: options.rawCone } });
+						if (req.ok) return req.payload as RawConePrecompute;
+						return computeRawConePrecomputeCpu(staticTown as StaticTownPrecompute, dynamicTown as DynamicTownPrecompute, options.rawCone as RawConePrecomputeOptions);
+					} catch (e) {
+						return computeRawConePrecomputeCpu(staticTown as StaticTownPrecompute, dynamicTown as DynamicTownPrecompute, options.rawCone as RawConePrecomputeOptions);
+					}
+				},
 			);
-			);
+			rawCones = rawConeTiming.value;
 			timings.push(rawConeTiming.timing);
 		}
-		}
 		if (needConeIntersections && options.coneIntersection?.enabled !== false && rawCones && dynamicTown && staticTown) {
-			const coneIntersectionResult = measureStage('cone-intersections-precompute', 'interactive', this.profile, () =>
-				runCpuConeIntersectionStage(
-					staticTown as StaticTownPrecompute,
-					rawCones as RawConePrecompute,
-					dynamicTown as DynamicTownPrecompute,
-					options.coneIntersection?.strategy ?? 'oracle',
-					options.coneIntersection,
-				),
-			);
+			const coneIntersectionResult = await measureAsyncStage('cone-intersections-precompute', 'interactive', this.profile, async () => {
+				try {
+					const req = await this.#worker.post({ id: `coneIntersections-${Date.now()}`, type: 'compute', payload: { action: 'coneIntersections', staticTown, rawCones, dynamicTown, strategy: options.coneIntersection?.strategy ?? 'oracle', options: options.coneIntersection } });
+					if (req.ok) return req.payload as ConeIntersectionOraclePrecompute;
+					return runCpuConeIntersectionStage(staticTown as StaticTownPrecompute, rawCones as RawConePrecompute, dynamicTown as DynamicTownPrecompute, options.coneIntersection?.strategy ?? 'oracle', options.coneIntersection);
+				} catch (e) {
+					return runCpuConeIntersectionStage(staticTown as StaticTownPrecompute, rawCones as RawConePrecompute, dynamicTown as DynamicTownPrecompute, options.coneIntersection?.strategy ?? 'oracle', options.coneIntersection);
+				}
+			});
 			coneIntersections = coneIntersectionResult.value;
 			timings.push(coneIntersectionResult.timing);
 		}
 
 		if ((needFinalCones || needFinalCurves) && coneIntersections) {
-			geojsonRuns = geojsonRuns.map((geojsonRun) => {
+					geojsonRuns = await Promise.all(
+			geojsonRuns.map(async (geojsonRun) => {
 				if (needFinalCones) {
-					const finalConesTiming = measureStage(
+					const finalConesTiming = await measureAsyncStage(
 						'final-cones-precompute',
 						'precompute',
 						this.profile,
-						() =>
-							computeFinalConePrecomputeCpu(
-									coneIntersections as ConeIntersectionOraclePrecompute,
-									geojsonRun.boundaryRaycast,
-									EARTH_RADIUS_METERS,
-									options.projection
-										? {
-											start: options.projection.start,
-											end: options.projection.end,
-											percent: options.projection.percent,
-											settings: options.projection.settings,
-										}
-										: undefined,
-						),
+						async () => {
+							try {
+										const req = await this.#worker.post({ id: `finalCones-${Date.now()}`, type: 'compute', payload: { action: 'finalCones', coneIntersections, boundaryRaycast: geojsonRun.boundaryRaycast, projection: options.projection, earthRadiusMeters: EARTH_RADIUS_METERS } });
+										if (req.ok) return req.payload as any;
+										return computeFinalConePrecomputeCpu(coneIntersections as ConeIntersectionOraclePrecompute, geojsonRun.boundaryRaycast, EARTH_RADIUS_METERS, options.projection ? { start: options.projection.start, end: options.projection.end, percent: options.projection.percent, settings: options.projection.settings } : undefined);
+							} catch (e) {
+										return computeFinalConePrecomputeCpu(coneIntersections as ConeIntersectionOraclePrecompute, geojsonRun.boundaryRaycast, EARTH_RADIUS_METERS, options.projection ? { start: options.projection.start, end: options.projection.end, percent: options.projection.percent, settings: options.projection.settings } : undefined);
+							}
+						},
 					);
 					timings.push(finalConesTiming.timing);
 					geojsonRun = { ...geojsonRun, finalCones: finalConesTiming.value };
 				}
 				return geojsonRun;
-			});
-		}
-		if (options.curve?.enabled === true) {
-			const curvePrecompute = this.#curvePrecompute ?? annualCache?.curvePrecompute ?? createComputeAnnualCache(preparedDataset, staticTown).curvePrecompute;
-			const curveGeometryResult = measureStage(
-				'final-curves-precompute',
-				'precompute',
-				this.profile,
-				() =>
-					computeFinalCurveVertexBufferCpu(
-						prepareCurveGeometryInput(curvePrecompute, {
-							year: options.curve?.year ?? dynamicYear,
-							pointsPerCurve: options.curve?.pointsPerCurve ?? 15,
-							curvePosition: options.curve?.curvePosition ?? 'above',
-							coefficient: options.curve?.coefficient ?? 1,
-						}),
-						options.projection,
-					),
-			);
-			curveGeometry = curveGeometryResult.value;
-			timings.push(curveGeometryResult.timing);
-			diagnostics.push(...tagDiagnostics(curvePrecompute.diagnostics, this.profile));
-		}
+			}),
+					);
+				}
+				if (options.curve?.enabled === true) {
+					const curvePrecompute = this.#curvePrecompute ?? annualCache?.curvePrecompute ?? createComputeAnnualCache(preparedDataset, staticTown).curvePrecompute;
+					const curveGeometryResult = await measureAsyncStage(
+			'final-curves-precompute',
+			'precompute',
+			this.profile,
+			async () => {
+				try {
+					const req = await this.#worker.post({ id: `finalCurves-${Date.now()}`, type: 'compute', payload: { action: 'finalCurves', curvePrecompute, options: { year: options.curve?.year ?? dynamicYear, pointsPerCurve: options.curve?.pointsPerCurve ?? 15, curvePosition: options.curve?.curvePosition ?? 'above', coefficient: options.curve?.coefficient ?? 1 }, projection: options.projection } });
+					if (req.ok) return req.payload as any;
+					return computeFinalCurveVertexBufferCpu(prepareCurveGeometryInput(curvePrecompute, { year: options.curve?.year ?? dynamicYear, pointsPerCurve: options.curve?.pointsPerCurve ?? 15, curvePosition: options.curve?.curvePosition ?? 'above', coefficient: options.curve?.coefficient ?? 1 }), options.projection);
+				} catch (e) {
+					return computeFinalCurveVertexBufferCpu(prepareCurveGeometryInput(curvePrecompute, { year: options.curve?.year ?? dynamicYear, pointsPerCurve: options.curve?.pointsPerCurve ?? 15, curvePosition: options.curve?.curvePosition ?? 'above', coefficient: options.curve?.coefficient ?? 1 }), options.projection);
+				}
+			},
+					);
+					curveGeometry = curveGeometryResult.value;
+					timings.push(curveGeometryResult.timing);
+					diagnostics.push(...tagDiagnostics(curvePrecompute.diagnostics, this.profile));
+				}
 
 		const benchmark: ComputeBenchmarkReport = {
 			profile: this.profile,

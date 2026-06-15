@@ -60,3 +60,79 @@ export function createComputeWorker(scriptUrl: string) {
 		},
 	};
 }
+
+// Lightweight in-process worker fallback that executes compute tasks synchronously
+// but with a Promise API. Useful for Node test environments or browsers lacking
+// worker support during the initial integration steps.
+import {
+	inspectDatasetFiles,
+	resolveDatasetManifest,
+	prepareDataset,
+} from '../../domain/data';
+import {
+	computeStaticTownPrecomputeCpu,
+	computeDynamicTownPrecomputeForYearCpu,
+	computeRawConePrecomputeCpu,
+	computeFinalConePrecomputeCpu,
+	computeFinalCurveVertexBufferCpu,
+} from '../../domain/precompute';
+import { runCpuConeIntersectionStage } from '../cpu/cone';
+
+export function createInprocessWorker() {
+	return {
+		async post(req: WorkerRequest): Promise<WorkerResponse> {
+			try {
+				if (req.type === 'ping') {
+					return { id: req.id, ok: true, type: 'pong' };
+				}
+				if (req.type === 'parse') {
+					const files = req.payload as { name: string; text: string }[];
+					const inspected = inspectDatasetFiles(files);
+					const manifest = resolveDatasetManifest(inspected);
+					const prepared = prepareDataset({ files: files as any, manifest } as any);
+					return { id: req.id, ok: true, type: 'result', payload: { inspected, manifest, prepared } };
+				}
+				if (req.type === 'compute') {
+					const payload = req.payload as any;
+					switch (payload.action) {
+						case 'staticTown': {
+							const { staticTownInput, staticTownOptions } = payload;
+							const val = computeStaticTownPrecomputeCpu(staticTownInput, staticTownOptions);
+							return { id: req.id, ok: true, type: 'result', payload: val };
+						}
+						case 'dynamicTown': {
+							const { preparedDataset, staticTown, year } = payload;
+							const val = computeDynamicTownPrecomputeForYearCpu(preparedDataset, staticTown, year);
+							return { id: req.id, ok: true, type: 'result', payload: val };
+						}
+						case 'rawCones': {
+							const { staticTown, dynamicTown, options } = payload;
+							const val = computeRawConePrecomputeCpu(staticTown, dynamicTown, options);
+							return { id: req.id, ok: true, type: 'result', payload: val };
+						}
+						case 'coneIntersections': {
+							const { staticTown, rawCones, dynamicTown, strategy, options } = payload;
+							const val = runCpuConeIntersectionStage(staticTown, rawCones, dynamicTown, strategy, options);
+							return { id: req.id, ok: true, type: 'result', payload: val };
+						}
+						case 'finalCones': {
+							const { coneIntersections, boundaryRaycast, projection } = payload;
+							const val = computeFinalConePrecomputeCpu(coneIntersections, boundaryRaycast, projection?.settings ? projection : undefined, payload.earthRadiusMeters);
+							return { id: req.id, ok: true, type: 'result', payload: val };
+						}
+						case 'finalCurves': {
+							const { curvePrecompute, options, projection } = payload;
+							const val = computeFinalCurveVertexBufferCpu(curvePrecompute, options, projection);
+							return { id: req.id, ok: true, type: 'result', payload: val };
+						}
+						default:
+							return { id: req.id, ok: false, type: 'error', payload: 'unknown compute action' };
+					}
+				}
+				return { id: req.id, ok: false, type: 'error', payload: 'unhandled request type' };
+			} catch (e: any) {
+				return { id: req.id, ok: false, type: 'error', payload: String(e && e.message ? e.message : e) };
+			}
+		},
+	};
+}
