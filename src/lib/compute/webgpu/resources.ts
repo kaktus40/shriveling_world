@@ -26,8 +26,18 @@ function buildPassContract(
 	};
 }
 
+/** Track devices that have had resources created so repeated creations indicate a potential recreation bug. */
+const __webgpuInitializedDevices: WeakSet<GPUDevice> = new WeakSet();
+
 /** Creates the cached WebGPU resources for all migration compute passes. */
 export function createWebGpuComputeResources(device: GPUDevice): WebGpuComputeResources {
+	if (__webgpuInitializedDevices.has(device)) {
+		// Pipeline/resources recreated after initial warm — surface a clear warning to help debugging.
+		console.warn('WebGPU resources recreated for device — possible pipeline/pipeline-cache recreation after warm(). This may indicate a persistence bug.');
+		if (typeof console.trace === 'function') console.trace();
+	} else {
+		__webgpuInitializedDevices.add(device);
+	}
 	const cityMatrixModule = device.createShaderModule({ code: cityNed2EcefShaderSource });
 	const rawConeAlphaModule = device.createShaderModule({
 		code: `${sharedMathShaderSource}\n${rawConeAlphasShaderSource}`,

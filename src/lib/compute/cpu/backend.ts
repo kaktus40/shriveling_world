@@ -104,6 +104,15 @@ export class CpuComputeBackend implements ComputeBackend {
 		timings.push(preparedTiming);
 		diagnostics.push(...preparedDataset.diagnostics);
 
+		// Determine passFilter usage and stage dependencies so we can short-circuit CPU work
+		const hasFilter = Array.isArray(options.passFilter);
+		const inFilter = (stage: string) => !hasFilter || (options.passFilter as readonly string[]).includes(stage as any);
+		const needStaticTown = inFilter('static-town-precompute') || inFilter('raw-cones-precompute') || inFilter('cone-intersections-precompute') || inFilter('final-cones-precompute') || inFilter('final-curves-precompute');
+		const needRawCones = inFilter('raw-cones-precompute');
+		const needConeIntersections = inFilter('cone-intersections-precompute');
+		const needFinalCones = inFilter('final-cones-precompute');
+		const needFinalCurves = inFilter('final-curves-precompute');
+
 		let geojsonRuns = runCpuBoundaryStages(sourceFiles, inspectedFiles, preparedDataset, options, input.geojsonSources);
 		for (const geojsonRun of geojsonRuns) {
 			timings.push(geojsonRun.precomputeTiming, geojsonRun.raycastTiming);
@@ -111,23 +120,27 @@ export class CpuComputeBackend implements ComputeBackend {
 		}
 
 		const staticTownOptions = resolveStaticTownOptions(preparedDataset, options.staticTown);
-		const { value: staticTown, timing: staticTiming } = measureStage(
-			'static-town-precompute',
-			'precompute',
-			this.profile,
-			() => computeStaticTownPrecomputeCpu(toStaticTownInput(preparedDataset), staticTownOptions),
-		);
-		timings.push(staticTiming);
-		const annualCacheKey = createComputeAnnualCacheKey({
-			sourceFiles,
-			staticTown: staticTownOptions,
-		});
-		let annualCache = null;
-		if (this.#annualCacheKey !== annualCacheKey || !this.#dynamicTownByYear || !this.#curvePrecompute) {
-			annualCache = createComputeAnnualCache(preparedDataset, staticTown);
-			this.#annualCacheKey = annualCacheKey;
-			this.#dynamicTownByYear = annualCache.dynamicTownByYear;
-			this.#curvePrecompute = annualCache.curvePrecompute;
+		let staticTown: StaticTownPrecompute | undefined;
+		let annualCache: ReturnType<typeof createComputeAnnualCache> | null = null;
+		if (needStaticTown) {
+			const { value: computedStaticTown, timing: staticTiming } = measureStage(
+				'static-town-precompute',
+				'precompute',
+				this.profile,
+				() => computeStaticTownPrecomputeCpu(toStaticTownInput(preparedDataset), staticTownOptions),
+			);
+			staticTown = computedStaticTown;
+			timings.push(staticTiming);
+			const annualCacheKey = createComputeAnnualCacheKey({
+				sourceFiles,
+				staticTown: staticTownOptions,
+			});
+			if (this.#annualCacheKey !== annualCacheKey || !this.#dynamicTownByYear || !this.#curvePrecompute) {
+				annualCache = createComputeAnnualCache(preparedDataset, staticTown);
+				this.#annualCacheKey = annualCacheKey;
+				this.#dynamicTownByYear = annualCache.dynamicTownByYear;
+				this.#curvePrecompute = annualCache.curvePrecompute;
+			}
 		}
 
 		let dynamicTown: DynamicTownPrecompute | undefined;
@@ -136,39 +149,39 @@ export class CpuComputeBackend implements ComputeBackend {
 		let curveGeometry: CurveVertexBuffer | undefined;
 
 		const dynamicYear = options.dynamicYear ?? preparedDataset.speedTimeline.span.beginYear;
-		if (Number.isFinite(dynamicYear)) {
+		if (Number.isFinite(dynamicYear) && (inFilter('dynamic-town-precompute') || needRawCones || needConeIntersections || needFinalCones || needFinalCurves)) {
 			const dynamicTiming = measureStage(
 				'dynamic-town-precompute',
 				'precompute',
 				this.profile,
-				() => resolveAnnualDynamicTown(this.#dynamicTownByYear, preparedDataset, staticTown, dynamicYear),
+				() => resolveAnnualDynamicTown(this.#dynamicTownByYear, preparedDataset, staticTown as StaticTownPrecompute, dynamicYear),
 			);
 			dynamicTown = dynamicTiming.value;
 			timings.push(dynamicTiming.timing);
 		}
 
-		if (options.rawCone && dynamicTown) {
+		if (needRawCones && options.rawCone && dynamicTown && staticTown) {
 			const rawConeTiming = measureStage(
 				'raw-cones-precompute',
 				'precompute',
 				this.profile,
 				() =>
 					computeRawConePrecomputeCpu(
-						staticTown,
+						staticTown as StaticTownPrecompute,
 						dynamicTown as DynamicTownPrecompute,
 						options.rawCone as RawConePrecomputeOptions,
 					),
 			);
-			rawCones = rawConeTiming.value;
+			);
 			timings.push(rawConeTiming.timing);
 		}
-
-		if (options.coneIntersection?.enabled !== false && rawCones && dynamicTown) {
+		}
+		if (needConeIntersections && options.coneIntersection?.enabled !== false && rawCones && dynamicTown && staticTown) {
 			const coneIntersectionResult = measureStage('cone-intersections-precompute', 'interactive', this.profile, () =>
 				runCpuConeIntersectionStage(
-					staticTown,
-					rawCones,
-					dynamicTown,
+					staticTown as StaticTownPrecompute,
+					rawCones as RawConePrecompute,
+					dynamicTown as DynamicTownPrecompute,
 					options.coneIntersection?.strategy ?? 'oracle',
 					options.coneIntersection,
 				),
@@ -177,35 +190,34 @@ export class CpuComputeBackend implements ComputeBackend {
 			timings.push(coneIntersectionResult.timing);
 		}
 
-		if (coneIntersections) {
+		if ((needFinalCones || needFinalCurves) && coneIntersections) {
 			geojsonRuns = geojsonRuns.map((geojsonRun) => {
-				const finalConesTiming = measureStage(
-				'final-cones-precompute',
-				'precompute',
-				this.profile,
-				() =>
-					computeFinalConePrecomputeCpu(
-						coneIntersections,
-						geojsonRun.boundaryRaycast,
-						EARTH_RADIUS_METERS,
-						options.projection
-							? {
-									start: options.projection.start,
-									end: options.projection.end,
-									percent: options.projection.percent,
-									settings: options.projection.settings,
-								}
-							: undefined,
-					),
-			);
-				timings.push(finalConesTiming.timing);
-				return {
-					...geojsonRun,
-					finalCones: finalConesTiming.value,
-				};
+				if (needFinalCones) {
+					const finalConesTiming = measureStage(
+						'final-cones-precompute',
+						'precompute',
+						this.profile,
+						() =>
+							computeFinalConePrecomputeCpu(
+									coneIntersections as ConeIntersectionOraclePrecompute,
+									geojsonRun.boundaryRaycast,
+									EARTH_RADIUS_METERS,
+									options.projection
+										? {
+											start: options.projection.start,
+											end: options.projection.end,
+											percent: options.projection.percent,
+											settings: options.projection.settings,
+										}
+										: undefined,
+						),
+					);
+					timings.push(finalConesTiming.timing);
+					geojsonRun = { ...geojsonRun, finalCones: finalConesTiming.value };
+				}
+				return geojsonRun;
 			});
 		}
-
 		if (options.curve?.enabled === true) {
 			const curvePrecompute = this.#curvePrecompute ?? annualCache?.curvePrecompute ?? createComputeAnnualCache(preparedDataset, staticTown).curvePrecompute;
 			const curveGeometryResult = measureStage(

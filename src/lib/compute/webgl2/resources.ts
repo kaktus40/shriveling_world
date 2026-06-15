@@ -18,8 +18,17 @@ import { composeWebGl2VertexShaderSource } from './programs';
 import type { WebGl2ComputeResources } from './types';
 import { createRawConeAlphasVertexShaderSource } from './passes/raw-cone-alphas/source';
 
+/** Track GL contexts that have had resources created so repeated creations indicate a potential recreation bug. */
+const __webgl2InitializedContexts: WeakSet<WebGL2RenderingContext> = new WeakSet();
+
 /** Creates the cached WebGL2 resources for all migration compute passes. */
 export function createWebGl2ComputeResources(gl: WebGL2RenderingContext): WebGl2ComputeResources {
+	if (__webgl2InitializedContexts.has(gl)) {
+		console.warn('WebGL2 resources recreated for context — possible program/pipeline recreation after warm(). This may indicate a persistence bug.');
+		if (typeof console.trace === 'function') console.trace();
+	} else {
+		__webgl2InitializedContexts.add(gl);
+	}
 	const cityProgram = createCityNed2EcefProgram(gl, cityNed2EcefVertexShaderSource);
 	const rawConeAlphaProgram = createRawConeAlphasProgram(gl, createRawConeAlphasVertexShaderSource());
 	const boundaryProgram = createBoundaryAlgebreProgram(
@@ -38,6 +47,12 @@ export function createWebGl2ComputeResources(gl: WebGL2RenderingContext): WebGl2
 		gl,
 		composeWebGl2VertexShaderSource(projectionWebGl2ShaderSource, curveGeometryVertexShaderSource),
 	);
+
+	// Log compiled program keys to help confirm shader compilation at runtime.
+	try {
+		const programNames = ['city-ned2ecef','boundary-algebre','raw-cone-alphas','ciseled-cones','final-cones','curve-geometry'];
+		console.debug(`WebGL2: compiled programs: ${programNames.join(', ')}`);
+	} catch {}
 
 	return {
 		buffers: [],
