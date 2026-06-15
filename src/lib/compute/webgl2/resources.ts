@@ -18,16 +18,14 @@ import { composeWebGl2VertexShaderSource } from './programs';
 import type { WebGl2ComputeResources } from './types';
 import { createRawConeAlphasVertexShaderSource } from './passes/raw-cone-alphas/source';
 
-/** Track GL contexts that have had resources created so repeated creations indicate a potential recreation bug. */
-const __webgl2InitializedContexts: WeakSet<WebGL2RenderingContext> = new WeakSet();
+/** Cache of created WebGL2 resources keyed by GL context to ensure identity across callers. */
+const __webgl2ResourcesCache: WeakMap<WebGL2RenderingContext, WebGl2ComputeResources> = new WeakMap();
 
-/** Creates the cached WebGL2 resources for all migration compute passes. */
+/** Creates the cached WebGL2 resources for all migration compute passes. Returns cached instance when available. */
 export function createWebGl2ComputeResources(gl: WebGL2RenderingContext): WebGl2ComputeResources {
-	if (__webgl2InitializedContexts.has(gl)) {
-		console.warn('WebGL2 resources recreated for context — possible program/pipeline recreation after warm(). This may indicate a persistence bug.');
-		if (typeof console.trace === 'function') console.trace();
-	} else {
-		__webgl2InitializedContexts.add(gl);
+	const cached = __webgl2ResourcesCache.get(gl);
+	if (cached) {
+		return cached;
 	}
 	const cityProgram = createCityNed2EcefProgram(gl, cityNed2EcefVertexShaderSource);
 	const rawConeAlphaProgram = createRawConeAlphasProgram(gl, createRawConeAlphasVertexShaderSource());
@@ -54,7 +52,7 @@ export function createWebGl2ComputeResources(gl: WebGL2RenderingContext): WebGl2
 		console.debug(`WebGL2: compiled programs: ${programNames.join(', ')}`);
 	} catch {}
 
-	return {
+	const resources: WebGl2ComputeResources = {
 		buffers: [],
 		pipeline: {
 			passes: [
@@ -124,4 +122,6 @@ export function createWebGl2ComputeResources(gl: WebGL2RenderingContext): WebGl2
 		]),
 		framebufferCache: new Map(),
 	};
+	__webgl2ResourcesCache.set(gl, resources);
+	return resources;
 }
