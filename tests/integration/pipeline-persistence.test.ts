@@ -100,14 +100,26 @@ test('pipelines/programs remain identical across session frames', async () => {
 
   await session.warm();
 
+  // Build minimal dataset files required by compute (same as other workspace fixtures)
+  const files = [
+    { name: 'cities.csv', text: `cityCode,latitude,longitude,radius,cityName\n1,0,0,1000,A\n2,10,20,1000,B` },
+    { name: 'population.csv', text: `cityCode,pop1950,pop1960\n1,1000,1200\n2,2000,2400` },
+    { name: 'transport_modes.csv', text: `code,name,terrestrial\n1,Road,1\n2,Rail,1\n3,Air,0` },
+    { name: 'transport_mode_speeds.csv', text: `transportModeCode,year,speedKPH\n1,2000,100\n1,2010,100\n2,2005,200\n2,2010,300\n3,2005,500\n3,2010,700` },
+    { name: 'transport_network.csv', text: `cityCodeOri,cityCodeDes,transportModeCode,eYearBegin,eYearEnd\n1,2,2,2005,2010\n1,2,3,2007,2010` },
+    { name: 'boundaries.geojson', text: JSON.stringify({ type: 'FeatureCollection', features: [] }) },
+  ];
+
+  const geojsonSources = [{ fileName: 'boundaries.geojson', geojson: { type: 'FeatureCollection', features: [] } }];
+
   // full compute
-  await session.computeFrame({ sourceFiles: [], geojsonSources: [] }, { benchmark: true }, { preferred: 'webgl2', allowFallback: true });
+  await session.computeFrame({ sourceFiles: files, geojsonSources }, { benchmark: true }, { preferred: 'webgl2', allowFallback: true });
 
   // partial recompute: year change
-  await session.computeFrame({ sourceFiles: [], geojsonSources: [] }, { passFilter: ['raw-cones-precompute', 'cone-intersections-precompute'], rawCone: { shape: 'road' as any, azimuthSampleCount: 16, coneLengthMeters: 1000, attenuationRadians: 0.1 } }, { preferred: 'webgl2', allowFallback: true });
+  await session.computeFrame({ sourceFiles: files, geojsonSources }, { passFilter: ['raw-cones-precompute', 'cone-intersections-precompute'], rawCone: { shape: 'road' as any, azimuthSampleCount: 16, coneLengthMeters: 1000, attenuationRadians: 0.1 } }, { preferred: 'webgl2', allowFallback: true });
 
   // partial recompute: projection change
-  await session.computeFrame({ sourceFiles: [], geojsonSources: [] }, { passFilter: ['geojson-boundary-raycast', 'final-cones-precompute'], projection: { start: 'mercator' as any, end: 'geographic' as any, percent: 0.5 } }, { preferred: 'webgl2', allowFallback: true });
+  await session.computeFrame({ sourceFiles: files, geojsonSources }, { passFilter: ['geojson-boundary-raycast', 'final-cones-precompute'], projection: { start: 'mercator' as any, end: 'geographic' as any, percent: 0.5 } }, { preferred: 'webgl2', allowFallback: true });
 
   // No pipeline recreation warnings should have occurred because resources are cached per-device/context.
   assert.equal(warnSpy.mock.calls.length, 0, 'no resource recreation warnings');
