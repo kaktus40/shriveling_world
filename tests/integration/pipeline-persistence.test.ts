@@ -2,7 +2,7 @@ import { test, assert, vi } from 'vitest';
 import { createDefaultComputeBackendRegistry, createComputeSession } from '$lib/compute';
 import { createWebGl2ComputeBackendDescriptor } from '$lib/compute/webgl2';
 
-function createFakeGl(): WebGL2RenderingContext {
+function createFakeGl(): WebGL2RenderingContext & { __counters?: Record<string, number> } {
   const shader = {} as WebGLShader;
   const program = {} as WebGLProgram;
   const buffer = {} as WebGLBuffer;
@@ -10,6 +10,9 @@ function createFakeGl(): WebGL2RenderingContext {
   const transformFeedback = {} as WebGLTransformFeedback;
   const texture = {} as WebGLTexture;
   const uniformLocation = {} as WebGLUniformLocation;
+
+  const counters: Record<string, number> = { createProgram: 0, createShader: 0, createBuffer: 0 };
+
   return {
     VERTEX_SHADER: 0x8b31,
     FRAGMENT_SHADER: 0x8b30,
@@ -39,13 +42,13 @@ function createFakeGl(): WebGL2RenderingContext {
     INT: 0x1404,
     UNSIGNED_INT: 0x1405,
     UNPACK_ALIGNMENT: 0x0cf5,
-    createShader: () => shader,
+    createShader: () => { counters.createShader++; return shader; },
     shaderSource: () => {},
     compileShader: () => {},
     getShaderParameter: () => true,
     getShaderInfoLog: () => '',
     deleteShader: () => {},
-    createProgram: () => program,
+    createProgram: () => { counters.createProgram++; return program; },
     attachShader: () => {},
     transformFeedbackVaryings: () => {},
     linkProgram: () => {},
@@ -53,7 +56,7 @@ function createFakeGl(): WebGL2RenderingContext {
     getProgramInfoLog: () => '',
     deleteProgram: () => {},
     getUniformLocation: () => uniformLocation,
-    createBuffer: () => buffer,
+    createBuffer: () => { counters.createBuffer++; return buffer; },
     bindBuffer: () => {},
     bufferData: () => {},
     createVertexArray: () => vao,
@@ -85,11 +88,13 @@ function createFakeGl(): WebGL2RenderingContext {
     drawArraysInstanced: () => {},
     endTransformFeedback: () => {},
     finish: () => {},
-  } as unknown as WebGL2RenderingContext;
+    __counters: counters,
+  } as unknown as WebGL2RenderingContext & { __counters?: Record<string, number> };
 }
 
 test('pipelines/programs remain identical across session frames', async () => {
-  const canvas = { getContext: (kind: string) => (kind === 'webgl2' ? createFakeGl() : null) } as unknown as HTMLCanvasElement;
+  const gl = createFakeGl();
+  const canvas = { getContext: (kind: string) => (kind === 'webgl2' ? gl : null) } as unknown as HTMLCanvasElement;
   const registry = {
     ...createDefaultComputeBackendRegistry(),
     webgl2: createWebGl2ComputeBackendDescriptor({ canvas } as any),
@@ -99,6 +104,11 @@ test('pipelines/programs remain identical across session frames', async () => {
   const warnSpy = vi.spyOn(console, 'warn');
 
   await session.warm();
+
+  // record counts after warm (initial resource creation)
+  const afterWarmCreateProgram = gl.__counters?.createProgram ?? 0;
+  const afterWarmCreateShader = gl.__counters?.createShader ?? 0;
+  const afterWarmCreateBuffer = gl.__counters?.createBuffer ?? 0;
 
   // Build minimal dataset files required by compute (same as other workspace fixtures)
   const files = [
@@ -115,14 +125,42 @@ test('pipelines/programs remain identical across session frames', async () => {
   // full compute
   await session.computeFrame({ sourceFiles: files, geojsonSources }, { benchmark: true }, { preferred: 'webgl2', allowFallback: true });
 
+  // capture counts after full compute
+  const afterFullCreateProgram = gl.__counters?.createProgram ?? 0;
+  const afterFullCreateShader = gl.__counters?.createShader ?? 0;
+  const afterFullCreateBuffer = gl.__counters?.createBuffer ?? 0;
+
   // partial recompute: year change
   await session.computeFrame({ sourceFiles: files, geojsonSources }, { passFilter: ['raw-cones-precompute', 'cone-intersections-precompute'], rawCone: { shape: 'road' as any, azimuthSampleCount: 16, coneLengthMeters: 1000, attenuationRadians: 0.1 } }, { preferred: 'webgl2', allowFallback: true });
+
+  // capture counts after partial year recompute
+  const afterYearCreateProgram = gl.__counters?.createProgram ?? 0;
+  const afterYearCreateShader = gl.__counters?.createShader ?? 0;
+  const afterYearCreateBuffer = gl.__counters?.createBuffer ?? 0;
 
   // partial recompute: projection change
   await session.computeFrame({ sourceFiles: files, geojsonSources }, { passFilter: ['geojson-boundary-raycast', 'final-cones-precompute'], projection: { start: 'mercator' as any, end: 'geographic' as any, percent: 0.5 } }, { preferred: 'webgl2', allowFallback: true });
 
+  // capture counts after projection recompute
+  const afterProjectionCreateProgram = gl.__counters?.createProgram ?? 0;
+  const afterProjectionCreateShader = gl.__counters?.createShader ?? 0;
+  const afterProjectionCreateBuffer = gl.__counters?.createBuffer ?? 0;
+
   // No pipeline recreation warnings should have occurred because resources are cached per-device/context.
   assert.equal(warnSpy.mock.calls.length, 0, 'no resource recreation warnings');
+
+  // Ensure create* counts did not increase after initial warm/full compute phases (resources reused)
+  assert.equal(afterFullCreateProgram, afterWarmCreateProgram, 'no new programs created after warm');
+  assert.equal(afterYearCreateProgram, afterFullCreateProgram, 'no new programs created on year recompute');
+  assert.equal(afterProjectionCreateProgram, afterFullCreateProgram, 'no new programs created on projection recompute');
+
+  assert.equal(afterFullCreateShader, afterWarmCreateShader, 'no new shaders created after warm');
+  assert.equal(afterYearCreateShader, afterFullCreateShader, 'no new shaders created on year recompute');
+  assert.equal(afterProjectionCreateShader, afterFullCreateShader, 'no new shaders created on projection recompute');
+
+  assert.equal(afterFullCreateBuffer, afterWarmCreateBuffer, 'no new buffers created after warm');
+  assert.equal(afterYearCreateBuffer, afterFullCreateBuffer, 'no new buffers created on year recompute');
+  assert.equal(afterProjectionCreateBuffer, afterFullCreateBuffer, 'no new buffers created on projection recompute');
 
   warnSpy.mockRestore();
   await session.dispose();
