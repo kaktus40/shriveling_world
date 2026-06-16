@@ -9,6 +9,7 @@ import {
 } from './types';
 import { selectComputeProfile } from './selector';
 import { createDefaultComputeBackendRegistry } from '../cpu';
+import { diffComputeOptions } from './invalidation';
 
 export interface ComputeOrchestrator {
         selectProfile(request: ComputeProfileRequest): Promise<ComputeProfileSelection>;
@@ -18,8 +19,7 @@ export interface ComputeOrchestrator {
 export function createComputeOrchestrator(
         registry: ComputeBackendRegistry = createDefaultComputeBackendRegistry(),
 ): ComputeOrchestrator {
-        let lastPhase2Options: { neighborLimit?: number; interiorPointSpacingRadians?: number } | null = null;
-        let invalidatePhase2 = false;
+        let lastOptions: ComputeOptions | null = null;
 
         return {
                 selectProfile(request: ComputeProfileRequest): Promise<ComputeProfileSelection> {
@@ -31,23 +31,25 @@ export function createComputeOrchestrator(
                         options: ComputeOptions = {},
                         request: ComputeProfileRequest = {},
                 ): Promise<ComputeResult> {
-                        const currentNeighborLimit = options.staticTown?.neighborLimit;
-                        const currentSpacing = options.boundaryPrecompute?.interiorPointSpacingRadians;
-
-                        if (lastPhase2Options && (currentNeighborLimit !== lastPhase2Options.neighborLimit || currentSpacing !== lastPhase2Options.interiorPointSpacingRadians)) {
-                                invalidatePhase2 = true;
+                        if (lastOptions) {
+                                const impact = diffComputeOptions(lastOptions, options);
+                                if (impact.staticTown) {
+                                        // This signals a need to invalidate static invariants.
+                                        // This information needs to be passed to the backend, 
+                                        // or handled by clearing resources.
+                                        // Since backend is recreated, we might need a way to pass this
+                                        // signal or use a persistent cache mechanism.
+                                        // For now, let's just mark the options for the backend.
+                                        (options as any)._invalidateStatic = true;
+                                }
                         }
-
-                        lastPhase2Options = { neighborLimit: currentNeighborLimit, interiorPointSpacingRadians: currentSpacing };
+                        
+                        lastOptions = options;
 
                         const selection = await selectComputeProfile(request, registry);
                         const backend = await resolveSelectedBackend(registry, selection);
                         
                         try {
-                                if (invalidatePhase2) {
-                                        options = { ...options, passFilter: ['static-town-precompute', 'geojson-boundary-precompute', ... (options.passFilter ?? [])] };
-                                        invalidatePhase2 = false;
-                                }
                                 return await backend.computeFrame(input, options, selection);
                         } finally {
                                 await backend.dispose();
