@@ -12,7 +12,7 @@ export interface WebGpuCountryProjectionPassInput {
     readonly context: WebGpuComputeContext;
     readonly result: ComputeResult;
     readonly resources: WebGpuComputeResources;
-    readonly countryVertices: GpuBufferAllocation;
+    readonly countryVertices: GpuBufferAllocation; // Buffer from Phase 2 [lon, lat, h]
     readonly options: any;
 }
 
@@ -41,11 +41,13 @@ export async function runWebGpuCountryProjectionPass(
     
     const vertexCount = input.countryVertices.contract.count;
     
+    // Output Buffer: 4 * f32 per vertex
     const projectedVertices = device.createBuffer({
-        size: vertexCount * 12,
+        size: vertexCount * 16, 
         usage: usage.STORAGE | usage.COPY_SRC,
     });
 
+    // Uniform buffer setup
     const uniformBuffer = device.createBuffer({
         size: 64, 
         usage: usage.UNIFORM | usage.COPY_DST,
@@ -55,18 +57,14 @@ export async function runWebGpuCountryProjectionPass(
     const proj = input.options.projection;
     const settings = proj?.settings;
     const uniformData = new Float32Array([
-        // projection: vec4<f32>(startModeIndex, endModeIndex, percent, 0)
         proj?.start === 'none' ? 0 : 1, proj?.end === 'none' ? 0 : 1, proj?.percent ?? 0, 0,
-        // projection_settings_a: vec4<f32>(refLon, refLat, refHeight, zCoeff)
         settings?.referenceLongitudeRadians ?? 0,
         settings?.referenceLatitudeRadians ?? 0,
         settings?.referenceHeightMeters ?? 0,
         settings?.zCoefficient ?? 1,
-        // projection_settings_b: vec4<f32>(standardParallel1, standardParallel2, 0, 0)
         settings?.standardParallel1Radians ?? 0,
         settings?.standardParallel2Radians ?? 0,
         0, 0,
-        // extrusion_settings: vec4<f32>(mixFactor, zCoeff, 0, 0)
         proj?.percent ?? 1.0, settings?.zCoefficient ?? 1.0, 0, 0
     ]);
     queue.writeBuffer(uniformBuffer, 0, uniformData);
@@ -101,7 +99,7 @@ export async function runWebGpuCountryProjectionPass(
         diagnostics: [],
         projectedVertices: { 
             buffer: projectedVertices, 
-            contract: { name: 'projectedVertices', size: vertexCount * 12, usage: 'STORAGE' } as any 
+            contract: { name: 'projectedVertices', size: vertexCount * 16, usage: 'STORAGE' } as any 
         }
     };
 }
