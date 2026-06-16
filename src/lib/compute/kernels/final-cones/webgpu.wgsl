@@ -47,9 +47,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 uniforms.projection_settings_b.y,
         );
 
-        // UV Calculation
-        let u = f32(sample_index) / f32(azimuth_sample_count);
-        let v = length(final_rim.xyz) / uniforms.values.w; // globeRadius as coneLength reference
+        // UV Calculation (Equirectangular)
+        let geo = ecef_to_geographic(final_rim.xyz, uniforms.values.x);
+        let u = geo.x * (1.0 / (2.0 * PI)) + 0.5;
+        let v = geo.y * (1.0 / PI) + 0.5;
 
         // Output stored in pairs of vec4<f32>
         final_cone_geometry_ecef[ray_index * 2u] = vec4<f32>(projected, u);
