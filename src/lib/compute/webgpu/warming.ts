@@ -35,47 +35,59 @@ export class WarmingOrchestrator {
         this.queue = [...allYears];
     }
 
-    async setFocusYear(year: number) {
-        this.queue.sort((a, b) => {
-            const getPriority = (y: number) => {
-                if (y === year) return 0;
-                if (Math.abs(y - year) <= 1) return 1;
-                if (Math.abs(y - year) <= 5) return 2;
-                return 3;
-            };
-            return getPriority(a) - getPriority(b);
-        });
-        await this.processQueue();
+    setFocusYear(year: number) {
+        // Move year to front if it exists, or just resort
+        const index = this.queue.indexOf(year);
+        if (index > -1) {
+            this.queue.splice(index, 1);
+            this.queue.unshift(year);
+        }
+        
+        if (!this.isProcessing) this.processQueue();
     }
 
-    async processQueue() {
-        if (this.isProcessing) return;
-        this.isProcessing = true;
+    processQueue() {
+        if (this.isProcessing || this.queue.length === 0) return;
+        
+        // Use requestIdleCallback for cooperative multitasking
+        if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+            (window as any).requestIdleCallback(async () => {
+                await this.runNextBatch();
+            });
+        } else {
+            // Fallback for environments without requestIdleCallback
+            setTimeout(async () => await this.runNextBatch(), 0);
+        }
+    }
 
-        while (this.queue.length > 0) {
+    private async runNextBatch() {
+        this.isProcessing = true;
+        
+        // Process one year at a time to stay responsive
+        if (this.queue.length > 0) {
             const year = this.queue.shift()!;
             await this.warmYear(year);
         }
 
         this.isProcessing = false;
+        
+        if (this.queue.length > 0) {
+            this.processQueue();
+        }
     }
 
     async warmYear(year: number): Promise<Float32Array> {
         if (this.cache.has(year)) return this.cache.get(year)!;
         
-        // Compute dynamic town precompute for the target year and update the result
         const dynamicTown = this.deps.computeDynamicTown(
             this.result.preparedDataset,
             this.result.staticTown!,
             year
         );
         
-        // Inject for the next passes
         const warmedResult = { ...this.result, dynamicTown };
-
         const usage = getGpuBufferUsage();
         
-        // 1. Run Raw Cone Alpha Pass
         await this.deps.runRawAlpha({
             context: this.context,
             result: warmedResult,
@@ -83,7 +95,6 @@ export class WarmingOrchestrator {
             usage,
         });
 
-        // 2. Run Ciseled Cone Pass
         const ciseledPass = await this.deps.runCiseled({
             context: this.context,
             result: warmedResult,
@@ -91,7 +102,6 @@ export class WarmingOrchestrator {
             usage,
         });
 
-        // 3. Readback the result (t)
         const tBuffer = await this.deps.readBack(
             this.context.device,
             ciseledPass.ciseledConeRimEcef!.buffer,
