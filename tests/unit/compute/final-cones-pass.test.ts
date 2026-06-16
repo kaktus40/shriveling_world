@@ -8,13 +8,14 @@ import type { GpuBufferAllocation } from '$lib/compute/webgpu/buffers';
 test('runWebGpuFinalConesPass initializes pipeline correctly', async () => {
     const mockDevice = { 
         createComputePipelineAsync: vi.fn().mockResolvedValue({ getBindGroupLayout: () => ({}) }),
-        createBuffer: vi.fn(),
+        createBuffer: vi.fn().mockReturnValue({}),
+        createShaderModule: vi.fn().mockReturnValue({}),
         createBindGroup: vi.fn(),
         createCommandEncoder: () => ({
             beginComputePass: () => ({ setPipeline: vi.fn(), setBindGroup: vi.fn(), dispatchWorkgroups: vi.fn(), end: vi.fn() }),
             finish: vi.fn()
         }),
-        queue: { submit: vi.fn() }
+        queue: { submit: vi.fn(), writeBuffer: vi.fn() } // Fixed
     };
     
     const mockContext = { device: mockDevice, queue: mockDevice.queue } as unknown as WebGpuComputeContext;

@@ -4,7 +4,7 @@ import { runWebGpuRawConeAlphaPass } from './passes/raw-cone-alphas';
 import { runWebGpuCiseledConePass } from './passes/ciseled-cones';
 import { getGpuBufferUsage } from '../shared/compute';
 import { readBackFloat32Buffer } from './validation';
-import { computeDynamicTownPrecomputeForYearCpu } from '../domain/precompute';
+import { computeDynamicTownPrecomputeForYearCpu } from '../../domain/precompute';
 
 export interface WarmingOrchestratorDependencies {
     runRawAlpha: typeof runWebGpuRawConeAlphaPass;
