@@ -17,6 +17,7 @@ export interface WebGpuComputeResources extends ComputeGpuBackendResources {
 	readonly pipelineCache?: Map<string, GPUComputePipeline>;
 	/** Optional cache of bind groups keyed by pass name. */
 	readonly bindGroupCache?: Map<string, GPUBindGroup>;
+	readonly staticInvariants?: Map<string, GPUBuffer>;
 }
 
 /** WebGPU dispatch contract for one compute pass. */

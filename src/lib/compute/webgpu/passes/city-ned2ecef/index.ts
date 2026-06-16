@@ -39,6 +39,20 @@ export async function runWebGpuCityMatrixPass(
 ): Promise<WebGpuCityMatrixPassResult> {
 	const prepared = input.result.preparedDataset;
 	const cityCount = prepared.cityCount;
+	if (input.resources.staticInvariants?.has("city-ned2ecef:matrices")) {
+		return {
+			timing: {
+				stage: "static-town-precompute",
+				scope: "precompute",
+				profile: "webgpu",
+				startedAtMs: 0,
+				endedAtMs: 0,
+				durationMs: 0,
+			},
+			diagnostics: [],
+			cityMatricesBuffer: { buffer: input.resources.staticInvariants.get("city-ned2ecef:matrices")!, contract: { name: "cityNed2EcefMatrices", elementType: "float32", strideBytes: 16 * Float32Array.BYTES_PER_ELEMENT, count: cityCount, linearUnit: "meters", coordinateOrder: "ecef" } as any },
+		};
+	}
 	if (cityCount <= 0) {
 		return {
 			timing: {
@@ -109,5 +123,8 @@ export async function runWebGpuCityMatrixPass(
 		);
 	}
 
+	if (input.resources.staticInvariants) {
+		input.resources.staticInvariants.set("city-ned2ecef:matrices", buffers.output.buffer);
+	}
 	return { timing, diagnostics, cityMatricesBuffer: buffers.output };
 }

@@ -87,6 +87,7 @@ export function createWebGpuComputeResources(device: GPUDevice): WebGpuComputeRe
 		]),
 		pipelineCache: new Map(),
 		bindGroupCache: new Map(),
+		staticInvariants: new Map(),
 		// reserved place for double-buffer sets per-pass; will be populated by Phase C integration
 		doubleBufferSets: new Map<string, any>(),
 	};
