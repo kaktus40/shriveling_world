@@ -43,7 +43,7 @@ export async function runWebGpuFinalConesPass(
     
     // Output Buffer
     const finalConeGeometryEcef = device.createBuffer({
-        size: cityCount * azimuthSampleCount * 16, // vec4<f32>
+        size: cityCount * azimuthSampleCount * 32, // vec4<f32>
         usage: usage.STORAGE | usage.COPY_SRC,
     });
 
@@ -105,7 +105,7 @@ export async function runWebGpuFinalConesPass(
         diagnostics: [],
         finalConeGeometryEcef: { 
             buffer: finalConeGeometryEcef, 
-            contract: { name: 'finalConeGeometryEcef', size: cityCount * azimuthSampleCount * 16, usage: 'STORAGE' } as any 
+            contract: { name: 'finalConeGeometryEcef', size: cityCount * azimuthSampleCount * 32, usage: 'STORAGE' } as any 
         }
     };
 }
