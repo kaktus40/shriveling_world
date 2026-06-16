@@ -1,9 +1,9 @@
-import { Color3, Mesh, MeshBuilder, Scene, Vector3 } from '@babylonjs/core';
+import { Color3, Mesh, MeshBuilder, Scene, Vector3, VertexBuffer } from '@babylonjs/core';
 import type { AppBusinessLayerDescriptor } from './render';
 
-/** Babylon adapter responsible for rendering the operational business layers. */
+/** Babylon adapter responsible for rendering the operational business layers (Curves and Country borders). */
 export interface AppBusinessLayerController {
-        update(layers: readonly AppBusinessLayerDescriptor[], globalBuffer: Float32Array): void;
+        update(layers: readonly AppBusinessLayerDescriptor[], globalBuffer: GPUBuffer): void;
         dispose(): void;
 }
 
@@ -12,9 +12,10 @@ interface LayerMeshGroup {
 }
 
 /**
- * Creates and refreshes the meshes used to display computed business layers.
+ * Creates and refreshes the meshes used to display computed business layers directly from GPU buffers.
  */
 export function createAppBusinessLayerController(scene: Scene): AppBusinessLayerController {
+        const engine = scene.getEngine();
         let groups: LayerMeshGroup[] = [];
 
         function disposeGroups(): void {
@@ -27,32 +28,32 @@ export function createAppBusinessLayerController(scene: Scene): AppBusinessLayer
         }
 
         return {
-                update(layers: readonly AppBusinessLayerDescriptor[], globalBuffer: Float32Array): void {
+                update(layers: readonly AppBusinessLayerDescriptor[], globalBuffer: GPUBuffer): void {
                         disposeGroups();
                         groups = layers
                                 .map((layer) => ({
                                         meshes: layer.polylines
                                                 .filter((polyline) => polyline.pointCount > 1)
                                                 .map((polyline, polylineIndex) => {
-                                                        // Extract points from global buffer using bufferOffset
-                                                        const points: Vector3[] = [];
-                                                        const offset = polyline.bufferOffset / 4;
-                                                        for (let i = 0; i < polyline.pointCount; i++) {
-                                                                points.push(new Vector3(
-                                                                        globalBuffer[offset + i * 4],
-                                                                        globalBuffer[offset + i * 4 + 1],
-                                                                        globalBuffer[offset + i * 4 + 2]
-                                                                ));
-                                                        }
-
-                                                        const mesh = MeshBuilder.CreateLines(
-                                                                `${layer.name}-${polylineIndex}`,
-                                                                {
-                                                                        points: points,
-                                                                        updatable: false,
-                                                                },
-                                                                scene,
+                                                        const mesh = new Mesh(`${layer.name}-${polylineIndex}`, scene);
+                                                        
+                                                        // Bind GPU buffer directly
+                                                        const positionBuffer = new VertexBuffer(
+                                                            engine, 
+                                                            globalBuffer, 
+                                                            VertexBuffer.PositionKind, 
+                                                            false, // updatable
+                                                            false, 
+                                                            16, // stride
+                                                            false,
+                                                            polyline.bufferOffset,
+                                                            polyline.pointCount * 16
                                                         );
+                                                        mesh.setVerticesBuffer(positionBuffer);
+                                                        
+                                                        // Note: MeshBuilder.CreateLines doesn't support direct buffer binding easily,
+                                                        // so we use a custom Mesh approach for line primitives.
+                                                        
                                                         mesh.color = new Color3(layer.color[0], layer.color[1], layer.color[2]);
                                                         mesh.visibility = layer.opacity ?? 1;
                                                         mesh.isPickable = false;
