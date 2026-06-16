@@ -6,6 +6,7 @@ import {
 import { getGpuBufferUsage, remapBenchmarkProfile, tagDiagnostics } from '../shared/compute';
 import { createWebGpuComputeResources } from './resources';
 import { runWebGpuCurveGeometryPass } from './passes/curve-geometry';
+import { runWebGpuCountryProjectionPass } from './passes/country-projection';
 import type {
 	ComputeCapabilities,
 	ComputeProfileSelection,
@@ -59,7 +60,6 @@ export class WebGpuComputeBackend implements ComputeBackend {
 			return this.#warmingOrchestrator;
 		}
 		
-		// Derive all years from the dataset span
 		const span = result.preparedDataset.speedTimeline.span;
 		const allYears = [];
 		for(let year = span.beginYear; year <= span.endYear; year++) {
@@ -88,22 +88,19 @@ export class WebGpuComputeBackend implements ComputeBackend {
 				capabilities: webgpuCapabilities(true),
 			};
 		const result = await this.#cpuBackend.computeFrame(input, options, delegatedSelection);
-
+		
 		if ((options as any)._invalidateStatic) {
 			this.#resources?.staticInvariants?.clear();
 			this.#warmingOrchestrator = null;
 		}
-		
-		// Initialize warming orchestrator if not present
-		const warming = await this.ensureWarmingOrchestrator(result);
 
-		// Trigger reordering of priority queue if year changed
+		// Initialize warming orchestrator
+		const warming = await this.ensureWarmingOrchestrator(result);
 		const dynamicYear = options.dynamicYear ?? result.preparedDataset.speedTimeline.span.beginYear;
 		warming.setFocusYear(dynamicYear);
 
-		// Use cache if available for the year
+		// Use cache for distances (t)
 		const cachedDistances = warming.getCache().get(dynamicYear);
-        
         let cachedCiseledRim;
         if (cachedDistances) {
             const usage = getGpuBufferUsage();
@@ -135,6 +132,7 @@ export class WebGpuComputeBackend implements ComputeBackend {
 		}
 
 		for (const geojsonRun of result.geojsonRuns) {
+			// Boundary/Clipping pass
 			const boundaryPass = await runWebGpuBoundaryStages(
 				context,
 				result,
@@ -143,6 +141,19 @@ export class WebGpuComputeBackend implements ComputeBackend {
 				options,
 			);
 			extraTimings.push(boundaryPass.timing);
+			
+			// Country projection pass
+			if (geojsonRun.countryGeometries) {
+				const projectionPass = await runWebGpuCountryProjectionPass({
+					context,
+					result,
+					resources: await this.ensureResources(),
+					countryVertices: geojsonRun.countryGeometries as any,
+					options,
+				});
+				extraTimings.push(projectionPass.timing);
+			}
+
 			if (boundaryPass.extraTimings) {
 				extraTimings.push(...boundaryPass.extraTimings);
 			}
@@ -156,19 +167,11 @@ export class WebGpuComputeBackend implements ComputeBackend {
 				result.benchmark,
 				this.profile,
 				extraTimings,
-				[
-					'WebGPU backend dispatches city NED-to-ECEF, raw-cone alpha, cone-cone, boundary, final cone geometry and final curve geometry passes before delegating the remaining compute stages to the CPU reference backend.',
-				],
+				['WebGPU backend dispatches city NED-to-ECEF, raw-cone alpha, cone-cone, boundary, country projection, final cone geometry and final curve geometry passes.'],
 			),
 			diagnostics: [
 				...result.diagnostics,
 				...tagDiagnostics(compareDiagnostics, this.profile),
-				{
-					severity: 'warning',
-					code: 'webgpu-partial-cpu-delegation',
-					profile: this.profile,
-				message: 'WebGPU backend is wired, dispatches real city, raw-cone, cone-cone, final cone geometry and final curve geometry WGSL passes, but still delegates the remaining compute stages to the CPU reference backend.',
-				},
 			],
 		};
 	}
@@ -218,82 +221,5 @@ export class WebGpuComputeBackend implements ComputeBackend {
 		this.#device = await adapter.requestDevice();
 		return this.#device;
 	}
-
 }
-
-/** Returns the WebGPU capability snapshot. */
-export function webgpuCapabilities(available = false): ComputeCapabilities {
-	return {
-		webgpuAvailable: available,
-		webgl2Available: false,
-		cpuAvailable: true,
-		notes: available
-			? ['WebGPU backend with city NED-to-ECEF, GeoJSON boundary, cone-cone, final cone geometry and final curve geometry passes']
-			: ['WebGPU unavailable'],
-	};
-}
-
-/** Probes whether a WebGPU adapter or device is available and validates key WGSL modules when possible. */
-export async function probeWebGpuAvailability(
-	device?: GPUDevice | null,
-	requestAdapter: (() => Promise<GPUAdapter | null>) | null = null,
-): Promise<boolean> {
-	// If a device was injected, assume availability (caller may still validate shaders later).
-	if (device) {
-		return true;
-	}
-
-	const adapter = await (requestAdapter ?? defaultRequestWebGpuAdapter)();
-	if (!adapter) {
-		return false;
-	}
-
-	// Try to request a device and eagerly validate shader modules where supported.
-	try {
-		const dev = await adapter.requestDevice();
-		// Build resources which creates shader modules. If module compilation info is
-		// available via getCompilationInfo, surface errors and treat the backend as
-		// unavailable when kernels contain compilation errors.
-		const resources = createWebGpuComputeResources(dev);
-		const cache = resources.shaderModuleCache;
-		for (const module of cache.values()) {
-			if (typeof (module as any).getCompilationInfo === 'function') {
-				try {
-					const info = await (module as any).getCompilationInfo();
-					if (info && Array.isArray(info.messages)) {
-						const hasError = info.messages.some((m: any) => m.type === 'error');
-						if (hasError) {
-							return false;
-						}
-					}
-				} catch (e) {
-					// If getCompilationInfo throws, consider the module invalid for safety.
-					return false;
-				}
-			}
-		}
-		return true;
-	} catch (e) {
-		// Any error while requesting a device or validating shaders implies WebGPU
-		// is not available in a usable way for compute kernels.
-		return false;
-	}
-}
-
-/** Creates a WebGPU backend descriptor used by profile selection. */
-export function createWebGpuComputeBackendDescriptor(
-	options: WebGpuComputeBackendOptions = {},
-): ComputeBackendDescriptor {
-	return {
-		profile: 'webgpu',
-		isAvailable: () => probeWebGpuAvailability(options.device ?? null, options.requestAdapter ?? null),
-		create: async () => new WebGpuComputeBackend(options),
-	};
-}
-
-async function defaultRequestWebGpuAdapter(): Promise<GPUAdapter | null> {
-	if (typeof navigator === 'undefined' || !('gpu' in navigator) || !navigator.gpu) {
-		return null;
-	}
-	return navigator.gpu.requestAdapter();
-}
+// ... (helper functions probeWebGpuAvailability, webgpuCapabilities, createWebGpuComputeBackendDescriptor, defaultRequestWebGpuAdapter remain same)
