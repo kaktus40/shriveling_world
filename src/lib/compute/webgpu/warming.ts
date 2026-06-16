@@ -4,11 +4,13 @@ import { runWebGpuRawConeAlphaPass } from './passes/raw-cone-alphas';
 import { runWebGpuCiseledConePass } from './passes/ciseled-cones';
 import { getGpuBufferUsage } from '../shared/compute';
 import { readBackFloat32Buffer } from './validation';
+import { computeDynamicTownPrecomputeForYearCpu } from '../domain/precompute';
 
 export interface WarmingOrchestratorDependencies {
     runRawAlpha: typeof runWebGpuRawConeAlphaPass;
     runCiseled: typeof runWebGpuCiseledConePass;
     readBack: typeof readBackFloat32Buffer;
+    computeDynamicTown: typeof computeDynamicTownPrecomputeForYearCpu;
 }
 
 export class WarmingOrchestrator {
@@ -28,6 +30,7 @@ export class WarmingOrchestrator {
             runRawAlpha: deps?.runRawAlpha ?? runWebGpuRawConeAlphaPass,
             runCiseled: deps?.runCiseled ?? runWebGpuCiseledConePass,
             readBack: deps?.readBack ?? readBackFloat32Buffer,
+            computeDynamicTown: deps?.computeDynamicTown ?? computeDynamicTownPrecomputeForYearCpu,
         };
         this.queue = [...allYears];
     }
@@ -60,12 +63,22 @@ export class WarmingOrchestrator {
     async warmYear(year: number): Promise<Float32Array> {
         if (this.cache.has(year)) return this.cache.get(year)!;
         
+        // Compute dynamic town precompute for the target year and update the result
+        const dynamicTown = this.deps.computeDynamicTown(
+            this.result.preparedDataset,
+            this.result.staticTown!,
+            year
+        );
+        
+        // Inject for the next passes
+        const warmedResult = { ...this.result, dynamicTown };
+
         const usage = getGpuBufferUsage();
         
         // 1. Run Raw Cone Alpha Pass
         await this.deps.runRawAlpha({
             context: this.context,
-            result: this.result,
+            result: warmedResult,
             resources: this.resources,
             usage,
         });
@@ -73,7 +86,7 @@ export class WarmingOrchestrator {
         // 2. Run Ciseled Cone Pass
         const ciseledPass = await this.deps.runCiseled({
             context: this.context,
-            result: this.result,
+            result: warmedResult,
             resources: this.resources,
             usage,
         });
