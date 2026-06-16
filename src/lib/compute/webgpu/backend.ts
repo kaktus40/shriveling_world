@@ -58,10 +58,19 @@ export class WebGpuComputeBackend implements ComputeBackend {
 		if (this.#warmingOrchestrator) {
 			return this.#warmingOrchestrator;
 		}
+		
+		// Derive all years from the dataset span
+		const span = result.preparedDataset.speedTimeline.span;
+		const allYears = [];
+		for(let year = span.beginYear; year <= span.endYear; year++) {
+			allYears.push(year);
+		}
+
 		this.#warmingOrchestrator = new WarmingOrchestrator(
 			await this.ensureContext(),
 			await this.ensureResources(),
-			result
+			result,
+			allYears
 		);
 		return this.#warmingOrchestrator;
 	}
@@ -79,12 +88,20 @@ export class WebGpuComputeBackend implements ComputeBackend {
 				capabilities: webgpuCapabilities(true),
 			};
 		const result = await this.#cpuBackend.computeFrame(input, options, delegatedSelection);
+
+		if ((options as any)._invalidateStatic) {
+			this.#resources?.staticInvariants?.clear();
+			this.#warmingOrchestrator = null;
+		}
 		
 		// Initialize warming orchestrator if not present
 		const warming = await this.ensureWarmingOrchestrator(result);
 
-		// Use cache if available for the year
+		// Trigger reordering of priority queue if year changed
 		const dynamicYear = options.dynamicYear ?? result.preparedDataset.speedTimeline.span.beginYear;
+		warming.setFocusYear(dynamicYear);
+
+		// Use cache if available for the year
 		const cachedDistances = warming.getCache().get(dynamicYear);
         
         let cachedCiseledRim;
