@@ -1,3 +1,4 @@
+import { WarmingOrchestrator } from "./warming";
 import {
 	createCpuComputeBackend,
 	type CpuComputeBackend,
@@ -34,6 +35,7 @@ export interface WebGpuComputeBackendOptions {
 export class WebGpuComputeBackend implements ComputeBackend {
 	readonly profile = 'webgpu' as const;
 	readonly #cpuBackend: CpuComputeBackend;
+	#warmingOrchestrator: WarmingOrchestrator | null = null;
 	#device: GPUDevice | null;
 	#requestAdapter: (() => Promise<GPUAdapter | null>) | null;
 	#resources: WebGpuComputeResources | null = null;
@@ -52,6 +54,18 @@ export class WebGpuComputeBackend implements ComputeBackend {
 		await this.ensureResources();
 	}
 
+	private async ensureWarmingOrchestrator(result: ComputeResult): Promise<WarmingOrchestrator> {
+		if (this.#warmingOrchestrator) {
+			return this.#warmingOrchestrator;
+		}
+		this.#warmingOrchestrator = new WarmingOrchestrator(
+			await this.ensureContext(),
+			await this.ensureResources(),
+			result
+		);
+		return this.#warmingOrchestrator;
+	}
+
 	async computeFrame(
 		input: ComputeInput,
 		options: ComputeOptions = {},
@@ -65,7 +79,29 @@ export class WebGpuComputeBackend implements ComputeBackend {
 				capabilities: webgpuCapabilities(true),
 			};
 		const result = await this.#cpuBackend.computeFrame(input, options, delegatedSelection);
-		const coneStages = await runWebGpuConeStages(context, result, await this.ensureResources(), options);
+		
+		// Initialize warming orchestrator if not present
+		const warming = await this.ensureWarmingOrchestrator(result);
+
+		// Use cache if available for the year
+		const dynamicYear = options.dynamicYear ?? result.preparedDataset.speedTimeline.span.beginYear;
+		const cachedDistances = warming.getCache().get(dynamicYear);
+        
+        let cachedCiseledRim;
+        if (cachedDistances) {
+            const usage = getGpuBufferUsage();
+            const buffer = context.device.createBuffer({
+                size: cachedDistances.byteLength,
+                usage: usage.STORAGE | usage.COPY_DST,
+            });
+            context.device.queue.writeBuffer(buffer, 0, cachedDistances);
+            cachedCiseledRim = {
+                buffer,
+                contract: { name: 'cached-ciseled', size: cachedDistances.byteLength, usage: 'STORAGE' } as any
+            };
+        }
+
+		const coneStages = await runWebGpuConeStages(context, result, await this.ensureResources(), options, cachedCiseledRim);
 		const extraTimings: StageTiming[] = [...coneStages.extraTimings];
 		const compareDiagnostics: DatasetDiagnostic[] = [...coneStages.diagnostics];
 
@@ -87,6 +123,7 @@ export class WebGpuComputeBackend implements ComputeBackend {
 				result,
 				geojsonRun,
 				await this.ensureResources(),
+				options,
 			);
 			extraTimings.push(boundaryPass.timing);
 			if (boundaryPass.extraTimings) {
@@ -123,6 +160,7 @@ export class WebGpuComputeBackend implements ComputeBackend {
 		await this.#cpuBackend.dispose();
 		this.#resources = null;
 		this.#device = null;
+		this.#warmingOrchestrator = null;
 	}
 
 	async ensureAvailable(): Promise<boolean> {
@@ -178,16 +216,51 @@ export function webgpuCapabilities(available = false): ComputeCapabilities {
 	};
 }
 
-/** Probes whether a WebGPU adapter or device is available. */
+/** Probes whether a WebGPU adapter or device is available and validates key WGSL modules when possible. */
 export async function probeWebGpuAvailability(
 	device?: GPUDevice | null,
 	requestAdapter: (() => Promise<GPUAdapter | null>) | null = null,
 ): Promise<boolean> {
+	// If a device was injected, assume availability (caller may still validate shaders later).
 	if (device) {
 		return true;
 	}
+
 	const adapter = await (requestAdapter ?? defaultRequestWebGpuAdapter)();
-	return adapter !== null;
+	if (!adapter) {
+		return false;
+	}
+
+	// Try to request a device and eagerly validate shader modules where supported.
+	try {
+		const dev = await adapter.requestDevice();
+		// Build resources which creates shader modules. If module compilation info is
+		// available via getCompilationInfo, surface errors and treat the backend as
+		// unavailable when kernels contain compilation errors.
+		const resources = createWebGpuComputeResources(dev);
+		const cache = resources.shaderModuleCache;
+		for (const module of cache.values()) {
+			if (typeof (module as any).getCompilationInfo === 'function') {
+				try {
+					const info = await (module as any).getCompilationInfo();
+					if (info && Array.isArray(info.messages)) {
+						const hasError = info.messages.some((m: any) => m.type === 'error');
+						if (hasError) {
+							return false;
+						}
+					}
+				} catch (e) {
+					// If getCompilationInfo throws, consider the module invalid for safety.
+					return false;
+				}
+			}
+		}
+		return true;
+	} catch (e) {
+		// Any error while requesting a device or validating shaders implies WebGPU
+		// is not available in a usable way for compute kernels.
+		return false;
+	}
 }
 
 /** Creates a WebGPU backend descriptor used by profile selection. */
