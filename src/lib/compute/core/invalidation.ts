@@ -23,6 +23,7 @@ export function diffComputeOptions(
 	next: ComputeOptions,
 ): ComputeInvalidation {
 	const boundary = previous.boundaryRaycast?.azimuthSampleCount !== next.boundaryRaycast?.azimuthSampleCount;
+		previous.boundaryRaycast?.interiorPointSpacingRadians !== next.boundaryRaycast?.interiorPointSpacingRadians ||
 	const staticTown =
 		previous.staticTown?.neighborLimit !== next.staticTown?.neighborLimit ||
 		previous.staticTown?.sectorCount !== next.staticTown?.sectorCount;

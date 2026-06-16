@@ -33,13 +33,7 @@ export function createComputeOrchestrator(
                 ): Promise<ComputeResult> {
                         if (lastOptions) {
                                 const impact = diffComputeOptions(lastOptions, options);
-                                if (impact.staticTown) {
-                                        // This signals a need to invalidate static invariants.
-                                        // This information needs to be passed to the backend, 
-                                        // or handled by clearing resources.
-                                        // Since backend is recreated, we might need a way to pass this
-                                        // signal or use a persistent cache mechanism.
-                                        // For now, let's just mark the options for the backend.
+                                if (impact.staticTown || impact.boundary) {
                                         (options as any)._invalidateStatic = true;
                                 }
                         }
