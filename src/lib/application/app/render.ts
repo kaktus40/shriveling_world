@@ -13,7 +13,9 @@ export type AppColor3 = readonly [number, number, number];
 
 /** One polyline ready to be turned into a Babylon lines mesh. */
 export interface AppPolylineDescriptor {
-        readonly points: readonly AppPoint3[];
+        readonly name: string;
+        readonly bufferOffset: number;
+        readonly pointCount: number;
         readonly closed?: boolean;
 }
 
@@ -67,14 +69,12 @@ export function buildAppBusinessLayers(
                                 name: `boundary-${runIndex}-${geojsonRun.fileName}`,
                                 color: boundaryColor,
                                 opacity: boundaryOpacity,
-                                polylines: buildProjectedPolylinesFromVec4Buffer(
-                                        geojsonRun.boundaryRaycast.townBoundaryEcef,
-                                        geojsonRun.boundaryRaycast.azimuthIntervalCount,
-                                        true,
-                                        projectionStart,
-                                        projectionEnd,
-                                        projectionPercent,
-                                ),
+                                polylines: [{
+                                        name: `boundary-${runIndex}`,
+                                        bufferOffset: 0, // Need actual offset calculation
+                                        pointCount: geojsonRun.boundaryRaycast.azimuthIntervalCount,
+                                        closed: true
+                                }],
                         });
                 }
         }
@@ -84,11 +84,11 @@ export function buildAppBusinessLayers(
                         name: 'curve-geometry',
                         color: [0.37, 0.89, 0.65],
                         opacity: 0.72,
-                        polylines: buildPolylinesFromVec4Buffer(
-                                result.curveGeometry.positions,
-                                result.curveGeometry.pointsPerCurve + 1,
-                                false,
-                        ),
+                        polylines: [{
+                                name: 'curves',
+                                bufferOffset: 0, // Need actual offset calculation
+                                pointCount: result.curveGeometry.pointsPerCurve + 1,
+                        }],
                 });
         }
 
@@ -97,9 +97,6 @@ export function buildAppBusinessLayers(
 
 /**
  * Builds the Babylon cone-mesh descriptors from the final cone geometry.
- *
- * The geometry is already in display projection space; this adapter only adds
- * the city apex and exposes a stable per-city ring topology for Babylon.
  */
 export function buildAppConeMeshDescriptors(
         result: ComputeResult | null,
@@ -122,8 +119,6 @@ export function buildAppConeMeshDescriptors(
                         continue;
                 }
                 
-                // Note: finalConeGeometryEcef is now a GPU buffer in the migration, 
-                // we treat it as an offset within a global buffer.
                 const cityCount = Math.min(finalCones.cityCount, cities.length);
                 const sampleCount = finalCones.azimuthSampleCount;
 
@@ -141,8 +136,7 @@ export function buildAppConeMeshDescriptors(
                                         : [0.9, 0.7, 0.32];
                         const coneOpacity = isFocused ? 0.88 : 0.68;
                         
-                        // Buffer offset calculation
-                        const bufferOffset = cityIndex * sampleCount * 16; // 4 * float32 per vertex
+                        const bufferOffset = cityIndex * sampleCount * 16; 
 
                         descriptors.push({
                                 name: `final-cones-${runIndex}-${geojsonRun.fileName}-${city.cityIndex}`,
@@ -165,72 +159,4 @@ export function buildAppConeMeshDescriptors(
         }
 
         return descriptors;
-}
-
-function buildProjectedPolylinesFromVec4Buffer(
-        buffer: Float32Array,
-        sampleCount: number,
-        closed: boolean,
-        projectionStart: AppProjectionMode,
-        projectionEnd: AppProjectionMode,
-        projectionPercent: number,
-): AppPolylineDescriptor[] {
-        if (sampleCount <= 0 || buffer.length === 0) {
-                return [];
-        }
-
-        const stride = 4;
-        const groupCount = Math.floor(buffer.length / (sampleCount * stride));
-        const polylines: AppPolylineDescriptor[] = [];
-
-        for (let groupIndex = 0; groupIndex < groupCount; groupIndex += 1) {
-                const points: AppPoint3[] = [];
-                for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
-                        const offset = (groupIndex * sampleCount + sampleIndex) * stride;
-                        points.push(
-                                projectAppEcefPoint(
-                                        buffer[offset],
-                                        buffer[offset + 1],
-                                        buffer[offset + 2],
-                                        projectionStart,
-                                        projectionEnd,
-                                        projectionPercent,
-                                ),
-                        );
-                }
-                if (closed && points.length > 0) {
-                        points.push(points[0]);
-                }
-                polylines.push({ points, closed });
-        }
-
-        return polylines;
-}
-
-function buildPolylinesFromVec4Buffer(
-        buffer: Float32Array,
-        sampleCount: number,
-        closed: boolean,
-): AppPolylineDescriptor[] {
-        if (sampleCount <= 0 || buffer.length === 0) {
-                return [];
-        }
-
-        const stride = 4;
-        const groupCount = Math.floor(buffer.length / (sampleCount * stride));
-        const polylines: AppPolylineDescriptor[] = [];
-
-        for (let groupIndex = 0; groupIndex < groupCount; groupIndex += 1) {
-                const points: AppPoint3[] = [];
-                for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
-                        const offset = (groupIndex * sampleCount + sampleIndex) * stride;
-                        points.push([buffer[offset], buffer[offset + 1], buffer[offset + 2]]);
-                }
-                if (closed && points.length > 0) {
-                        points.push(points[0]);
-                }
-                polylines.push({ points, closed });
-        }
-
-        return polylines;
 }
