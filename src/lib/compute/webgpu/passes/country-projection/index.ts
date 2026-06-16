@@ -1,3 +1,6 @@
+import countryProjectionShaderSource from '../../../kernels/country-projection/webgpu.wgsl?raw';
+import projectionShaderSource from '../../../kernels/shared/projection/webgpu.wgsl?raw';
+import sharedMathShaderSource from '../../../kernels/shared/math/webgpu.wgsl?raw';
 import type { DatasetDiagnostic } from '../../../../domain/data';
 import type { ComputeResult, StageTiming } from '../../../core';
 import { measureAsyncStage } from '../../../core/timing';
@@ -9,7 +12,7 @@ export interface WebGpuCountryProjectionPassInput {
     readonly context: WebGpuComputeContext;
     readonly result: ComputeResult;
     readonly resources: WebGpuComputeResources;
-    readonly countryVertices: GpuBufferAllocation; // [lon, lat, height]
+    readonly countryVertices: GpuBufferAllocation;
     readonly options: any;
 }
 
@@ -25,13 +28,56 @@ export async function runWebGpuCountryProjectionPass(
     const { device, queue } = input.context;
     const usage = getGpuBufferUsage();
     
-    // Shader/Kernel would be compiled here.
-    // For now, this is a skeleton implementation.
+    // Shader compilation
+    const pipeline = await device.createComputePipelineAsync({
+        layout: 'auto',
+        compute: {
+            module: device.createShaderModule({ 
+                code: `${sharedMathShaderSource}\n${projectionShaderSource}\n${countryProjectionShaderSource}` 
+            }),
+            entryPoint: 'main',
+        },
+    });
+    
     const vertexCount = input.countryVertices.contract.count;
     
     const projectedVertices = device.createBuffer({
-        size: vertexCount * 12, // 3 * f32
+        size: vertexCount * 12,
         usage: usage.STORAGE | usage.COPY_SRC,
+    });
+
+    const uniformBuffer = device.createBuffer({
+        size: 64, 
+        usage: usage.UNIFORM | usage.COPY_DST,
+    });
+    
+    // Fill Uniforms - match CountryProjectionUniforms struct
+    const proj = input.options.projection;
+    const settings = proj?.settings;
+    const uniformData = new Float32Array([
+        // projection: vec4<f32>(startModeIndex, endModeIndex, percent, 0)
+        proj?.start === 'none' ? 0 : 1, proj?.end === 'none' ? 0 : 1, proj?.percent ?? 0, 0,
+        // projection_settings_a: vec4<f32>(refLon, refLat, refHeight, zCoeff)
+        settings?.referenceLongitudeRadians ?? 0,
+        settings?.referenceLatitudeRadians ?? 0,
+        settings?.referenceHeightMeters ?? 0,
+        settings?.zCoefficient ?? 1,
+        // projection_settings_b: vec4<f32>(standardParallel1, standardParallel2, 0, 0)
+        settings?.standardParallel1Radians ?? 0,
+        settings?.standardParallel2Radians ?? 0,
+        0, 0,
+        // extrusion_settings: vec4<f32>(mixFactor, zCoeff, 0, 0)
+        proj?.percent ?? 1.0, settings?.zCoefficient ?? 1.0, 0, 0
+    ]);
+    queue.writeBuffer(uniformBuffer, 0, uniformData);
+
+    const bindGroup = device.createBindGroup({
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [
+            { binding: 0, resource: { buffer: input.countryVertices.buffer } },
+            { binding: 1, resource: { buffer: uniformBuffer } },
+            { binding: 2, resource: { buffer: projectedVertices } },
+        ],
     });
 
     const { timing } = await measureAsyncStage(
@@ -39,7 +85,13 @@ export async function runWebGpuCountryProjectionPass(
         'precompute',
         'webgpu',
         async () => {
-            // Pipeline and dispatch logic here
+            const encoder = device.createCommandEncoder();
+            const pass = encoder.beginComputePass();
+            pass.setPipeline(pipeline);
+            pass.setBindGroup(0, bindGroup);
+            pass.dispatchWorkgroups(Math.ceil(vertexCount / 64), 1, 1);
+            pass.end();
+            queue.submit([encoder.finish()]);
             return undefined;
         },
     );
