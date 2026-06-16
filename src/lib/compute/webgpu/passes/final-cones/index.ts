@@ -13,7 +13,7 @@ export interface WebGpuFinalConesPassInput {
     readonly ciseledConeRim: GpuBufferAllocation;
     readonly townBoundaryAngular: GpuBufferAllocation;
     readonly townBoundaryEcef: GpuBufferAllocation;
-    readonly options: any;
+    readonly options: any; // ComputeOptions
 }
 
 export interface WebGpuFinalConesPassResult {
@@ -28,6 +28,7 @@ export async function runWebGpuFinalConesPass(
     const { device, queue } = input.context;
     const usage = getGpuBufferUsage();
     
+    // Shader compilation
     const pipeline = await device.createComputePipelineAsync({
         layout: 'auto',
         compute: {
@@ -40,26 +41,34 @@ export async function runWebGpuFinalConesPass(
     const cityCount = input.result.preparedDataset.cityCount;
     const azimuthSampleCount = input.result.rawCones?.azimuthSampleCount ?? 360;
     
+    // Output Buffer
     const finalConeGeometryEcef = device.createBuffer({
-        size: cityCount * azimuthSampleCount * 16,
+        size: cityCount * azimuthSampleCount * 16, // vec4<f32>
         usage: usage.STORAGE | usage.COPY_SRC,
     });
 
+    // Uniform buffer setup - FinalConeUniforms: 4 * vec4<f32> = 64 bytes
     const uniformBuffer = device.createBuffer({
-        size: 64, // FinalConeUniforms: 4 * vec4<f32>
+        size: 64, 
         usage: usage.UNIFORM | usage.COPY_DST,
     });
     
+    // Inject projection parameters
     const proj = input.options.projection;
+    const settings = proj?.settings;
     const uniformData = new Float32Array([
+        // values: vec4<f32>(earthRadius, cityCount, azimuthSampleCount, globeRadius)
         6371e3, cityCount, azimuthSampleCount, 12,
-        0, 0, proj?.percent ?? 0, 0,
-        proj?.settings?.referenceLongitudeRadians ?? 0,
-        proj?.settings?.referenceLatitudeRadians ?? 0,
-        proj?.settings?.referenceHeightMeters ?? 0,
-        proj?.settings?.zCoefficient ?? 1,
-        proj?.settings?.standardParallel1Radians ?? 0,
-        proj?.settings?.standardParallel2Radians ?? 0,
+        // projection: vec4<f32>(startModeIndex, endModeIndex, percent, 0)
+        proj?.start === 'none' ? 0 : 1, proj?.end === 'none' ? 0 : 1, proj?.percent ?? 0, 0,
+        // projection_settings_a: vec4<f32>(refLon, refLat, refHeight, zCoeff)
+        settings?.referenceLongitudeRadians ?? 0,
+        settings?.referenceLatitudeRadians ?? 0,
+        settings?.referenceHeightMeters ?? 0,
+        settings?.zCoefficient ?? 1,
+        // projection_settings_b: vec4<f32>(standardParallel1, standardParallel2, 0, 0)
+        settings?.standardParallel1Radians ?? 0,
+        settings?.standardParallel2Radians ?? 0,
         0, 0
     ]);
     queue.writeBuffer(uniformBuffer, 0, uniformData);
