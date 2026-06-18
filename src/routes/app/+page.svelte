@@ -75,7 +75,8 @@
 	let queryCityIds: readonly number[] = [];
 	let queryCityCodes: readonly number[] = [];
 	let measurementSummary: AppMeasurementSummary | null = null;
-	let activeModule: AppModuleKey | null = 'scene';
+	let activeModule: AppModuleKey | null = null; // start with scene closed
+
 	let computeSession = createWorkspaceComputeSession();
 	const appComputeReplay = createReplayScheduler(() => {
 		if (!appState) {
@@ -90,6 +91,13 @@
 
 	onMount(() => {
 		queryWorker = createQueryWorkerClient();
+		// restore persisted compute profile selection if present
+		try {
+			const stored = localStorage.getItem('computeProfile');
+			if (stored === 'cpu' || stored === 'webgl2' || stored === 'webgpu') {
+				selectedComputeProfile = stored;
+			}
+		} catch {}
 		void primeComputeRuntime(computeSession);
 		queryController = createQueryController({
 			getQueryWorker: () => queryWorker,
@@ -235,6 +243,8 @@
 			return;
 		}
 		selectedComputeProfile = next;
+		// persist user's choice
+		try { localStorage.setItem('computeProfile', next); } catch {}
 		appComputeReplay.request();
 	}
 

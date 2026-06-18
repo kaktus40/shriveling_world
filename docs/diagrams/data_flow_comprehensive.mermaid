@@ -1,0 +1,60 @@
+graph TD
+    %% Couleurs et Styles
+    classDef cpu fill:#bbdefb,stroke:#1e88e5,stroke-width:2px;
+    classDef gpu fill:#ffcdd2,stroke:#e53935,stroke-width:2px;
+    classDef render fill:#c8e6c9,stroke:#43a047,stroke-width:2px;
+    classDef storage fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
+
+    subgraph "1. INGESTION & ASSEMBLAGE (CPU)"
+        CSV[Source CSV]:::storage
+        GJSON[Source GeoJSON]:::storage
+        BN[<b>BaseNetwork</b><br/>Lossless, SI Units]:::cpu
+        CSV --> |assembleBaseNetwork| BN
+        GJSON --> |resolveManifest| BN
+    end
+
+    subgraph "2. PRÉPARATION & MAILLAGE (CPU)"
+        PD[<b>PreparedDataset</b><br/>TypedArrays, SI/Rad]:::cpu
+        CM[<b>CountryMesh</b><br/>Triangulated, Extruded]:::cpu
+        BN --> |prepareDataset| PD
+        GJSON --> |extractContours| CC[CountryContours]:::cpu
+        CC --> |generateCountryGeometry| CM
+        PD_Box[<b>Logiciel</b><br/>- Densification<br/>- Delaunay Triangulation<br/>- Extrusion height replication<br/>- Side-wall generation]
+        CM -.-> PD_Box
+    end
+
+    subgraph "3. INVARIANTS & ASSOCIATION (CPU/GPU)"
+        ST[<b>StaticTownInvariants</b><br/>NED-to-ECEF, Neighbors]:::cpu
+        PD --> |computeStaticTown| ST
+        CC --> |associateTownsToContours| ST
+        NV[<b>N-Vector Buffer</b><br/>Boundary Limits]:::cpu
+        CC --> |densify| NV
+    end
+
+    subgraph "4. CALCUL DYNAMIQUE (GPU/Compute)"
+        Raw[<b>Raw Cone Pass</b><br/>Alpha Samples]:::gpu
+        Cis[<b>Ciseled Cone Pass</b><br/>Intersection & Clipping]:::gpu
+        Cur[<b>Curve Geometry Pass</b><br/>Bezier Sampling]:::gpu
+        
+        PD --> |Dynamic Parameters| Raw
+        ST --> Raw
+        NV --> |Boundary Limits| Cis
+        Raw --> Cis
+        PD --> |Control Points| Cur
+    end
+
+    subgraph "5. AFFICHAGE (Babylon.js)"
+        Cones[AppConeMesh]:::render
+        Countries[AppCountryMesh]:::render
+        Curves[AppCurveMesh]:::render
+        
+        Cis --> |Final Vertices| Cones
+        CM --> |Extruded Vertices| Countries
+        Cur --> |Projected Vertices| Curves
+    end
+
+    %% Application des styles
+    class CSV,GJSON storage;
+    class BN,PD,CM,CC,ST,NV,PD_Box cpu;
+    class Raw,Cis,Cur gpu;
+    class Cones,Countries,Curves render;

@@ -91,6 +91,13 @@
 
 	onMount(() => {
 		queryWorker = createQueryWorkerClient();
+		// restore persisted compute profile selection if present
+		try {
+			const stored = localStorage.getItem('computeProfile');
+			if (stored === 'cpu' || stored === 'webgl2' || stored === 'webgpu') {
+				selectedComputeProfile = stored;
+			}
+		} catch {}
 		void primeComputeRuntime(computeSession);
 		const disposeWorkspaceE2e = installWorkspaceE2eApi({
 			setDataset: async (dataset: string) => {
@@ -210,6 +217,8 @@
 
 	function handleComputeProfileChange(_next: ComputeProfile): void {
 		selectedComputeProfile = _next;
+		// persist selection across sessions
+		try { localStorage.setItem('computeProfile', _next); } catch {}
 		workspaceCompute = null;
 		computeDiagnostics = [];
 		computeError = '';

@@ -65,8 +65,11 @@ export function createReplayScheduler(
 }
 
 function defaultScheduleReplayTask(task: () => void): void {
+	// Use a short timeout to batch rapid UI changes (projection/year) and avoid
+	// thrashing the compute pipeline. requestAnimationFrame is too frequent for
+	// heavy GPU/CPU work; a small debounce reduces visual jank.
 	if (typeof requestAnimationFrame === 'function') {
-		requestAnimationFrame(() => task());
+		setTimeout(() => task(), 80);
 		return;
 	}
 	queueMicrotask(task);

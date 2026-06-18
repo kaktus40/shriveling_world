@@ -284,17 +284,23 @@ export function createAppScene(
 				nextState.selectedCityIndex,
 			),
 		);
-		coneMeshes.update(
-			buildAppConeMeshDescriptors(
-				nextState.workspaceCompute?.result ?? null,
-				nextState.appState?.cities ?? [],
-				nextState.projectionStart,
-				nextState.projectionEnd,
-				nextState.projectionPercent,
-				nextState.selectedCityIndex,
-				nextState.queryMatchedCityIndexes,
-			),
+		const coneDescriptors = buildAppConeMeshDescriptors(
+		nextState.workspaceCompute?.result ?? null,
+		nextState.appState?.cities ?? [],
+		nextState.projectionStart,
+		nextState.projectionEnd,
+		nextState.projectionPercent,
+		nextState.selectedCityIndex,
+		nextState.queryMatchedCityIndexes,
 		);
+		if (coneDescriptors.length === 0) {
+		// Detect potential missing-final-cones case and provide a helpful runtime log.
+		const anyFinal = (nextState.workspaceCompute?.result?.geojsonRuns ?? []).some((r) => !!r.finalCones);
+		if (anyFinal) {
+			console.warn('createAppScene: geojsonRuns contain finalCones but no cone descriptors were produced. This may indicate final geometry is not a Float32Array (double-buffer front/back not read back).');
+		}
+		}
+		coneMeshes.update(coneDescriptors);
 	}
 
 	cityMarkers.setCities(initialState.appState?.cities ?? []);

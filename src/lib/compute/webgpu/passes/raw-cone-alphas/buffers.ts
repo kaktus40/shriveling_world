@@ -3,6 +3,7 @@ import type {
 	RawConeAlphaDispatchInput,
 	RawConeAlphaDispatchResources,
 } from '../../buffers';
+import { getOrCreateGpuDoubleBuffer } from '../../../phase-c/phase-c';
 
 /** Creates the GPU allocations required by the raw-cone alpha WGSL pass. */
 export function createRawConeAlphaDispatchResources(
@@ -34,10 +35,10 @@ export function createRawConeAlphaDispatchResources(
 		size: 16,
 		usage: usage.UNIFORM | usage.COPY_DST,
 	});
-	const outputBuffer = device.createBuffer({
-		size: input.cityCount * input.azimuthSampleCount * Float32Array.BYTES_PER_ELEMENT,
-		usage: usage.STORAGE | usage.COPY_SRC,
-	});
+	// allocate double-buffered output for coneAlphaRadians
+	const coneAlphaSize = input.cityCount * input.azimuthSampleCount * Float32Array.BYTES_PER_ELEMENT;
+	const coneAlphaSet = getOrCreateGpuDoubleBuffer(device, 'raw-cone-alphas:coneAlphaRadians', coneAlphaSize, usage.STORAGE | usage.COPY_SRC | usage.COPY_DST);
+	const outputBuffer = coneAlphaSet.back;
 
 	device.queue.writeBuffer(cityLinkOffsetsBuffer, 0, input.cityLinkOffsets);
 	device.queue.writeBuffer(cityLinkCountsBuffer, 0, input.cityLinkCounts);

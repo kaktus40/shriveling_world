@@ -165,6 +165,8 @@ export interface ComputeOptions extends ComputeBoundaryOptions, ComputePrecomput
 		readonly enabled?: boolean;
 	} & Partial<CurveGeometryOptions>;
 	readonly projection?: ComputeProjectionOptions;
+	/** Optional filter of stages to run during this computeFrame. When present, only stages listed will be executed. */
+	readonly passFilter?: readonly ComputeStage[];
 }
 
 /** Result of one boundary-oriented compute frame while the current compatibility vocabulary remains in place. */

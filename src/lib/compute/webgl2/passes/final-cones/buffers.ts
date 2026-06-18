@@ -3,6 +3,8 @@ import type {
 	WebGl2FinalConesDispatchResources,
 } from '../../buffers';
 
+import { getOrCreateGlDoubleBuffer } from '../../../phase-c/phase-c';
+
 /** Creates the GPU allocations required by the final-cones WebGL2 pass. */
 export function createFinalConesDispatchResources(
 	gl: WebGL2RenderingContext,
@@ -10,7 +12,7 @@ export function createFinalConesDispatchResources(
 	input: WebGl2FinalConesDispatchInput,
 ): WebGl2FinalConesDispatchResources {
 	const vertexArray = gl.createVertexArray();
-	const finalConeGeometryEcefBuffer = gl.createBuffer();
+	let finalConeGeometryEcefBuffer = gl.createBuffer();
 	const uniformLocation = gl.getUniformLocation(program, 'u_uniforms');
 	const projectionUniformLocation = gl.getUniformLocation(program, 'u_projection');
 	const projectionSettingsALocation = gl.getUniformLocation(program, 'u_projection_settings_a');
@@ -46,6 +48,10 @@ export function createFinalConesDispatchResources(
 	gl.vertexAttribDivisor?.(2, 1);
 
 	gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+	const finalSet = getOrCreateGlDoubleBuffer(gl, 'webgl2-final-cones:finalConeGeometryEcef', gl.TRANSFORM_FEEDBACK_BUFFER, outputCount * 4 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_COPY);
+	finalConeGeometryEcefBuffer = finalSet.back;
+
 	gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, finalConeGeometryEcefBuffer);
 	gl.bufferData(
 		gl.TRANSFORM_FEEDBACK_BUFFER,

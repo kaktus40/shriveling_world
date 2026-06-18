@@ -7,6 +7,8 @@ import type {
 	WebGl2CiseledConesDispatchResources,
 } from '../../buffers';
 
+import { getOrCreateGlDoubleBuffer } from '../../../phase-c/phase-c';
+
 /** Creates the GPU allocations required by the ciseled-cones WebGL2 pass. */
 export function createCiseledConesDispatchResources(
 	gl: WebGL2RenderingContext,
@@ -14,14 +16,10 @@ export function createCiseledConesDispatchResources(
 	input: WebGl2CiseledConesDispatchInput,
 ): WebGl2CiseledConesDispatchResources {
 	const vertexArray = gl.createVertexArray();
-	const coneIntersectionDistanceMetersBuffer = gl.createBuffer();
-	const ciseledConeRimEcefBuffer = gl.createBuffer();
 	const uniformLocation = gl.getUniformLocation(program, 'u_uniforms');
 	const heuristicUniformLocation = gl.getUniformLocation(program, 'u_heuristics');
 	if (
 		!vertexArray ||
-		!coneIntersectionDistanceMetersBuffer ||
-		!ciseledConeRimEcefBuffer ||
 		!uniformLocation ||
 		!heuristicUniformLocation
 	) {
@@ -96,19 +94,14 @@ export function createCiseledConesDispatchResources(
 			? input.coneAlphaRadians
 			: new Float32Array(Math.max(input.cityCount, 1) * Math.max(input.azimuthSampleCount, 1)),
 	);
-
+	const distanceSet = getOrCreateGlDoubleBuffer(gl, 'webgl2-ciseled-cones:distance', gl.TRANSFORM_FEEDBACK_BUFFER, outputCount * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_COPY);
+	const ciseledSet = getOrCreateGlDoubleBuffer(gl, 'webgl2-ciseled-cones:rim', gl.TRANSFORM_FEEDBACK_BUFFER, outputCount * 4 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_COPY);
+	const coneIntersectionDistanceMetersBuffer = distanceSet.back;
+	const ciseledConeRimEcefBuffer = ciseledSet.back;
 	gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, coneIntersectionDistanceMetersBuffer);
-	gl.bufferData(
-		gl.TRANSFORM_FEEDBACK_BUFFER,
-		outputCount * Float32Array.BYTES_PER_ELEMENT,
-		gl.DYNAMIC_COPY,
-	);
+	gl.bufferData(gl.TRANSFORM_FEEDBACK_BUFFER, outputCount * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_COPY);
 	gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, ciseledConeRimEcefBuffer);
-	gl.bufferData(
-		gl.TRANSFORM_FEEDBACK_BUFFER,
-		outputCount * 4 * Float32Array.BYTES_PER_ELEMENT,
-		gl.DYNAMIC_COPY,
-	);
+	gl.bufferData(gl.TRANSFORM_FEEDBACK_BUFFER, outputCount * 4 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_COPY);
 	gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, null);
 	gl.bindVertexArray(vertexArray);
 	gl.bindVertexArray(null);

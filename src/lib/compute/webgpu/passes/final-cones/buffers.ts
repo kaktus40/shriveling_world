@@ -7,10 +7,10 @@ export function createFinalConesDispatchResources(
 	input: FinalConesDispatchInput,
 ): FinalConesDispatchResources {
 	const rayCount = input.cityCount * input.azimuthSampleCount;
-	const outputBuffer = device.createBuffer({
-		size: Math.max(rayCount, 1) * 4 * Float32Array.BYTES_PER_ELEMENT,
-		usage: usage.STORAGE | usage.COPY_SRC,
-	});
+	const outputSize = Math.max(rayCount, 1) * 4 * Float32Array.BYTES_PER_ELEMENT;
+	import { getOrCreateGpuDoubleBuffer } from '../../../phase-c/phase-c';
+	const finalSet = getOrCreateGpuDoubleBuffer(device, 'final-cones:finalConeGeometryEcef', outputSize, usage.STORAGE | usage.COPY_SRC);
+	const outputBuffer = finalSet.back;
 	const uniformBuffer = device.createBuffer({
 		size: 16,
 		usage: usage.UNIFORM | usage.COPY_DST,

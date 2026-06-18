@@ -1,0 +1,78 @@
+@startuml
+title Cartographie du Pipeline : Ingestion vers Rendu (Extrusion Incluse)
+
+skinparam componentStyle rectangle
+skinparam NoteBackgroundColor #FEFECE
+skinparam NoteBorderColor #A80036
+
+package "CPU : Domaine Données" #LightBlue {
+    [CSV Reader] as CSV
+    [GeoJSON Reader] as GJSON
+    [BaseNetwork] as BN
+    [PreparedDataset] as PD
+    [Country Geometry Generator] as CGG
+}
+
+package "CPU/GPU : Invariants & Précalcul" #LightGreen {
+    [StaticTownPrecompute] as ST
+    [Boundary N-Vectors] as NV
+    [Dynamic Parameters] as DP
+}
+
+package "GPU : Passes de Calcul (Compute)" #LightCoral {
+    [RawCone Kernel] as RCK
+    [CiseledCone Kernel] as CCK
+    [CurveGeometry Kernel] as CGK
+}
+
+package "Renderer : Babylon.js" #LightYellow {
+    [Cone Mesh Adapter] as CMA
+    [Country Mesh Adapter] as CMyA
+    [Curve Mesh Adapter] as CurA
+}
+
+' Relations Données
+CSV --> BN : assemble
+GJSON --> BN : manifest
+BN --> PD : prepare (SI units, rad)
+
+' Focus GeoJSON & Extrusion
+GJSON --> CGG : extract contours
+note right of CGG
+  **Logique d'Extrusion**
+  1. Densification contour
+  2. Delaunay (Points intérieurs)
+  3. Duplication Z=hauteur
+  4. Triangles murs latéraux
+end note
+CGG --> CMyA : Extruded Vertices [lon, lat, h]
+
+' Flux Compute
+PD --> ST : NED-to-ECEF Matrices
+CGG --> ST : Point-in-Ring (City link)
+CGG --> NV : Rad -> N-Vector [x,y,z,0]
+
+' Execution GPU
+ST --> RCK
+DP --> RCK : RoadAlpha, year
+RCK --> CCK : Raw Rims (ECEF)
+NV --> CCK : Boundary Clipping Limits
+CCK --> CMA : Ciseled Vertices (Projected)
+
+PD --> CGK : Control Points [A,P,Q,B]
+CGK --> CurA : Projected Samples
+
+' Final Render
+CMA --> [Babylon Scene]
+CMyA --> [Babylon Scene]
+CurA --> [Babylon Scene]
+
+legend right
+  | Couleur | Responsabilité |
+  | <#LightBlue> | CPU / Métier |
+  | <#LightGreen> | Partagé / Invariants |
+  | <#LightCoral> | GPU / Parallèle |
+  | <#LightYellow> | Affichage |
+endlegend
+
+@enduml

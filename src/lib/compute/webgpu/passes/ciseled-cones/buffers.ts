@@ -4,6 +4,8 @@ import type {
 	GpuBufferUsageFlags,
 } from '../../buffers';
 
+import { getOrCreateGpuDoubleBuffer } from '../../../phase-c/phase-c';
+
 /** Creates the GPU allocations required by the ciseled-cones oracle WGSL pass. */
 export function createCiseledConesDispatchResources(
 	device: GPUDevice,
@@ -42,14 +44,12 @@ export function createCiseledConesDispatchResources(
 		size: input.coneAlphaRadians.byteLength,
 		usage: usage.STORAGE | usage.COPY_DST,
 	});
-	const distanceBuffer = device.createBuffer({
-		size: input.cityCount * input.azimuthSampleCount * Float32Array.BYTES_PER_ELEMENT,
-		usage: usage.STORAGE | usage.COPY_SRC,
-	});
-	const ciseledBuffer = device.createBuffer({
-		size: input.cityCount * input.azimuthSampleCount * 4 * Float32Array.BYTES_PER_ELEMENT,
-		usage: usage.STORAGE | usage.COPY_SRC | usage.COPY_DST,
-	});
+	const distanceSize = input.cityCount * input.azimuthSampleCount * Float32Array.BYTES_PER_ELEMENT;
+	const distanceSet = getOrCreateGpuDoubleBuffer(device, 'ciseled-cones:distance', distanceSize, usage.STORAGE | usage.COPY_SRC);
+	const distanceBuffer = distanceSet.back;
+	const ciseledSize = input.cityCount * input.azimuthSampleCount * 4 * Float32Array.BYTES_PER_ELEMENT;
+	const ciseledSet = getOrCreateGpuDoubleBuffer(device, 'ciseled-cones:rim', ciseledSize, usage.STORAGE | usage.COPY_SRC | usage.COPY_DST);
+	const ciseledBuffer = ciseledSet.back;
 
 	device.queue.writeBuffer(cityMatricesBuffer, 0, input.cityNed2EcefMatrices);
 	device.queue.writeBuffer(overlapCandidatesBuffer, 0, input.overlapCandidates);

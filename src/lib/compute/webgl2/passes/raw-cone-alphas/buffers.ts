@@ -7,6 +7,8 @@ import type {
 	WebGl2RawConeAlphaDispatchResources,
 } from '../../buffers';
 
+import { getOrCreateGlDoubleBuffer } from '../../../phase-c/phase-c';
+
 /** Creates the GPU allocations required by the raw-cone alpha WebGL2 pass. */
 export function createRawConeAlphasDispatchResources(
 	gl: WebGL2RenderingContext,
@@ -14,9 +16,8 @@ export function createRawConeAlphasDispatchResources(
 	input: WebGl2RawConeAlphaDispatchInput,
 ): WebGl2RawConeAlphaDispatchResources {
 	const vertexArray = gl.createVertexArray();
-	const outputBuffer = gl.createBuffer();
 	const uniformLocation = gl.getUniformLocation(program, 'u_uniforms');
-	if (!vertexArray || !outputBuffer || !uniformLocation) {
+	if (!vertexArray || !uniformLocation) {
 		throw new Error('WebGL2 raw-cone alpha resource allocation failed');
 	}
 
@@ -69,8 +70,11 @@ export function createRawConeAlphasDispatchResources(
 			: new Float32Array(Math.max(input.cityFastestTerrestrialAlphaRadians.length, 1)),
 	);
 
+	const outputCount = Math.max(input.cityCount * input.azimuthSampleCount, 1);
+	const outputSet = getOrCreateGlDoubleBuffer(gl, 'webgl2-raw-cone-alphas:coneAlphaRadians', gl.TRANSFORM_FEEDBACK_BUFFER, outputCount * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_COPY);
+	const outputBuffer = outputSet.back;
 	gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, outputBuffer);
-	gl.bufferData(gl.TRANSFORM_FEEDBACK_BUFFER, Math.max(input.cityCount * input.azimuthSampleCount, 1) * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_COPY);
+	gl.bufferData(gl.TRANSFORM_FEEDBACK_BUFFER, outputCount * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_COPY);
 	gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, null);
 	gl.bindVertexArray(vertexArray);
 	gl.bindVertexArray(null);
