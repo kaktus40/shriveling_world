@@ -39,10 +39,10 @@ Cette liste detaille les actions techniques restantes pour finaliser la branche 
 - [x] **Refactoring du Backend WebGL2 (Phase 5)**
     - [x] Créer un test d'intégration pour le pipeline WebGL2 (prérequis).
     - [x] Ajouter un test de caractérisation de parité WebGL2/WebGPU.
-    - [ ] Adapter `src/lib/compute/webgl2/backend.ts` pour intégrer le `WarmingOrchestrator`.
-    - [ ] Appliquer la structure de double-buffering aux passes WebGL2 (final-cones, country-projection).
-    - [ ] Assurer que `runWebGl2ConeStages` vérifie le cache avant de dispatcher les shaders.
-    - [ ] Intégrer `curve-geometry` dans le `WarmingOrchestrator` et refactoriser `runWebGl2CurveGeometryPass` pour utiliser le cache pré-calculé.
+    - [x] Adapter `src/lib/compute/webgl2/backend.ts` pour intégrer le `WarmingOrchestrator`.
+    - [x] Appliquer la structure de double-buffering aux passes WebGL2 (final-cones, country-projection).
+    - [x] Assurer que `runWebGl2ConeStages` vérifie le cache avant de dispatcher les shaders.
+    - [x] Intégrer `curve-geometry` dans le `WarmingOrchestrator` et refactoriser `runWebGl2CurveGeometryPass` pour utiliser le cache pré-calculé.
 
 ---
 
