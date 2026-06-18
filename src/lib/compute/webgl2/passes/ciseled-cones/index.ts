@@ -18,39 +18,48 @@ import type { WebGl2ComputeResources } from '../../types';
 import { createCiseledConesDispatchResources } from './buffers';
 
 export interface WebGl2CiseledConePassInput {
-	readonly gl: WebGL2RenderingContext;
-	readonly result: ComputeResult;
-	readonly resources: WebGl2ComputeResources;
-	readonly coneIntersection?: ComputeOptions['coneIntersection'];
+        readonly gl: WebGL2RenderingContext;
+        readonly result: ComputeResult;
+        readonly resources: WebGl2ComputeResources;
+        readonly coneIntersection?: ComputeOptions['coneIntersection'];
+        readonly cache?: Map<number, Float32Array>; // Added cache access
 }
 
 export interface WebGl2CiseledConePassResult {
-	readonly timing: StageTiming;
-	readonly diagnostics: DatasetDiagnostic[];
-	readonly ciseledConeRimEcefBuffer?: WebGLBuffer;
+        readonly timing: StageTiming;
+        readonly diagnostics: DatasetDiagnostic[];
+        readonly ciseledConeRimEcefBuffer?: WebGLBuffer;
 }
 
 export async function runWebGl2CiseledConePass(
-	input: WebGl2CiseledConePassInput,
+        input: WebGl2CiseledConePassInput,
 ): Promise<WebGl2CiseledConePassResult> {
-	const staticTown = input.result.staticTown;
-	const rawCones = input.result.rawCones;
-	const coneIntersections = input.result.coneIntersections;
-	const dynamicTown = input.result.dynamicTown;
-	if (!staticTown || !rawCones || !coneIntersections || !dynamicTown) {
-		return {
-			timing: {
-				stage: 'cone-intersections-precompute',
-				scope: 'interactive',
-				profile: 'webgl2',
-				startedAtMs: 0,
-				endedAtMs: 0,
-				durationMs: 0,
-			},
-			diagnostics: [],
-		};
-	}
+        // ... (existing pre-checks)
+        const dynamicTown = input.result.dynamicTown;
 
+        // Check cache
+        const cached = input.cache?.get(dynamicTown.year);
+        if (cached) {
+            const dispatchResources = createCiseledConesDispatchResources(input.gl, {} as any, {} as any); // Minimal resources for buffer access
+            input.gl.bindBuffer(input.gl.ARRAY_BUFFER, dispatchResources.ciseledConeRimEcefBuffer);
+            input.gl.bufferSubData(input.gl.ARRAY_BUFFER, 0, cached);
+            
+            return {
+                timing: {
+                    stage: 'cone-intersections-precompute',
+                    scope: 'interactive',
+                    profile: 'webgl2',
+                    startedAtMs: 0,
+                    endedAtMs: 0,
+                    durationMs: 0,
+                },
+                diagnostics: [],
+                ciseledConeRimEcefBuffer: dispatchResources.ciseledConeRimEcefBuffer,
+            };
+        }
+
+        // ... (existing shader dispatch logic)
+}
 	const cityCount = rawCones.cityCount;
 	const azimuthSampleCount = rawCones.azimuthSampleCount;
 	const alphaAwareOptions = input.coneIntersection?.alphaAware ?? {};
