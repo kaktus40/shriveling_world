@@ -41,6 +41,7 @@ Cette liste detaille les actions techniques restantes pour finaliser la branche 
     - [ ] Adapter `src/lib/compute/webgl2/backend.ts` pour intégrer le `WarmingOrchestrator`.
     - [ ] Appliquer la structure de double-buffering aux passes WebGL2 (final-cones, country-projection).
     - [ ] Assurer que `runWebGl2ConeStages` vérifie le cache avant de dispatcher les shaders.
+    - [ ] Intégrer `curve-geometry` dans le `WarmingOrchestrator` et refactoriser `runWebGl2CurveGeometryPass` pour utiliser le cache pré-calculé.
 
 ---
 
