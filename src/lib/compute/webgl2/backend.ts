@@ -57,28 +57,43 @@ export class WebGl2ComputeBackend implements ComputeBackend {
                 await this.ensureResources();
         }
 	async computeFrame(
-		input: ComputeInput,
-		options: ComputeOptions = {},
-		selection?: ComputeProfileSelection,
+	        input: ComputeInput,
+	        options: ComputeOptions = {},
+	        selection?: ComputeProfileSelection,
 	): Promise<ComputeResult> {
-		this.#ciseledConeRimEcefBuffer = null;
-		const available = await this.ensureAvailable();
-		if (!available) {
-			throw new Error('WebGL2 compute backend unavailable: no WebGL2 context could be created');
-		}
+	        this.#ciseledConeRimEcefBuffer = null;
+	        const available = await this.ensureAvailable();
+	        if (!available) {
+	                throw new Error('WebGL2 compute backend unavailable: no WebGL2 context could be created');
+	        }
 
-		const delegatedSelection: ComputeProfileSelection =
-			selection ?? {
-				selected: 'webgl2',
-				fallbackUsed: false,
-				capabilities: webgl2Capabilities(true),
-			};
-		const result = await this.#cpuBackend.computeFrame(input, options, delegatedSelection);
-		const coneStages = await runWebGl2ConeStages(this.ensureGl(), result, await this.ensureResources(), options);
-		const extraTimings: StageTiming[] = [...coneStages.extraTimings];
-		const compareDiagnostics: DatasetDiagnostic[] = [...coneStages.diagnostics];
-		this.#ciseledConeRimEcefBuffer = coneStages.ciseledConeRimEcefBuffer;
+	        const delegatedSelection: ComputeProfileSelection =
+	                selection ?? {
+	                        selected: 'webgl2',
+	                        fallbackUsed: false,
+	                        capabilities: webgl2Capabilities(true),
+	                };
+	        const result = await this.#cpuBackend.computeFrame(input, options, delegatedSelection);
 
+	        // Initialize WarmingOrchestrator if needed
+	        if (!this.#warmingOrchestrator && result.preparedDataset) {
+	            const allYears = Array.from({length: result.preparedDataset.speedTimeline.span.endYear - result.preparedDataset.speedTimeline.span.beginYear + 1}, (_, i) => result.preparedDataset!.speedTimeline.span.beginYear + i);
+	            this.#warmingOrchestrator = new WarmingOrchestrator(
+	                this.ensureGl() as any, // Cast gl to context, need to align WarmingOrchestrator to accept Gl context
+	                await this.ensureResources() as any, // Cast resources
+	                result,
+	                allYears
+	            );
+	        }
+
+	        if (this.#warmingOrchestrator && options.year !== undefined) {
+	            this.#warmingOrchestrator.setFocusYear(options.year);
+	        }
+
+	        const coneStages = await runWebGl2ConeStages(this.ensureGl(), result, await this.ensureResources(), options);
+	        const extraTimings: StageTiming[] = [...coneStages.extraTimings];
+	        const compareDiagnostics: DatasetDiagnostic[] = [...coneStages.diagnostics];
+	        this.#ciseledConeRimEcefBuffer = coneStages.ciseledConeRimEcefBuffer;
 		if (options.curve?.enabled === true && result.staticTown && result.curveGeometry) {
 			const curvePass = await runWebGl2CurveGeometryPass({
 				gl: this.ensureGl(),
