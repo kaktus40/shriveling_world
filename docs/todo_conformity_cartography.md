@@ -36,9 +36,10 @@ Cette liste detaille les actions techniques restantes pour finaliser la branche 
 
 ## Phase 5 : Alignement des Profils (WebGL2)
 
-- [ ] **Refactoring du Backend WebGL2**
+- [ ] **Refactoring du Backend WebGL2 (Phase 5)**
+    - [ ] Créer un test d'intégration pour le pipeline WebGL2 (prérequis).
     - [ ] Adapter `src/lib/compute/webgl2/backend.ts` pour intégrer le `WarmingOrchestrator`.
-    - [ ] Dupliquer/adapter les passes GPU (final-cones, country-projection) en version WebGL2.
+    - [ ] Appliquer la structure de double-buffering aux passes WebGL2 (final-cones, country-projection).
     - [ ] Assurer que `runWebGl2ConeStages` vérifie le cache avant de dispatcher les shaders.
 
 ---
