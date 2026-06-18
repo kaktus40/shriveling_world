@@ -1,60 +1,61 @@
 import {
-	createCpuComputeBackend,
-	type CpuComputeBackend,
+        createCpuComputeBackend,
+        type CpuComputeBackend,
 } from '../cpu';
 import { remapBenchmarkProfile, tagDiagnostics } from '../shared/compute';
 import { createWebGl2ComputeResources } from './resources';
 import { runWebGl2CurveGeometryPass } from './passes/curve-geometry';
 import type {
-	ComputeCapabilities,
-	ComputeProfileSelection,
-	ComputeBackend,
-	ComputeBackendDescriptor,
-	ComputeInput,
-	ComputeOptions,
-	ComputeResult,
-	StageTiming,
+        ComputeCapabilities,
+        ComputeProfileSelection,
+        ComputeBackend,
+        ComputeBackendDescriptor,
+        ComputeInput,
+        ComputeOptions,
+        ComputeResult,
+        StageTiming,
 } from '../core';
 import type { DatasetDiagnostic } from '../../domain/data';
 import type { WebGl2ComputeResources } from './types';
 import { runWebGl2BoundaryStages } from './boundary';
 import { runWebGl2ConeStages } from './cone';
+import { WarmingOrchestrator } from '../webgpu/warming';
 
 /** Canvas-like source used to probe or create a WebGL2 context. */
 export type WebGl2CanvasLike = HTMLCanvasElement | OffscreenCanvas;
 
 /** Options used to build the WebGL2 fallback backend. */
 export interface WebGl2ComputeBackendOptions {
-	/** Optional pre-existing canvas used to create the WebGL2 context. */
-	readonly canvas?: WebGl2CanvasLike;
-	/** Optional canvas factory used when no canvas is injected. */
-	readonly createCanvas?: () => WebGl2CanvasLike | null;
-	/** Optional CPU backend used as a temporary orchestration delegate. */
-	readonly cpuBackend?: CpuComputeBackend;
+        /** Optional pre-existing canvas used to create the WebGL2 context. */
+        readonly canvas?: WebGl2CanvasLike;
+        /** Optional canvas factory used when no canvas is injected. */
+        readonly createCanvas?: () => WebGl2CanvasLike | null;
+        /** Optional CPU backend used as a temporary orchestration delegate. */
+        readonly cpuBackend?: CpuComputeBackend;
 }
 
 /** Operational WebGL2 fallback backend for the migration. */
 export class WebGl2ComputeBackend implements ComputeBackend {
-	readonly profile = 'webgl2' as const;
-	readonly #canvas: WebGl2CanvasLike | null;
-	readonly #cpuBackend: CpuComputeBackend;
-	#gl: WebGL2RenderingContext | null;
-	#resources: WebGl2ComputeResources | null = null;
-	#ciseledConeRimEcefBuffer: WebGLBuffer | null = null;
+        readonly profile = 'webgl2' as const;
+        readonly #canvas: WebGl2CanvasLike | null;
+        readonly #cpuBackend: CpuComputeBackend;
+        #gl: WebGL2RenderingContext | null;
+        #resources: WebGl2ComputeResources | null = null;
+        #ciseledConeRimEcefBuffer: WebGLBuffer | null = null;
+        #warmingOrchestrator: WarmingOrchestrator | null = null;
 
-	constructor(options: WebGl2ComputeBackendOptions = {}) {
-		this.#canvas = options.canvas ?? options.createCanvas?.() ?? null;
-		this.#gl = probeWebGl2Context(this.#canvas);
-		this.#cpuBackend = options.cpuBackend ?? createCpuComputeBackend();
-	}
+        constructor(options: WebGl2ComputeBackendOptions = {}) {
+                this.#canvas = options.canvas ?? options.createCanvas?.() ?? null;
+                this.#gl = probeWebGl2Context(this.#canvas);
+                this.#cpuBackend = options.cpuBackend ?? createCpuComputeBackend();
+        }
 
-	async warm(): Promise<void> {
-		if (!(await this.ensureAvailable())) {
-			throw new Error('WebGL2 compute backend unavailable: no WebGL2 context could be created');
-		}
-		await this.ensureResources();
-	}
-
+        async warm(): Promise<void> {
+                if (!(await this.ensureAvailable())) {
+                        throw new Error('WebGL2 compute backend unavailable: no WebGL2 context could be created');
+                }
+                await this.ensureResources();
+        }
 	async computeFrame(
 		input: ComputeInput,
 		options: ComputeOptions = {},
