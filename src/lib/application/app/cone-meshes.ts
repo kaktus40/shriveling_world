@@ -10,7 +10,7 @@ import type { AppColor3, AppConeMeshDescriptor } from './render';
 
 /** Babylon adapter responsible for the cone meshes used by the operational app. */
 export interface AppConeMeshController {
-        update(cones: readonly AppConeMeshDescriptor[], globalBuffer: GPUBuffer): void;
+        update(cones: readonly AppConeMeshDescriptor[], globalBuffer: GPUBuffer | WebGLBuffer): void;
         dispose(): void;
 }
 
@@ -51,7 +51,7 @@ export function createAppConeMeshController(scene: Scene): AppConeMeshController
                 return indices;
         }
 
-        function createOrUpdateMesh(descriptor: AppConeMeshDescriptor, globalBuffer: GPUBuffer): void {
+        function createOrUpdateMesh(descriptor: AppConeMeshDescriptor, globalBuffer: GPUBuffer | WebGLBuffer): void {
                 const sampleCount = descriptor.sampleCount;
                 if (sampleCount < 3) return;
 
@@ -81,7 +81,7 @@ export function createAppConeMeshController(scene: Scene): AppConeMeshController
                 // VertexBuffer(engine, buffer, kind, updatable, postponeInternalCreation, stride, instanced, offset, size)
                 const positionBuffer = new VertexBuffer(
                     engine, 
-                    globalBuffer, 
+                    globalBuffer as any, // Cast to any to bypass strict type check for dual-support
                     VertexBuffer.PositionKind, 
                     false, // updatable
                     false, 

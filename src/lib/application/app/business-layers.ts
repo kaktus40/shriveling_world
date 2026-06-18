@@ -3,7 +3,7 @@ import type { AppBusinessLayerDescriptor } from './render';
 
 /** Babylon adapter responsible for rendering the operational business layers (Curves and Country borders). */
 export interface AppBusinessLayerController {
-        update(layers: readonly AppBusinessLayerDescriptor[], globalBuffer: GPUBuffer): void;
+        update(layers: readonly AppBusinessLayerDescriptor[], globalBuffer: GPUBuffer | WebGLBuffer): void;
         dispose(): void;
 }
 
@@ -28,7 +28,7 @@ export function createAppBusinessLayerController(scene: Scene): AppBusinessLayer
         }
 
         return {
-                update(layers: readonly AppBusinessLayerDescriptor[], globalBuffer: GPUBuffer): void {
+                update(layers: readonly AppBusinessLayerDescriptor[], globalBuffer: GPUBuffer | WebGLBuffer): void {
                         disposeGroups();
                         groups = layers
                                 .map((layer) => ({
@@ -40,7 +40,7 @@ export function createAppBusinessLayerController(scene: Scene): AppBusinessLayer
                                                         // Bind GPU buffer directly
                                                         const positionBuffer = new VertexBuffer(
                                                             engine, 
-                                                            globalBuffer, 
+                                                            globalBuffer as any, // Cast to any for dual-support
                                                             VertexBuffer.PositionKind, 
                                                             false, // updatable
                                                             false, 
